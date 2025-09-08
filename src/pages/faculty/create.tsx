@@ -59,7 +59,9 @@ export default function CreateJobPosting() {
   }, [router]);
 
   // ✅ Handle input changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -81,14 +83,19 @@ export default function CreateJobPosting() {
       }
     }
 
+    // Convert comma-separated string to array for Supabase
+    const parsedSkills = formData.skills
+      .split(',')
+      .map((skill) => skill.trim())
+      .filter(Boolean);
+
     const newJob = {
       title: formData.title,
       company: formData.company,
       industry: formData.industry,
       job_type: formData.job_type,
       description: formData.description,
-      //skills_required: formData.skills,
-	  skills: formData.skills,
+      skills: parsedSkills, // ✅ correctly formatted array
       deadline: formData.deadline,
       apply_method: formData.apply_method,
       created_by: userId,
