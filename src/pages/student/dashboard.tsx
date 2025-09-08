@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import JobCard from '@/components/JobCard';
+import JobCard from '../../components/JobCard';
 
 interface Job {
   id: string;
