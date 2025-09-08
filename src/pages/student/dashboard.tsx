@@ -1,35 +1,46 @@
-// pages/student/dashboard.tsx
 import { useEffect, useState } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-//import JobCard from '@/components/JobCard'; // ✅ using the new component
-import JobCard from '../../components/JobCard';
+import JobCard from '@/components/JobCard';
+
 interface Job {
   id: string;
   title: string;
-  company: string;
-  location: string;
-  deadline: string;
-  job_type: string;
+  description: string;
+  created_by: string;
+  status: string;
 }
 
-export default function StudentDashboard() {
+export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchJobs = async () => {
-      const { data, error } = await supabase
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error('Error fetching user:', userError.message);
+        return;
+      }
+
+      console.log('Current user ID:', user?.id); // ✅ Log user ID
+
+      setUserId(user?.id ?? null);
+
+      const { data: jobsData, error } = await supabase
         .from('jobs')
-        .select('id, title, company, location, deadline, job_type')
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false });
+        .select('*')
+        .eq('status', 'active');
 
       if (error) {
-        console.error('Error fetching jobs:', error);
-      } else {
-        setJobs(data || []);
+        console.error('Error fetching jobs:', error.message);
+        return;
       }
-      setLoading(false);
+
+      setJobs(jobsData || []);
     };
 
     fetchJobs();
@@ -37,17 +48,15 @@ export default function StudentDashboard() {
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold mb-4 text-ugaRed">Student Dashboard</h1>
-      {loading ? (
-        <p>Loading jobs...</p>
-      ) : jobs.length === 0 ? (
-        <p>No jobs found.</p>
-      ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      <h1 className="text-3xl font-bold text-red-700 mb-6">Student Dashboard</h1>
+      {jobs.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {jobs.map((job) => (
             <JobCard key={job.id} job={job} />
           ))}
         </div>
+      ) : (
+        <p>No jobs found.</p>
       )}
     </div>
   );
