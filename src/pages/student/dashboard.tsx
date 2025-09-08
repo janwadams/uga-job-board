@@ -5,10 +5,14 @@ import JobCard from '../../components/JobCard';
 interface Job {
   id: string;
   title: string;
-  description: string;
-  created_by: string;
+  company: string;
+  location: string;
+  deadline: string;
+  job_type: string;
   status: string;
+  created_by: string;
 }
+
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
