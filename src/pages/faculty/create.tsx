@@ -6,6 +6,7 @@ export default function CreateJobPosting() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -16,6 +17,7 @@ export default function CreateJobPosting() {
     deadline: '',
     apply_method: '',
   });
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
 
@@ -71,7 +73,6 @@ export default function CreateJobPosting() {
     setError(null);
     setSuccess(false);
 
-    // Validate required fields
     const requiredFields = ['title', 'company', 'industry', 'job_type', 'description', 'skills', 'deadline', 'apply_method'];
     for (const field of requiredFields) {
       if (!formData[field as keyof typeof formData]) {
@@ -80,23 +81,23 @@ export default function CreateJobPosting() {
       }
     }
 
-    // ✅ Insert into Supabase
-    const { error: insertError } = await supabase.from('jobs').insert([
-      {
-        title: formData.title,
-        company: formData.company,
-        industry: formData.industry,
-        job_type: formData.job_type,
-        description: formData.description,
-        skills_required: formData.skills,
-        deadline: formData.deadline,
-        apply_method: formData.apply_method,
-        created_by: userId,
-        status: 'active', // faculty/staff postings are auto-approved
-      },
-    ]);
+    const newJob = {
+      title: formData.title,
+      company: formData.company,
+      industry: formData.industry,
+      job_type: formData.job_type,
+      description: formData.description,
+      skills_required: formData.skills,
+      deadline: formData.deadline,
+      apply_method: formData.apply_method,
+      created_by: userId,
+      status: 'active',
+    };
+
+    const { error: insertError } = await supabase.from('jobs').insert([newJob]);
 
     if (insertError) {
+      console.error('Supabase insert error:', insertError.message, insertError.details);
       setError('Failed to create job posting. Please try again.');
     } else {
       setSuccess(true);
@@ -126,16 +127,33 @@ export default function CreateJobPosting() {
         <input type="text" name="title" placeholder="Job Title" value={formData.title} onChange={handleChange} className="w-full p-2 border rounded" />
         <input type="text" name="company" placeholder="Company" value={formData.company} onChange={handleChange} className="w-full p-2 border rounded" />
         <input type="text" name="industry" placeholder="Industry" value={formData.industry} onChange={handleChange} className="w-full p-2 border rounded" />
+
         <select name="job_type" value={formData.job_type} onChange={handleChange} className="w-full p-2 border rounded">
           <option value="">Select Job Type</option>
           <option value="Internship">Internship</option>
           <option value="Part-Time">Part-Time</option>
           <option value="Full-Time">Full-Time</option>
         </select>
+
         <textarea name="description" placeholder="Job Description" value={formData.description} onChange={handleChange} className="w-full p-2 border rounded" />
         <input type="text" name="skills" placeholder="Required Skills (comma separated)" value={formData.skills} onChange={handleChange} className="w-full p-2 border rounded" />
-        <input type="date" name="deadline" value={formData.deadline} onChange={handleChange} className="w-full p-2 border rounded" />
+
+        {/* ✅ Updated deadline input with clarification */}
+        <label className="block font-medium mb-1">
+          Application Deadline <span className="text-sm text-gray-500">(last day students can apply)</span>
+        </label>
+        <input
+          type="date"
+          name="deadline"
+          value={formData.deadline}
+          onChange={handleChange}
+          className="w-full p-2 border rounded"
+          placeholder="Deadline"
+          title="This is the last day students can apply"
+        />
+
         <input type="text" name="apply_method" placeholder="Application Method (e.g. link or email)" value={formData.apply_method} onChange={handleChange} className="w-full p-2 border rounded" />
+
         <button type="submit" className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">Create Job</button>
       </form>
     </div>
