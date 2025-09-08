@@ -1,8 +1,8 @@
 // pages/student/dashboard.tsx
 import { useEffect, useState } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import JobCard from '@/components/JobCard'; // ✅ using the new component
-
+//import JobCard from '@/components/JobCard'; // ✅ using the new component
+import JobCard from '../../components/JobCard';
 interface Job {
   id: string;
   title: string;
