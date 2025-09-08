@@ -34,19 +34,10 @@ export default function Dashboard() {
 
       setUserId(user?.id ?? null);
 
-     /* const { data: jobsData, error } = await supabase
+      const { data: jobsData, error } = await supabase
         .from('jobs')
         .select('*')
-        .eq('status', 'active');*/
-		
-		const { data: jobsData, error } = await supabase
-		  .from('jobs')
-		  .select('*')
-		  .eq('status', 'active')
-		  .gte('deadline', new Date().toISOString().split('T')[0]);
-
-		
-		
+        .eq('status', 'active');
 
       if (error) {
         console.error('Error fetching jobs:', error.message);
