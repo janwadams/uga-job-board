@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
+import Link from 'next/link';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,7 +49,14 @@ export default function FacultyDashboard() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4 text-red-800">🏫 Faculty Dashboard</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-red-800">🏫 Faculty Dashboard</h1>
+        <Link href="/faculty/create">
+          <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
+            + Post a Job
+          </button>
+        </Link>
+      </div>
 
       {loading ? (
         <p>Loading...</p>
