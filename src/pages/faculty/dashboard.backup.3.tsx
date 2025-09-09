@@ -59,12 +59,7 @@ export default function FacultyDashboard() {
     if (error) {
       alert('Failed to remove job.');
     } else {
-      // Refresh jobs after removal
-      setJobs((prev) =>
-        prev.map((job) =>
-          job.id === jobId ? { ...job, status: 'removed' } : job
-        )
-      );
+      setJobs((prev) => prev.filter((job) => job.id !== jobId));
     }
   };
 
@@ -87,37 +82,25 @@ export default function FacultyDashboard() {
         <ul className="space-y-4">
           {jobs.map((job) => (
             <li key={job.id} className="border p-4 rounded shadow bg-white">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="font-semibold text-lg">{job.title}</h2>
-                  <p>{job.company}</p>
-                  <p className="text-sm text-gray-500">
-                    Deadline: {new Date(job.deadline).toLocaleDateString()}
-                  </p>
-                  {job.status === 'removed' && (
-                    <p className="text-red-600 font-semibold mt-1">
-                      🗑️ Archived (Removed)
-                    </p>
-                  )}
-                </div>
+              <h2 className="font-semibold">{job.title}</h2>
+              <p>{job.company}</p>
+              <p className="text-sm text-gray-500">
+                Deadline: {new Date(job.deadline).toLocaleDateString()}
+              </p>
 
-                {/* Action Buttons */}
-                {job.status !== 'removed' && (
-                  <div className="flex flex-col gap-2">
-                    <Link href={`/faculty/edit/${job.id}`}>
-                      <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Edit
-                      </button>
-                    </Link>
+              <div className="mt-4 flex gap-3">
+                <Link href={`/faculty/edit/${job.id}`}>
+                  <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Edit
+                  </button>
+                </Link>
 
-                    <button
-                      onClick={() => handleRemove(job.id)}
-                      className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
+                <button
+                  onClick={() => handleRemove(job.id)}
+                  className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  Remove
+                </button>
               </div>
             </li>
           ))}
