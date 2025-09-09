@@ -21,6 +21,7 @@ export default function CreateJobPosting() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
 
+  // ✅ Fetch user + role on mount
   useEffect(() => {
     const fetchUserRole = async () => {
       const {
@@ -57,6 +58,7 @@ export default function CreateJobPosting() {
     fetchUserRole();
   }, [router]);
 
+  // ✅ Handle input changes
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -67,6 +69,7 @@ export default function CreateJobPosting() {
     }));
   };
 
+  // ✅ Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -89,6 +92,7 @@ export default function CreateJobPosting() {
       }
     }
 
+    // ✅ Convert comma-separated string to array
     const parsedSkills = formData.skills
       .split(',')
       .map((skill) => skill.trim())
@@ -137,11 +141,10 @@ export default function CreateJobPosting() {
 
       {success && (
         <div className="bg-green-100 text-green-800 p-4 rounded mb-4 border border-green-300">
-          ✅ Job created successfully!
-          <br />
+          ✅ Job created successfully!{' '}
           <a
             href="/faculty/dashboard"
-            className="inline-block mt-2 text-red-700 underline hover:text-red-900"
+            className="underline text-red-700 font-medium hover:text-red-900 ml-2"
           >
             ← Back to Faculty Dashboard
           </a>
@@ -193,7 +196,6 @@ export default function CreateJobPosting() {
           onChange={handleChange}
           className="w-full p-2 border rounded"
         />
-
         <input
           type="text"
           name="skills"
