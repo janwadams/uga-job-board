@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  /*useEffect(() => {
+  useEffect(() => {
     const fetchAdminData = async () => {
       // Get user_roles first
       const { data: rolesData, error: rolesError } = await supabase
@@ -31,29 +31,7 @@ export default function AdminDashboard() {
         console.error('Error fetching roles:', rolesError);
         setLoading(false);
         return;
-      } */
-	  
-	  
-	  useEffect(() => {
-  const fetchUsers = async () => {
-    const res = await fetch('/api/admin/list-users');
-    const json = await res.json();
-    if (res.ok) {
-      setUsers(json.users);
-    } else {
-      console.error('Failed to fetch users:', json.error);
-    }
-    setLoading(false);
-  };
-
-  fetchUsers();
-}, []);
-
-	  
-	  
-	  
-	  
-	  
+      }
 
       // Fetch auth users (for last_sign_in_at)
       const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
