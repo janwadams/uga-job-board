@@ -1,12 +1,11 @@
-'use client';
-
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
 
+// UPDATED: Added the email field to the interface
 interface AdminUser {
   user_id: string;
   role: string;
   is_active: boolean;
+  email: string | null; // ADDED: New email field
   last_sign_in_at: string | null;
   jobs_posted: number;
 }
@@ -14,160 +13,25 @@ interface AdminUser {
 export default function AdminDashboard() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        // Fetch data from your own secure API route
+        // CHANGED: Fetch data from our new API route instead of calling Supabase directly
         const response = await fetch('/api/admin/list-users');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch user data');
-        }
-
         const data = await response.json();
-        setUsers(data.users); // The API route returns an object with a 'users' key
+
+        if (response.ok) {
+          setUsers(data.users);
+        } else {
+          console.error('Failed to fetch admin data:', data.error);
+        }
       } catch (error) {
-        console.error('Error fetching admin data:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchAdminData();
-  }, []); // Empty dependency array to run the effect only once
-
-  if (loading) {
-    return <p>Loading users...</p>;
-  }
-
-  // Your existing JSX for rendering the table
-  return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-      <div className="overflow-x-auto">
-        <table className="min-w-full table-auto border-collapse border border-gray-400">
-          <thead>
-            <tr className="bg-gray-200 text-gray-700">
-              <th className="border px-4 py-2">User ID</th>
-              <th className="border px-4 py-2">Role</th>
-              <th className="border px-4 py-2">Status</th>
-              <th className="border px-4 py-2">Last Login</th>
-              <th className="border px-4 py-2">Jobs Posted</th>
-              <th className="border px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.user_id} className="text-center">
-                <td className="border px-4 py-2">{user.user_id}</td>
-                <td className="border px-4 py-2 capitalize">{user.role}</td>
-                <td className="border px-4 py-2">
-                  {user.is_active ? (
-                    <span className="text-green-600 font-semibold">Active</span>
-                  ) : (
-                    <span className="text-red-600 font-semibold">Disabled</span>
-                  )}
-                </td>
-                <td className="border px-4 py-2 text-sm">
-                  {user.last_sign_in_at
-                    ? new Date(user.last_sign_in_at).toLocaleString()
-                    : 'Never'}
-                </td>
-                <td className="border px-4 py-2">{user.jobs_posted}</td>
-                <td className="border px-4 py-2">
-                  <button className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
-                    {user.is_active ? 'Disable' : 'Enable'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-
-
-/*import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { useRouter } from 'next/router';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-interface AdminUser {
-  user_id: string;
-  role: string;
-  is_active: boolean;
-  last_sign_in_at: string | null;
-  jobs_posted: number;
-}
-
-export default function AdminDashboard() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    const fetchAdminData = async () => {
-      // Step 1: Get role & is_active from user_roles
-      const { data: rolesData, error: rolesError } = await supabaseAdmin
-        .from('user_roles')
-        .select('*');
-
-      if (rolesError || !rolesData) {
-        console.error('Error fetching user_roles:', rolesError);
-        setLoading(false);
-        return;
-      }
-
-      // Step 2: Get auth users (for last login)
-      const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
-
-      if (authError) {
-        console.error('Error fetching auth users:', authError);
-        setLoading(false);
-        return;
-      }
-
-      // Step 3: Get jobs to count postings per user
-      const { data: jobsData, error: jobsError } = await supabaseAdmin
-        .from('jobs')
-        .select('created_by');
-
-      if (jobsError) {
-        console.error('Error fetching jobs:', jobsError);
-        setLoading(false);
-        return;
-      }
-
-      const jobCountMap = jobsData?.reduce((acc: any, job: any) => {
-        acc[job.created_by] = (acc[job.created_by] || 0) + 1;
-        return acc;
-      }, {}) || {};
-
-      // Step 4: Map users together
-      const enrichedUsers: AdminUser[] = rolesData.map((user) => {
-        const authUser = authUsers?.users?.find((au: any) => au.id === user.user_id);
-        return {
-          user_id: user.user_id,
-          role: user.role,
-          is_active: user.is_active,
-          last_sign_in_at: authUser?.last_sign_in_at || null,
-          jobs_posted: jobCountMap[user.user_id] || 0,
-        };
-      });
-
-      setUsers(enrichedUsers);
-      setLoading(false);
-    };
-
     fetchAdminData();
   }, []);
 
@@ -184,6 +48,7 @@ export default function AdminDashboard() {
               <th className="border px-4 py-2">User ID</th>
               <th className="border px-4 py-2">Current Role</th>
               <th className="border px-4 py-2">Status</th>
+              <th className="border px-4 py-2">Email</th> {/* ADDED: New table header */}
               <th className="border px-4 py-2">Last Login</th>
               <th className="border px-4 py-2">Jobs Posted</th>
               <th className="border px-4 py-2">Actions</th>
@@ -201,6 +66,7 @@ export default function AdminDashboard() {
                     <span className="text-red-600 font-semibold">Disabled</span>
                   )}
                 </td>
+                <td className="border px-4 py-2 text-sm">{user.email}</td> {/* ADDED: New table cell for email */}
                 <td className="border px-4 py-2 text-sm">
                   {user.last_sign_in_at
                     ? new Date(user.last_sign_in_at).toLocaleString()
@@ -220,4 +86,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-*/
