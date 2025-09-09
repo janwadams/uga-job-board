@@ -13,9 +13,7 @@ export default function FacultyDashboard() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>(''); // ✅ New state for filtering
 
-  // Check session
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -25,24 +23,17 @@ export default function FacultyDashboard() {
         setSession(data.session);
       }
     };
+
     checkSession();
   }, []);
 
-  // Fetch jobs based on selected status
   useEffect(() => {
     const fetchJobs = async () => {
       const userId = session?.user.id;
-
-      let query = supabase
+      const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('created_by', userId);
-
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-
-      const { data, error } = await query;
 
       if (!error) {
         setJobs(data || []);
@@ -54,7 +45,7 @@ export default function FacultyDashboard() {
     if (session) {
       fetchJobs();
     }
-  }, [session, statusFilter]); // ✅ Refetch when status filter changes
+  }, [session]);
 
   const handleRemove = async (jobId: string) => {
     const confirm = window.confirm('Are you sure you want to remove this posting?');
@@ -68,6 +59,7 @@ export default function FacultyDashboard() {
     if (error) {
       alert('Failed to remove job.');
     } else {
+      // Refresh jobs after removal
       setJobs((prev) =>
         prev.map((job) =>
           job.id === jobId ? { ...job, status: 'removed' } : job
@@ -87,20 +79,6 @@ export default function FacultyDashboard() {
         </Link>
       </div>
 
-      {/* ✅ Status Filter Dropdown */}
-      <div className="mb-4">
-        <label className="mr-2 font-medium">Filter by Status:</label>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="p-2 border rounded"
-        >
-          <option value="">All</option>
-          <option value="active">Active</option>
-          <option value="removed">Removed</option>
-        </select>
-      </div>
-
       {loading ? (
         <p>Loading...</p>
       ) : jobs.length === 0 ? (
@@ -109,48 +87,37 @@ export default function FacultyDashboard() {
         <ul className="space-y-4">
           {jobs.map((job) => (
             <li key={job.id} className="border p-4 rounded shadow bg-white">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="font-semibold">{job.title}</h2>
+                  <h2 className="font-semibold text-lg">{job.title}</h2>
                   <p>{job.company}</p>
                   <p className="text-sm text-gray-500">
                     Deadline: {new Date(job.deadline).toLocaleDateString()}
                   </p>
-                  <p className="text-sm mt-1">
-                    <span className="font-medium">Status:</span>{' '}
-                    <span className={job.status === 'removed' ? 'text-red-600' : 'text-green-600'}>
-                      {job.status}
-                    </span>
-                  </p>
+                  {job.status === 'removed' && (
+                    <p className="text-red-600 font-semibold mt-1">
+                      🗑️ Archived (Removed)
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex flex-col gap-2 ml-4">
-                  {/* ✅ Disable edit/remove for removed jobs */}
-                  <Link href={`/faculty/edit/${job.id}`}>
+                {/* Action Buttons */}
+                {job.status !== 'removed' && (
+                  <div className="flex flex-col gap-2">
+                    <Link href={`/faculty/edit/${job.id}`}>
+                      <button className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Edit
+                      </button>
+                    </Link>
+
                     <button
-                      disabled={job.status === 'removed'}
-                      className={`px-3 py-1 rounded font-medium ${
-                        job.status === 'removed'
-                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
+                      onClick={() => handleRemove(job.id)}
+                      className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
                     >
-                      Edit
+                      Remove
                     </button>
-                  </Link>
-
-                  <button
-                    onClick={() => handleRemove(job.id)}
-                    disabled={job.status === 'removed'}
-                    className={`px-3 py-1 rounded font-medium ${
-                      job.status === 'removed'
-                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                        : 'bg-gray-600 text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    Remove
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             </li>
           ))}
