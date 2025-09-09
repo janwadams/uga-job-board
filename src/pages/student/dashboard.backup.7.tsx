@@ -15,19 +15,30 @@ interface Job {
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const [selectedJobType, setSelectedJobType] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
   const [uniqueCompanies, setUniqueCompanies] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchJobs = async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error('Error fetching user:', userError.message);
+        return;
+      }
+
+      setUserId(user?.id ?? null);
 
       let query = supabase
         .from('jobs')
         .select('*')
         .eq('status', 'active')
-        .gte('deadline', today);
+        .gte('deadline', new Date().toISOString().split('T')[0]);
 
       if (selectedJobType) {
         query = query.eq('job_type', selectedJobType);
@@ -46,7 +57,7 @@ export default function Dashboard() {
 
       setJobs(jobsData || []);
 
-      // Populate unique companies only if filters are not applied
+      // Only set unique companies once when filters are clear
       if (!selectedJobType && !selectedCompany && jobsData) {
         const companies = [...new Set(jobsData.map((job) => job.company))];
         setUniqueCompanies(companies);
