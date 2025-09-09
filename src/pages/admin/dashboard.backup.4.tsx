@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/router';
 
-const supabaseAdmin = createClient(
+const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
@@ -20,21 +20,43 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
+  /*useEffect(() => {
     const fetchAdminData = async () => {
-      // Step 1: Get role & is_active from user_roles
-      const { data: rolesData, error: rolesError } = await supabaseAdmin
+      // Get user_roles first
+      const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('*');
 
       if (rolesError || !rolesData) {
-        console.error('Error fetching user_roles:', rolesError);
+        console.error('Error fetching roles:', rolesError);
         setLoading(false);
         return;
-      }
+      } */
+	  
+	  
+	  useEffect(() => {
+  const fetchUsers = async () => {
+    const res = await fetch('/api/admin/list-users');
+    const json = await res.json();
+    if (res.ok) {
+      setUsers(json.users);
+    } else {
+      console.error('Failed to fetch users:', json.error);
+    }
+    setLoading(false);
+  };
 
-      // Step 2: Get auth users (for last login)
-      const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+  fetchUsers();
+}, []);
+
+	  
+	  
+	  
+	  
+	  
+
+      // Fetch auth users (for last_sign_in_at)
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
 
       if (authError) {
         console.error('Error fetching auth users:', authError);
@@ -42,8 +64,8 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Step 3: Get jobs to count postings per user
-      const { data: jobsData, error: jobsError } = await supabaseAdmin
+      // Fetch job counts
+      const { data: jobsData, error: jobsError } = await supabase
         .from('jobs')
         .select('created_by');
 
@@ -53,12 +75,13 @@ export default function AdminDashboard() {
         return;
       }
 
+      // Count jobs per user
       const jobCountMap = jobsData?.reduce((acc: any, job: any) => {
         acc[job.created_by] = (acc[job.created_by] || 0) + 1;
         return acc;
       }, {}) || {};
 
-      // Step 4: Map users together
+      // Map everything together
       const enrichedUsers: AdminUser[] = rolesData.map((user) => {
         const authUser = authUsers?.users?.find((au: any) => au.id === user.user_id);
         return {
@@ -99,7 +122,7 @@ export default function AdminDashboard() {
             {users.map((user) => (
               <tr key={user.user_id} className="text-center">
                 <td className="border px-4 py-2">{user.user_id}</td>
-                <td className="border px-4 py-2 capitalize">{user.role}</td>
+                <td className="border px-4 py-2">{user.role}</td>
                 <td className="border px-4 py-2">
                   {user.is_active ? (
                     <span className="text-green-600 font-semibold">Active</span>
@@ -114,6 +137,7 @@ export default function AdminDashboard() {
                 </td>
                 <td className="border px-4 py-2">{user.jobs_posted}</td>
                 <td className="border px-4 py-2">
+                  {/* You can add buttons to change roles or toggle status here */}
                   <button className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
                     {user.is_active ? 'Disable' : 'Enable'}
                   </button>
