@@ -92,7 +92,7 @@ export default function FacultyDashboard() {
     const { error } = await supabase
       .from('jobs')
       .update({ status: 'removed' })
-      .eq('id', jobId); // CHANGED: This is no longer filtering by 'created_by'
+      .eq('id', jobId);
 
     if (error) {
       alert('Failed to remove job.');
@@ -127,6 +127,7 @@ export default function FacultyDashboard() {
           <option value="active">Active</option>
           <option value="removed">Removed</option>
           <option value="pending">Pending</option>
+          <option value="rejected">Rejected</option> {/* ADDED: New option for rejected jobs */}
         </select>
       </div>
 
@@ -154,13 +155,12 @@ export default function FacultyDashboard() {
                 </div>
 
                 <div className="flex flex-col gap-2 ml-4">
-                  {/* CHANGED: Removed the conditional check */}
                     <>
                       <Link href={`/faculty/edit/${job.id}`}>
                         <button
-                          disabled={job.status === 'removed'}
+                          disabled={job.status === 'removed' || job.status === 'rejected'} // ADDED: Also disable on rejected jobs
                           className={`px-3 py-1 rounded font-medium ${
-                            job.status === 'removed'
+                            job.status === 'removed' || job.status === 'rejected'
                               ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
@@ -171,9 +171,9 @@ export default function FacultyDashboard() {
 
                       <button
                         onClick={() => handleRemove(job.id)}
-                        disabled={job.status === 'removed'}
+                        disabled={job.status === 'removed' || job.status === 'rejected'} // ADDED: Also disable on rejected jobs
                         className={`px-3 py-1 rounded font-medium ${
-                          job.status === 'removed'
+                          job.status === 'removed' || job.status === 'rejected'
                             ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                             : 'bg-gray-600 text-white hover:bg-gray-700'
                           }`}
