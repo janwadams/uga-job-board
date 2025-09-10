@@ -26,12 +26,13 @@ interface PendingJob {
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [pendingJobs, setPendingJobs] = useState<PendingJob[]>([]); // ADDED: New state for pending jobs
+  const [pendingJobs, setPendingJobs] = useState<PendingJob[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAdminData = async () => {
     setLoading(true);
     try {
+      // Fetch users data
       const usersResponse = await fetch('/api/admin/list-users');
       const usersData = await usersResponse.json();
       if (usersResponse.ok) {
@@ -40,7 +41,7 @@ export default function AdminDashboard() {
         console.error('Failed to fetch admin users:', usersData.error);
       }
       
-      // ADDED: Fetch pending jobs
+      // Fetch pending jobs data
       const jobsResponse = await fetch('/api/admin/list-pending-jobs');
       const jobsData = await jobsResponse.json();
       if (jobsResponse.ok) {
@@ -61,16 +62,29 @@ export default function AdminDashboard() {
   }, []);
 
   const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
-    // Logic for toggling user status (already exists)
+    try {
+      const response = await fetch('/api/admin/update-user-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId, isActive: !currentStatus }),
+      });
+
+      if (response.ok) {
+        fetchAdminData();
+      } else {
+        alert('Failed to update user status.');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
   };
   
-  // ADDED: New function to approve/reject a job
   const handleJobAction = async (jobId: string, status: 'active' | 'rejected') => {
       let rejectionNote = null;
       if (status === 'rejected') {
           rejectionNote = prompt("Please provide a rejection note (optional):");
           if (rejectionNote === null) {
-              return; // User canceled the prompt
+              return;
           }
       }
       
@@ -81,7 +95,7 @@ export default function AdminDashboard() {
       });
       
       if (response.ok) {
-          fetchAdminData(); // Refresh the list
+          fetchAdminData();
       } else {
           alert('Failed to update job status.');
       }
@@ -99,9 +113,57 @@ export default function AdminDashboard() {
       </div>
       
       {/* User Management Table */}
-      {/* ... your existing code for the user table goes here ... */}
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <table className="min-w-full table-auto border-collapse border border-gray-200">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border px-4 py-2">User ID</th>
+              <th className="border px-4 py-2">Current Role</th>
+              <th className="border px-4 py-2">Status</th>
+              <th className="border px-4 py-2">Email</th>
+              <th className="border px-4 py-2">Last Login</th>
+              <th className="border px-4 py-2">Jobs Posted</th>
+              <th className="border px-4 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((user) => (
+              <tr key={user.user_id} className="text-center">
+                <td className="border px-4 py-2">{user.user_id}</td>
+                <td className="border px-4 py-2 capitalize">{user.role}</td>
+                <td className="border px-4 py-2">
+                  {user.is_active ? (
+                    <span className="text-green-600 font-semibold">Active</span>
+                  ) : (
+                    <span className="text-red-600 font-semibold">Disabled</span>
+                  )}
+                </td>
+                <td className="border px-4 py-2 text-sm">{user.email}</td>
+                <td className="border px-4 py-2 text-sm">
+                  {user.last_sign_in_at
+                    ? new Date(user.last_sign_in_at).toLocaleString()
+                    : 'Never'}
+                </td>
+                <td className="border px-4 py-2">{user.jobs_posted}</td>
+                <td className="border px-4 py-2">
+                  <button
+                    onClick={() => handleStatusToggle(user.user_id, user.is_active)}
+                    className={`px-3 py-1 rounded ${
+                      user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                    } text-white`}
+                  >
+                    {user.is_active ? 'Disable' : 'Enable'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
-      {/* ADDED: Pending Job Postings Section */}
+      {/* Awaiting Job Postings Section */}
       <h2 className="text-2xl font-bold text-red-800 mt-8 mb-4">Awaiting Job Postings ({pendingJobs.length})</h2>
       {loading ? (
         <p>Loading pending jobs...</p>
