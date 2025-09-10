@@ -22,9 +22,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     updateData.rejection_note = rejectionNote;
   }
 
-  // ADDED: Log the data we are about to send to the database
-  console.log('[Manage Job Posting API] Attempting update:', { updateData, jobId });
-
   try {
     const { error } = await supabaseAdmin
       .from('jobs')
