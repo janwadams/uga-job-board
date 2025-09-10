@@ -48,15 +48,12 @@ export default function Navbar() {
 
       <div className="space-x-4">
         {session ? (
-          <>
-            <span className="text-sm">Logged in as: {session.user.email}</span>
-            <button
-              onClick={handleSignOut}
-              className="bg-white text-red-700 px-3 py-1 rounded font-semibold"
-            >
-              Sign Out
-            </button>
-          </>
+          <button
+            onClick={handleSignOut}
+            className="bg-white text-red-700 px-3 py-1 rounded font-semibold"
+          >
+            Sign Out
+          </button>
         ) : (
           <>
             <Link href="/login">
