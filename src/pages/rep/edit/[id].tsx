@@ -1,6 +1,8 @@
+// pages/rep/edit/[id].tsx
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../../../utils/supabaseClient';
+// CHANGED: Corrected the import path to go up only three levels
+import { supabase } from '../../../utils/supabaseClient';
 
 export default function EditJobPosting() {
   const router = useRouter();
@@ -25,20 +27,18 @@ export default function EditJobPosting() {
     if (!id) return;
 
     const fetchJob = async () => {
-      // Get the current user's session
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Get the job and check if the user is the owner
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('id', id)
-        .eq('created_by', user?.id) // ADDED: Filter by the logged-in user's ID for security
+        .eq('created_by', user?.id)
         .single();
 
       if (error || !data) {
         setError('Job not found or you are not authorized to edit.');
-        router.push('/rep/dashboard'); // Redirect if not authorized
+        router.push('/rep/dashboard');
       } else {
         setFormData({
           title: data.title,
@@ -78,7 +78,6 @@ export default function EditJobPosting() {
       .map((skill) => skill.trim())
       .filter(Boolean);
 
-    // Get the current user's ID to check against the created_by field
     const { data: { user } } = await supabase.auth.getUser();
 
     const { error: updateError } = await supabase
@@ -94,7 +93,7 @@ export default function EditJobPosting() {
         apply_method: formData.apply_method,
       })
       .eq('id', id)
-      .eq('created_by', user?.id); // ADDED: Ensure the user is the owner before updating
+      .eq('created_by', user?.id);
 
     if (updateError) {
       setError('Failed to update job.');
