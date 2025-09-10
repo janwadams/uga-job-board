@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
+import Link from 'next/link'; // ADDED: Import Link
 
 interface TimeSeriesData {
   date: string;
@@ -84,8 +84,8 @@ export default function AdminAnalyticsDashboard() {
       </Head>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-red-800">📊 Admin Analytics Dashboard</h1>
-        {/* CHANGED: Adjusted styling for button spacing */}
-        <div className="flex space-x-4"> {/* Ensure flex is applied here */}
+        {/* ADDED: Link to navigate back */}
+        <div className="space-x-4">
           <Link href="/admin/dashboard">
             <button className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
               ← Back to Admin Dashboard
@@ -114,7 +114,7 @@ export default function AdminAnalyticsDashboard() {
           </div>
 
           <div className="bg-white p-6 rounded shadow">
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">Time-Series Counts</h2>
+            <h2 className="text-xl font-semibold text-gray-700 mb-4">Time-Series Counts (Placeholder)</h2>
             <div className="overflow-x-auto">
               <table className="min-w-full table-auto border-collapse border border-gray-200">
                 <thead>
@@ -142,7 +142,7 @@ export default function AdminAnalyticsDashboard() {
           </div>
           
           <div className="bg-white p-6 rounded shadow">
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">Top Companies by Engagement</h2>
+            <h2 className="text-xl font-semibold text-gray-700 mb-4">Top Companies by Engagement (Placeholder)</h2>
             <div className="overflow-x-auto">
               <table className="min-w-full table-auto border-collapse border border-gray-200">
                 <thead>
