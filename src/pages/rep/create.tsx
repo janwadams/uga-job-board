@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
 
+//test 
+
 export default function CreateJobPosting() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
