@@ -11,16 +11,15 @@ interface Job {
   job_type: string;
   status: string;
   created_by: string;
-  description: string;
-  skills: string[];
+  description: string; // ADDED: Add description to the interface for search
+  skills: string[]; // ADDED: Add skills to the interface for search
 }
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobType, setSelectedJobType] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortOption, setSortOption] = useState('newest'); // ADDED: New state for sorting, with a default value
+  const [searchQuery, setSearchQuery] = useState(''); // ADDED: New state for search query
   const [uniqueCompanies, setUniqueCompanies] = useState<string[]>([]);
 
   useEffect(() => {
@@ -40,17 +39,11 @@ export default function Dashboard() {
       if (selectedCompany) {
         query = query.eq('company', selectedCompany);
       }
-
+      
+      // ADDED: Keyword search logic
       if (searchQuery) {
         const keyword = `%${searchQuery.toLowerCase()}%`;
         query = query.or(`title.ilike.${keyword},company.ilike.${keyword},description.ilike.${keyword}`);
-      }
-      
-      // ADDED: Sorting logic
-      if (sortOption === 'newest') {
-        query = query.order('created_at', { ascending: false });
-      } else if (sortOption === 'deadline') {
-        query = query.order('deadline', { ascending: true });
       }
       
       const { data: jobsData, error } = await query;
@@ -62,6 +55,7 @@ export default function Dashboard() {
 
       setJobs(jobsData || []);
 
+      // Populate unique companies only if filters are not applied
       if (!selectedJobType && !selectedCompany && !searchQuery && jobsData) {
         const companies = [...new Set(jobsData.map((job) => job.company))];
         setUniqueCompanies(companies);
@@ -69,7 +63,7 @@ export default function Dashboard() {
     };
 
     fetchJobs();
-  }, [selectedJobType, selectedCompany, searchQuery, sortOption]); // UPDATED: Added sortOption to the dependency array
+  }, [selectedJobType, selectedCompany, searchQuery]); // CHANGED: Added searchQuery to the dependency array
 
   return (
     <div className="p-6">
@@ -77,6 +71,7 @@ export default function Dashboard() {
 
       {/* Filter Controls */}
       <div className="mb-4 flex flex-col md:flex-row gap-4">
+        {/* ADDED: Keyword search input */}
         <input
           type="text"
           placeholder="Search by keywords..."
@@ -107,22 +102,12 @@ export default function Dashboard() {
             </option>
           ))}
         </select>
-        
-        {/* ADDED: Sort by controls */}
-        <select
-          className="p-2 border border-gray-300 rounded w-full md:w-60"
-          value={sortOption}
-          onChange={(e) => setSortOption(e.target.value)}
-        >
-          <option value="newest">Newest</option>
-          <option value="deadline">Deadline (Earliest)</option>
-        </select>
 
         <button
           onClick={() => {
             setSelectedJobType('');
             setSelectedCompany('');
-            setSearchQuery('');
+            setSearchQuery(''); // CHANGED: Also clear the search query
           }}
           className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
         >
