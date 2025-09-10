@@ -53,6 +53,7 @@ export default function CreateJobPosting() {
         router.push('/unauthorized');
       }
       
+      // ADDED: Log the user's role and ID in the console
       console.log('User role and ID fetched:', { userId: user.id, userRole: role });
     };
 
@@ -71,13 +72,13 @@ export default function CreateJobPosting() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // ADDED: A new log to check if the function is even being called
-    console.log('[Create Job Posting] Form submitted!');
-
     setError(null);
     setSuccess(false);
-
+    
+    // ADDED: Log the data before submitting
+    console.log('[Create Job Posting] User ID from state:', userId);
+    console.log('[Create Job Posting] User Role from state:', userRole);
+    
     const requiredFields = [
       'title',
       'company',
@@ -101,20 +102,22 @@ export default function CreateJobPosting() {
       .filter(Boolean);
 
     const newJob = {
-      ...formData,
+      title: formData.title,
+      company: formData.company,
+      industry: formData.industry,
+      job_type: formData.job_type,
+      description: formData.description,
       skills: parsedSkills,
+      deadline: formData.deadline,
+      apply_method: formData.apply_method,
       created_by: userId,
       status: 'pending',
     };
 
-    const response = await fetch('/api/jobs/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newJob)
-    });
+    const { error: insertError } = await supabase.from('jobs').insert([newJob]);
 
-    if (!response.ok) {
-      console.error('API call failed:', response.statusText);
+    if (insertError) {
+      console.error('Supabase insert error:', insertError.message, insertError.details);
       setError('Failed to create job posting. Please try again.');
     } else {
       setSuccess(true);
@@ -217,6 +220,8 @@ export default function CreateJobPosting() {
           value={formData.deadline}
           onChange={handleChange}
           className="w-full p-2 border rounded"
+          placeholder="Deadline"
+          title="This is the last day students can apply"
         />
 
         <input
