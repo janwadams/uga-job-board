@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import Link from 'next/link'; // ADDED: Import Link
 
 interface TimeSeriesData {
   date: string;
@@ -51,11 +50,13 @@ export default function AdminAnalyticsDashboard() {
   const handleExportCSV = () => {
     if (!metrics) return;
 
+    // Create CSV content for time-series data
     const timeSeriesHeaders = 'date,total_postings,active_postings,views,apply_clicks';
     const timeSeriesRows = metrics.time_series.map(row => 
       `${row.date},${row.total_postings},${row.active_postings},${row.views},${row.apply_clicks}`
     ).join('\n');
 
+    // Create CSV content for top companies
     const topCompaniesHeaders = 'company,views,apply_clicks';
     const topCompaniesRows = metrics.top_companies.map(row => 
       `${row.company},${row.views},${row.apply_clicks}`
@@ -84,20 +85,12 @@ export default function AdminAnalyticsDashboard() {
       </Head>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-red-800">📊 Admin Analytics Dashboard</h1>
-        {/* ADDED: Link to navigate back */}
-        <div className="space-x-4">
-          <Link href="/admin/dashboard">
-            <button className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
-              ← Back to Admin Dashboard
-            </button>
-          </Link>
-          <button
-            onClick={handleExportCSV}
-            className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800"
-          >
-            Export CSV
-          </button>
-        </div>
+        <button
+          onClick={handleExportCSV}
+          className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800"
+        >
+          Export CSV
+        </button>
       </div>
 
       {metrics && (

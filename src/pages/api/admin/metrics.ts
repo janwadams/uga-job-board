@@ -12,36 +12,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // We are not tracking views or apply clicks, so we will use placeholder data for now.
-    // The query is to fetch all jobs.
-    const { data: jobs, error: jobsError } = await supabaseAdmin
-      .from('jobs')
-      .select('*');
+    const [{ data: jobs, error: jobsError }, { data: analytics, error: analyticsError }] = await Promise.all([
+      supabaseAdmin
+        .from('jobs')
+        .select('*'),
+      supabaseAdmin
+        .from('job_analytics')
+        .select('*')
+    ]);
 
-    if (jobsError) {
-      console.error('Error fetching jobs:', jobsError);
+    if (jobsError || analyticsError) {
+      console.error('Error fetching data:', jobsError || analyticsError);
       return res.status(500).json({ error: 'Failed to fetch job data.' });
     }
 
     const totalPostings = jobs?.length || 0;
     const activePostings = jobs?.filter(job => job.status === 'active').length || 0;
 
-    // Placeholder data for time-series and engagement
-    const timeSeriesData = [
-      { date: '2025-08-01', total_postings: 5, active_postings: 3, views: 250, apply_clicks: 10 },
-      { date: '2025-08-08', total_postings: 7, active_postings: 5, views: 400, apply_clicks: 15 },
-      { date: '2025-08-15', total_postings: 12, active_postings: 10, views: 800, apply_clicks: 25 },
-      { date: '2025-08-22', total_postings: 15, active_postings: 12, views: 1100, apply_clicks: 35 },
-      { date: '2025-08-29', total_postings: totalPostings, active_postings: activePostings, views: 1400, apply_clicks: 45 },
-    ];
+    // Aggregate analytics data for real-time counts
+    const jobViewsMap = analytics?.reduce((acc: any, item: any) => {
+      acc[item.job_id] = acc[item.job_id] || { views: 0, apply_clicks: 0 };
+      if (item.event_type === 'view') {
+        acc[item.job_id].views++;
+      } else if (item.event_type === 'apply_click') {
+        acc[item.job_id].apply_clicks++;
+      }
+      return acc;
+    }, {});
 
-    const topCompanies = [
-      { company: 'Google', views: 500, apply_clicks: 20 },
-      { company: 'Microsoft', views: 300, apply_clicks: 10 },
-      { company: 'Amazon', views: 250, apply_clicks: 8 },
-      { company: 'Test Company', views: 50, apply_clicks: 2 },
-    ];
+    // Calculate top companies by engagement (views + clicks)
+    const companyEngagementMap = jobs?.reduce((acc: any, job: any) => {
+      const jobAnalytics = jobViewsMap[job.id] || { views: 0, apply_clicks: 0 };
+      acc[job.company] = acc[job.company] || { views: 0, apply_clicks: 0, total_engagement: 0 };
+      acc[job.company].views += jobAnalytics.views;
+      acc[job.company].apply_clicks += jobAnalytics.apply_clicks;
+      acc[job.company].total_engagement = acc[job.company].views + acc[job.company].apply_clicks;
+      return acc;
+    }, {});
 
+    const topCompanies = Object.keys(companyEngagementMap).sort((a, b) =>
+      companyEngagementMap[b].total_engagement - companyEngagementMap[a].total_engagement
+    ).map(company => ({
+      company: company,
+      views: companyEngagementMap[company].views,
+      apply_clicks: companyEngagementMap[company].apply_clicks,
+    }));
+
+    // Generate time-series data (this will be more complex to fully implement
+    // but this gives you a real-time snapshot)
+    const timeSeriesData = [{
+      date: new Date().toISOString().split('T')[0],
+      total_postings: totalPostings,
+      active_postings: activePostings,
+      views: analytics?.filter(item => item.event_type === 'view').length || 0,
+      apply_clicks: analytics?.filter(item => item.event_type === 'apply_click').length || 0,
+    }];
+    
     res.status(200).json({
       total_postings: totalPostings,
       active_postings: activePostings,
