@@ -60,14 +60,18 @@ export default function FacultyDashboard() {
         setLoading(false);
         return;
       }
-
+      
       let query = supabase
         .from('jobs')
         .select('*')
-        .eq('status', 'active');
+        // CHANGED: We are no longer hard-coding a filter for 'active' jobs
+        // .eq('status', 'active');
 
       if (statusFilter) {
         query = query.eq('status', statusFilter);
+      } else {
+        // ADDED: If no filter is selected, we fetch all jobs
+        query = query.in('status', ['active', 'removed', 'pending', 'rejected']);
       }
 
       const { data, error } = await query;
@@ -127,7 +131,7 @@ export default function FacultyDashboard() {
           <option value="active">Active</option>
           <option value="removed">Removed</option>
           <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option> {/* ADDED: New option for rejected jobs */}
+          <option value="rejected">Rejected</option>
         </select>
       </div>
 
@@ -158,7 +162,7 @@ export default function FacultyDashboard() {
                     <>
                       <Link href={`/faculty/edit/${job.id}`}>
                         <button
-                          disabled={job.status === 'removed' || job.status === 'rejected'} // ADDED: Also disable on rejected jobs
+                          disabled={job.status === 'removed' || job.status === 'rejected'}
                           className={`px-3 py-1 rounded font-medium ${
                             job.status === 'removed' || job.status === 'rejected'
                               ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
@@ -171,7 +175,7 @@ export default function FacultyDashboard() {
 
                       <button
                         onClick={() => handleRemove(job.id)}
-                        disabled={job.status === 'removed' || job.status === 'rejected'} // ADDED: Also disable on rejected jobs
+                        disabled={job.status === 'removed' || job.status === 'rejected'}
                         className={`px-3 py-1 rounded font-medium ${
                           job.status === 'removed' || job.status === 'rejected'
                             ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
