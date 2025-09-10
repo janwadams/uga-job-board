@@ -63,20 +63,19 @@ export default function FacultyDashboard() {
       
       let query = supabase
         .from('jobs')
-        .select('*')
-        // CHANGED: We are no longer hard-coding a filter for 'active' jobs
-        // .eq('status', 'active');
+        .select('*');
 
+      // CHANGED: We are now conditionally applying the filter based on the dropdown value
       if (statusFilter) {
         query = query.eq('status', statusFilter);
-      } else {
-        // ADDED: If no filter is selected, we fetch all jobs
-        query = query.in('status', ['active', 'removed', 'pending', 'rejected']);
       }
-
+      
       const { data, error } = await query;
 
-      if (!error) {
+      if (error) {
+        console.error('Error fetching jobs:', error);
+        setJobs([]);
+      } else {
         setJobs(data || []);
       }
 
