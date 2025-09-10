@@ -105,20 +105,14 @@ export default function AdminDashboard() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold mb-4 text-red-800">👥 Admin: Manage Users</h1>
-        <div className="flex space-x-4">
-          <Link href="/admin/jobs">
-            <button className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
-              View All Jobs
-            </button>
-          </Link>
-          <Link href="/admin/analytics">
-            <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
-              View Analytics
-            </button>
-          </Link>
-        </div>
+        <Link href="/admin/analytics">
+          <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
+            View Analytics
+          </button>
+        </Link>
       </div>
       
+      {/* User Management Table */}
       {loading ? (
         <p>Loading...</p>
       ) : (
@@ -169,6 +163,7 @@ export default function AdminDashboard() {
         </table>
       )}
 
+      {/* Awaiting Job Postings Section */}
       <h2 className="text-2xl font-bold text-red-800 mt-8 mb-4">Awaiting Job Postings ({pendingJobs.length})</h2>
       {loading ? (
         <p>Loading pending jobs...</p>
