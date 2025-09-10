@@ -1,20 +1,11 @@
-
-
-
-
-
-
-
-
-
-
 import { useEffect, useState } from 'react';
 
+// UPDATED: Added the email field to the interface
 interface AdminUser {
   user_id: string;
   role: string;
   is_active: boolean;
-  email: string | null;
+  email: string | null; // ADDED: New email field
   last_sign_in_at: string | null;
   jobs_posted: number;
 }
@@ -23,51 +14,26 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // CHANGED: We are now fetching data from a separate function
-  const fetchAdminData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/admin/list-users');
-      const data = await response.json();
-
-      if (response.ok) {
-        setUsers(data.users);
-      } else {
-        console.error('Failed to fetch admin data:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        // CHANGED: Fetch data from our new API route instead of calling Supabase directly
+        const response = await fetch('/api/admin/list-users');
+        const data = await response.json();
+
+        if (response.ok) {
+          setUsers(data.users);
+        } else {
+          console.error('Failed to fetch admin data:', data.error);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchAdminData();
   }, []);
-
-  // ADDED: New function to handle the button click
-  const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
-    try {
-      const response = await fetch('/api/admin/update-user-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userId, isActive: !currentStatus }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Refresh the user list to show the new status
-        console.log(data.message);
-        fetchAdminData();
-      } else {
-        console.error('Failed to update user status:', data.error);
-      }
-    } catch (error) {
-      console.error('Error updating status:', error);
-    }
-  };
 
   return (
     <div className="p-8">
@@ -82,7 +48,7 @@ export default function AdminDashboard() {
               <th className="border px-4 py-2">User ID</th>
               <th className="border px-4 py-2">Current Role</th>
               <th className="border px-4 py-2">Status</th>
-              <th className="border px-4 py-2">Email</th>
+              <th className="border px-4 py-2">Email</th> {/* ADDED: New table header */}
               <th className="border px-4 py-2">Last Login</th>
               <th className="border px-4 py-2">Jobs Posted</th>
               <th className="border px-4 py-2">Actions</th>
@@ -100,7 +66,7 @@ export default function AdminDashboard() {
                     <span className="text-red-600 font-semibold">Disabled</span>
                   )}
                 </td>
-                <td className="border px-4 py-2 text-sm">{user.email}</td>
+                <td className="border px-4 py-2 text-sm">{user.email}</td> {/* ADDED: New table cell for email */}
                 <td className="border px-4 py-2 text-sm">
                   {user.last_sign_in_at
                     ? new Date(user.last_sign_in_at).toLocaleString()
@@ -108,12 +74,7 @@ export default function AdminDashboard() {
                 </td>
                 <td className="border px-4 py-2">{user.jobs_posted}</td>
                 <td className="border px-4 py-2">
-                  <button
-                    onClick={() => handleStatusToggle(user.user_id, user.is_active)} // ADDED: onClick handler
-                    className={`px-3 py-1 rounded ${
-                      user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-                    } text-white`}
-                  >
+                  <button className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
                     {user.is_active ? 'Disable' : 'Enable'}
                   </button>
                 </td>
@@ -125,7 +86,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-
-
-
