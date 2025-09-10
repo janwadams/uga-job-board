@@ -8,17 +8,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  deadline: string;
-  job_type: string;
-  status: string;
-  created_by: string;
-}
-
 export default function FacultyDashboard() {
   const router = useRouter();
   const [jobs, setJobs] = useState<any[]>([]);
@@ -43,7 +32,7 @@ export default function FacultyDashboard() {
         .single();
         
       if (roleData?.role !== 'faculty') {
-          router.push('/unauthorized');
+          router.push('/unauthorized'); 
           return;
       }
 
@@ -64,7 +53,7 @@ export default function FacultyDashboard() {
       let query = supabase
         .from('jobs')
         .select('*')
-        .eq('status', 'active'); // CHANGED: This no longer filters by 'created_by'
+        .eq('created_by', userId);
 
       if (statusFilter) {
         query = query.eq('status', statusFilter);
@@ -92,8 +81,7 @@ export default function FacultyDashboard() {
     const { error } = await supabase
       .from('jobs')
       .update({ status: 'removed' })
-      .eq('id', jobId)
-      .eq('created_by', session?.user.id); // ADDED: Security check to ensure the user owns the job
+      .eq('id', jobId);
 
     if (error) {
       alert('Failed to remove job.');
@@ -104,6 +92,24 @@ export default function FacultyDashboard() {
         )
       );
     }
+  };
+
+  // ADDED: New function to track job views
+  const handleJobView = async (jobId: string) => {
+    await fetch('/api/jobs/track-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId, eventType: 'view' }),
+    });
+  };
+
+  // ADDED: New function to track apply clicks
+  const handleApplyClick = async (jobId: string) => {
+    await fetch('/api/jobs/track-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId, eventType: 'apply_click' }),
+    });
   };
 
   return (
@@ -137,7 +143,8 @@ export default function FacultyDashboard() {
       ) : (
         <ul className="space-y-4">
           {jobs.map((job) => (
-            <li key={job.id} className="border p-4 rounded shadow bg-white">
+            // CHANGED: We are adding a new `onMouseEnter` event to track views
+            <li key={job.id} onMouseEnter={() => handleJobView(job.id)} className="border p-4 rounded shadow bg-white">
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="font-semibold">{job.title}</h2>
@@ -154,37 +161,40 @@ export default function FacultyDashboard() {
                 </div>
 
                 <div className="flex flex-col gap-2 ml-4">
-                  {/* ADDED: We are now conditionally rendering the Edit and Remove buttons
-                      to only show for jobs created by the current user */}
-                  {job.created_by === session?.user.id && (
-                    <>
-                      <Link href={`/faculty/edit/${job.id}`}>
-                        <button
-                          disabled={job.status === 'removed'}
-                          className={`px-3 py-1 rounded font-medium ${
-                            job.status === 'removed'
-                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                      </Link>
+                  <Link href={`/faculty/edit/${job.id}`}>
+                    <button
+                      disabled={job.status === 'removed'}
+                      className={`px-3 py-1 rounded font-medium ${
+                        job.status === 'removed'
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      Edit
+                    </button>
+                  </Link>
+                  
+                  {/* ADDED: New Apply button with onClick handler */}
+                  <a href={job.apply_method} target="_blank" rel="noopener noreferrer">
+                    <button
+                      onClick={() => handleApplyClick(job.id)}
+                      className="px-3 py-1 rounded font-medium bg-green-600 text-white hover:bg-green-700"
+                    >
+                      Apply
+                    </button>
+                  </a>
 
-                      <button
-                        onClick={() => handleRemove(job.id)}
-                        disabled={job.status === 'removed'}
-                        className={`px-3 py-1 rounded font-medium ${
-                          job.status === 'removed'
-                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                            : 'bg-gray-600 text-white hover:bg-gray-700'
-                        }`}
-                      >
-                        Remove
-                      </button>
-                    </>
-                  )}
-                  {/* REMOVED: The apply button is no longer here */}
+                  <button
+                    onClick={() => handleRemove(job.id)}
+                    disabled={job.status === 'removed'}
+                    className={`px-3 py-1 rounded font-medium ${
+                      job.status === 'removed'
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-gray-600 text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    Remove
+                  </button>
                 </div>
               </div>
             </li>
