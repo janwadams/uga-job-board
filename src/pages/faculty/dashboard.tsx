@@ -64,7 +64,7 @@ export default function FacultyDashboard() {
       let query = supabase
         .from('jobs')
         .select('*')
-        .eq('status', 'active'); // CHANGED: This no longer filters by 'created_by'
+        .eq('status', 'active');
 
       if (statusFilter) {
         query = query.eq('status', statusFilter);
@@ -92,8 +92,7 @@ export default function FacultyDashboard() {
     const { error } = await supabase
       .from('jobs')
       .update({ status: 'removed' })
-      .eq('id', jobId)
-      .eq('created_by', session?.user.id); // ADDED: Security check to ensure the user owns the job
+      .eq('id', jobId); // CHANGED: This is no longer filtering by 'created_by'
 
     if (error) {
       alert('Failed to remove job.');
@@ -127,6 +126,7 @@ export default function FacultyDashboard() {
           <option value="">All</option>
           <option value="active">Active</option>
           <option value="removed">Removed</option>
+          <option value="pending">Pending</option>
         </select>
       </div>
 
@@ -154,9 +154,7 @@ export default function FacultyDashboard() {
                 </div>
 
                 <div className="flex flex-col gap-2 ml-4">
-                  {/* ADDED: We are now conditionally rendering the Edit and Remove buttons
-                      to only show for jobs created by the current user */}
-                  {job.created_by === session?.user.id && (
+                  {/* CHANGED: Removed the conditional check */}
                     <>
                       <Link href={`/faculty/edit/${job.id}`}>
                         <button
@@ -178,13 +176,11 @@ export default function FacultyDashboard() {
                           job.status === 'removed'
                             ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                             : 'bg-gray-600 text-white hover:bg-gray-700'
-                        }`}
+                          }`}
                       >
                         Remove
                       </button>
                     </>
-                  )}
-                  {/* REMOVED: The apply button is no longer here */}
                 </div>
               </div>
             </li>
