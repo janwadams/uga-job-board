@@ -13,7 +13,8 @@ function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
       supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       cookieOptions: {
-        domain: process.env.NEXT_PUBLIC_VERCEL_URL,
+        //domain: process.env.NEXT_PUBLIC_VERCEL_URL,
+		  domain: 'https://${process.env.NEXT_PUBLIC_VERCEL_URL}',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'Lax',
