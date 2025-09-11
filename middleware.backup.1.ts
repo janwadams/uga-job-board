@@ -1,23 +1,16 @@
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
+
 import type { NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
+  // Create a Supabase client configured to use cookies
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
-  // This log will show in your Vercel logs every time the middleware runs.
-  // We want to see if a session is found here.
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  console.log('Middleware Session:', session);
-  console.log('Middleware Session Error:', sessionError);
-  
-  if (sessionError) {
-    console.error('Middleware session retrieval failed:', sessionError);
-  }
-
-  // Refreshing the session ensures it is always up-to-date
-  await supabase.auth.getUser();
+  // Refresh session if expired - required for Server Components
+  // and API routes
+  await supabase.auth.getSession();
 
   return res;
 }
