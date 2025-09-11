@@ -1,3 +1,5 @@
+//api/jobs/create file
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
@@ -8,12 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Use the correct function to create the server-side client
-  const supabase = createPagesServerClient({
-    req,
-    res,
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  });
+  const supabase = createPagesServerClient({ req, res });
 
   // Get the authenticated user's session
   const {
