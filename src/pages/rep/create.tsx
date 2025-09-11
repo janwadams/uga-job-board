@@ -2,27 +2,23 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
 
-export default function CreateJobPosting() {
+// Define a type for the job data
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  status: string;
+}
+
+export default function RepDashboard() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const [formData, setFormData] = useState({
-    title: '',
-    company: '',
-    industry: '',
-    job_type: '',
-    description: '',
-    skills: '',
-    deadline: '',
-    apply_method: '',
-  });
-
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserRole = async () => {
+    const fetchJobs = async () => {
+      setLoading(true);
       const {
         data: { user },
         error: userError,
@@ -33,200 +29,70 @@ export default function CreateJobPosting() {
         return;
       }
 
-      setUserId(user.id);
-
+      // Fetch user role from 'user_roles' table
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .single();
 
-      if (roleError || !roleData) {
+      if (roleError || !roleData || roleData.role !== 'rep') {
         router.push('/unauthorized');
         return;
       }
 
-      const role = roleData.role;
-      setUserRole(role);
+      setUserRole(roleData.role);
 
-      if (role !== 'rep' && role !== 'faculty' && role !== 'staff') {
-        router.push('/unauthorized');
+      // Fetch jobs created by the current user
+      const { data: jobsData, error: jobsError } = await supabase
+        .from('jobs')
+        .select('id, title, company, status')
+        .eq('created_by', user.id);
+
+      if (jobsError) {
+        console.error('Error fetching jobs:', jobsError.message);
+        return;
       }
-      
-      console.log('User role and ID fetched:', { userId: user.id, userRole: role });
+
+      setJobs(jobsData || []);
+      setLoading(false);
     };
 
-    fetchUserRole();
+    fetchJobs();
   }, [router]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  if (loading) {
+    return <p>Loading...</p>;
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(false);
-
-    const requiredFields = [
-      'title',
-      'company',
-      'industry',
-      'job_type',
-      'description',
-      'skills',
-      'deadline',
-      'apply_method',
-    ];
-    for (const field of requiredFields) {
-      if (!formData[field as keyof typeof formData]) {
-        setError(`Field "${field}" is required.`);
-        return;
-      }
-    }
-
-    const parsedSkills = formData.skills
-      .split(',')
-      .map((skill) => skill.trim())
-      .filter(Boolean);
-
-    const newJob = {
-      ...formData,
-      skills: parsedSkills,
-      created_by: userId,
-      status: 'pending',
-    };
-
-    const { error: insertError } = await supabase.from('jobs').insert([newJob]);
-
-    if (insertError) {
-      console.error('Supabase insert error:', insertError.message, insertError.details);
-      setError('Failed to create job posting. Please try again.');
-    } else {
-      setSuccess(true);
-      setFormData({
-        title: '',
-        company: '',
-        industry: '',
-        job_type: '',
-        description: '',
-        skills: '',
-        deadline: '',
-        apply_method: '',
-      });
-    }
-  };
-
-  if (!userRole) return <p>Loading...</p>;
+  if (!userRole) {
+    return <p>Unauthorized access.</p>;
+  }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold text-red-700 mb-6">Create Job Posting</h1>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-red-700 mb-6">Rep Dashboard</h1>
+      <p className="mb-6">Hello, rep! Here are the jobs you have posted.</p>
 
-      {error && <p className="text-red-600 mb-4">{error}</p>}
-
-      {success && (
-        <div className="bg-green-100 text-green-800 p-4 rounded mb-4 border border-green-300">
-          ✅ Job created successfully! Your posting is awaiting review.
-          <br />
-          <a
-            href="/rep/dashboard"
-            className="inline-block mt-2 text-red-700 underline hover:text-red-900"
-          >
-            ← Back to Rep Dashboard
-          </a>
+      {jobs.length === 0 ? (
+        <p>You have not posted any jobs yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {jobs.map((job) => (
+            <div key={job.id} className="bg-gray-100 p-4 rounded-md shadow-md">
+              <h2 className="text-xl font-semibold">{job.title}</h2>
+              <p className="text-gray-600">{job.company}</p>
+              <p className="text-sm font-bold mt-2">Status: <span className={job.status === 'pending' ? 'text-yellow-600' : 'text-green-600'}>{job.status}</span></p>
+            </div>
+          ))}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          name="title"
-          placeholder="Job Title"
-          value={formData.title}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="text"
-          name="company"
-          placeholder="Company"
-          value={formData.company}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="text"
-          name="industry"
-          placeholder="Industry"
-          value={formData.industry}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-
-        <select
-          name="job_type"
-          value={formData.job_type}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Select Job Type</option>
-          <option value="Internship">Internship</option>
-          <option value="Part-Time">Part-Time</option>
-          <option value="Full-Time">Full-Time</option>
-        </select>
-
-        <textarea
-          name="description"
-          placeholder="Job Description"
-          value={formData.description}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-
-        <input
-          type="text"
-          name="skills"
-          placeholder="Required Skills (comma separated)"
-          value={formData.skills}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-
-        <label className="block font-medium mb-1">
-          Application Deadline{' '}
-          <span className="text-sm text-gray-500">(last day students can apply)</span>
-        </label>
-        <input
-          type="date"
-          name="deadline"
-          value={formData.deadline}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-
-        <input
-          type="text"
-          name="apply_method"
-          placeholder="Application Method (e.g. link or email)"
-          value={formData.apply_method}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-        />
-
-        <button
-          type="submit"
-          className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800"
-        >
-          Create Job
-        </button>
-      </form>
+      <div className="mt-6">
+        <a href="/rep/create" className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
+          Create New Job Posting
+        </a>
+      </div>
     </div>
   );
 }
