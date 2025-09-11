@@ -2,24 +2,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
 
-// A predefined list of industries for the dropdown
-const industries = [
-  'Technology',
-  'Healthcare',
-  'Finance',
-  'Education',
-  'Marketing & Advertising',
-  'Engineering',
-  'Sales',
-  'Retail',
-  'Hospitality',
-  'Government',
-  'Non-Profit',
-  'Manufacturing',
-  'Arts & Entertainment',
-  'Other',
-];
-
 export default function CreateJobPosting() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -85,6 +67,7 @@ export default function CreateJobPosting() {
     setError(null);
     setSuccess(false);
 
+    // Get the user from the session at the time of submission
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
@@ -119,7 +102,7 @@ export default function CreateJobPosting() {
     const newJob = {
       ...formData,
       skills: parsedSkills,
-      created_by: user.id,
+      created_by: user.id, // Using the user ID fetched directly in this function
       status: 'pending',
     };
     
@@ -182,21 +165,14 @@ export default function CreateJobPosting() {
           onChange={handleChange}
           className="w-full p-2 border rounded"
         />
-
-        {/* UPDATED: Replaced text input with a dropdown select */}
-        <select
+        <input
+          type="text"
           name="industry"
+          placeholder="Industry"
           value={formData.industry}
           onChange={handleChange}
           className="w-full p-2 border rounded"
-        >
-          <option value="">Select Industry</option>
-          {industries.map((industry) => (
-            <option key={industry} value={industry}>
-              {industry}
-            </option>
-          ))}
-        </select>
+        />
 
         <select
           name="job_type"
@@ -261,4 +237,3 @@ export default function CreateJobPosting() {
     </div>
   );
 }
-
