@@ -41,17 +41,12 @@ export default function CreateJobPosting() {
         .eq('user_id', user.id)
         .single();
 
-      if (roleError || !roleData) {
+      if (roleError || !roleData || roleData.role !== 'rep') {
         router.push('/unauthorized');
         return;
       }
 
-      const role = roleData.role;
-      setUserRole(role);
-
-      if (role !== 'rep' && role !== 'faculty' && role !== 'staff') {
-        router.push('/unauthorized');
-      }
+      setUserRole(roleData.role);
     };
 
     fetchUserRole();
@@ -100,9 +95,6 @@ export default function CreateJobPosting() {
       created_by: userId,
       status: 'pending',
     };
-    
-    // ADDED: console.log to check the created_by value before inserting
-    console.log('Inserting job with created_by:', newJob.created_by);
 
     const { error: insertError } = await supabase.from('jobs').insert([newJob]);
 
@@ -210,8 +202,6 @@ export default function CreateJobPosting() {
           value={formData.deadline}
           onChange={handleChange}
           className="w-full p-2 border rounded"
-          placeholder="Deadline"
-          title="This is the last day students can apply"
         />
 
         <input
@@ -225,8 +215,7 @@ export default function CreateJobPosting() {
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800"
+          className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800"
         >
           Create Job
         </button>
