@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
 
+//test 
+
 export default function CreateJobPosting() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -49,9 +51,11 @@ export default function CreateJobPosting() {
       const role = roleData.role;
       setUserRole(role);
 
-      if (role !== 'faculty' && role !== 'staff') {
+      if (role !== 'rep' && role !== 'faculty' && role !== 'staff') {
         router.push('/unauthorized');
       }
+      
+      console.log('User role and ID fetched:', { userId: user.id, userRole: role });
     };
 
     fetchUserRole();
@@ -69,6 +73,10 @@ export default function CreateJobPosting() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // ADDED: A new log to check if the function is even being called
+    console.log('[Create Job Posting] Form submitted!');
+
     setError(null);
     setSuccess(false);
 
@@ -98,13 +106,17 @@ export default function CreateJobPosting() {
       ...formData,
       skills: parsedSkills,
       created_by: userId,
-      status: 'active',
+      status: 'pending',
     };
 
-    const { error: insertError } = await supabase.from('jobs').insert([newJob]);
+    const response = await fetch('/api/jobs/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newJob)
+    });
 
-    if (insertError) {
-      console.error('Supabase insert error:', insertError.message, insertError.details);
+    if (!response.ok) {
+      console.error('API call failed:', response.statusText);
       setError('Failed to create job posting. Please try again.');
     } else {
       setSuccess(true);
@@ -131,13 +143,13 @@ export default function CreateJobPosting() {
 
       {success && (
         <div className="bg-green-100 text-green-800 p-4 rounded mb-4 border border-green-300">
-          ✅ Job created successfully!
+          ✅ Job created successfully! Your posting is awaiting review.
           <br />
           <a
-            href="/faculty/dashboard"
+            href="/rep/dashboard"
             className="inline-block mt-2 text-red-700 underline hover:text-red-900"
           >
-            ← Back to Faculty Dashboard
+            ← Back to Rep Dashboard
           </a>
         </div>
       )}

@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
 
-//test 
-
 export default function CreateJobPosting() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -73,10 +71,6 @@ export default function CreateJobPosting() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // ADDED: A new log to check if the function is even being called
-    console.log('[Create Job Posting] Form submitted!');
-
     setError(null);
     setSuccess(false);
 
@@ -109,14 +103,10 @@ export default function CreateJobPosting() {
       status: 'pending',
     };
 
-    const response = await fetch('/api/jobs/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newJob)
-    });
+    const { error: insertError } = await supabase.from('jobs').insert([newJob]);
 
-    if (!response.ok) {
-      console.error('API call failed:', response.statusText);
+    if (insertError) {
+      console.error('Supabase insert error:', insertError.message, insertError.details);
       setError('Failed to create job posting. Please try again.');
     } else {
       setSuccess(true);
