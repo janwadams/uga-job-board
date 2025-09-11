@@ -1,81 +1,178 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../utils/supabaseClient';
-import JobCard from '../../components/JobCard';
+import { createClient } from '@supabase/supabase-js';
+import Link from 'next/link';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function RepDashboard() {
   const router = useRouter();
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
   useEffect(() => {
-    const fetchJobs = async () => {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+    const checkSession = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData.session?.user;
 
-      if (userError || !user) {
+      if (!user) {
         router.push('/login');
         return;
       }
+      
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (roleData?.role !== 'rep') {
+          router.push('/unauthorized');
+          return;
+      }
 
-      const { data: jobsData, error: jobsError } = await supabase
+      setSession(sessionData.session);
+    };
+    checkSession();
+  }, [router]);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      const userId = session?.user.id;
+
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
+      let query = supabase
         .from('jobs')
         .select('*')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false });
+        .eq('created_by', userId);
 
-      if (jobsError) {
-        console.error('Error fetching jobs:', jobsError);
-        setError('Failed to fetch jobs. Please try again.');
-      } else {
-        setJobs(jobsData || []);
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (!error) {
+        setJobs(data || []);
       }
 
       setLoading(false);
     };
 
-    fetchJobs();
-  }, [router]);
+    if (session) {
+      fetchJobs();
+    }
+  }, [session, statusFilter]);
 
-  if (loading) {
-    return <p className="text-center mt-8">Loading your job postings...</p>;
-  }
+  const handleRemove = async (jobId: string) => {
+    if (!window.confirm('Are you sure you want to remove this posting?')) {
+      return;
+    }
 
-  if (error) {
-    return <p className="text-center mt-8 text-red-600">{error}</p>;
-  }
+    const { error } = await supabase
+      .from('jobs')
+      .update({ status: 'removed' })
+      .eq('id', jobId);
+
+    if (error) {
+      alert('Failed to remove job.');
+    } else {
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === jobId ? { ...job, status: 'removed' } : job
+        )
+      );
+    }
+  };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-red-700">My Job Postings</h1>
-        <a
-          href="/rep/create"
-          className="bg-red-700 text-white font-semibold py-2 px-4 rounded hover:bg-red-800"
-        >
-          Post a New Job
-        </a>
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-red-800">💼 Rep Dashboard</h1>
+        {/* ADDED: New button to create a job */}
+        <Link href="/rep/create">
+          <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
+            + Post a Job
+          </button>
+        </Link>
       </div>
 
-      {jobs.length === 0 ? (
-        <div className="text-center mt-12">
-          <p className="text-lg text-gray-600">You haven't posted any jobs yet.</p>
-          <a
-            href="/rep/create"
-            className="inline-block mt-4 text-red-700 underline hover:text-red-900"
-          >
-            Click here to post your first job.
-          </a>
-        </div>
+      <div className="mb-4">
+        <label className="mr-2 font-medium">Filter by Status:</label>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="p-2 border rounded"
+        >
+          <option value="">All</option>
+          <option value="active">Active</option>
+          <option value="removed">Removed</option>
+          <option value="pending">Pending</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <p>Loading...</p>
+      ) : jobs.length === 0 ? (
+        <p>No job postings found.</p>
       ) : (
-        <div className="space-y-6">
+        <ul className="space-y-4">
           {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
+            <li key={job.id} className="border p-4 rounded shadow bg-white">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="font-semibold">{job.title}</h2>
+                  <p>{job.company}</p>
+                  <p className="text-sm text-gray-500">
+                    Deadline: {new Date(job.deadline).toLocaleDateString()}
+                  </p>
+                  <p className="text-sm mt-1">
+                    <span className="font-medium">Status:</span>{' '}
+                    <span className={job.status === 'removed' ? 'text-red-600' : 'text-green-600'}>
+                      {job.status}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 ml-4">
+                  <Link href={`/rep/edit/${job.id}`}>
+                    <button
+                      disabled={job.status === 'removed'}
+                      className={`px-3 py-1 rounded font-medium ${
+                        job.status === 'removed'
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      Edit
+                    </button>
+                  </Link>
+
+                  <button
+                    onClick={() => handleRemove(job.id)}
+                    disabled={job.status === 'removed'}
+                    className={`px-3 py-1 rounded font-medium ${
+                      job.status === 'removed'
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-gray-600 text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
