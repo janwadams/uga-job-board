@@ -1,3 +1,4 @@
+// src/components/JobCard.tsx
 import Link from 'next/link';
 
 interface Job {
@@ -7,28 +8,18 @@ interface Job {
   location: string;
   deadline: string;
   job_type: string;
-  status: string; // ADDED: Added a status property to the interface
 }
 
 export default function JobCard({ job }: { job: Job }) {
-  // Determine the color of the status tag based on the job's status
-  const statusColor = job.status === 'pending' ? 'bg-yellow-500' : 'bg-green-500';
-
   return (
     <Link href={`/jobs/${job.id}`}>
       <div className="border rounded-md p-4 hover:shadow-md transition cursor-pointer bg-white">
         <h3 className="text-xl font-semibold text-ugaRed">{job.title}</h3>
         <p className="text-gray-800">{job.company} — {job.location}</p>
         <p className="text-sm text-gray-600">Deadline: {job.deadline}</p>
-        <div className="mt-2 flex space-x-2">
-          <span className="text-sm text-white bg-gray-800 px-2 py-1 rounded">
-            {job.job_type}
-          </span>
-          {/* ADDED: A span to display the job status */}
-          <span className={`text-sm text-white px-2 py-1 rounded ${statusColor}`}>
-            {job.status.toUpperCase()}
-          </span>
-        </div>
+        <span className="text-sm text-white bg-gray-800 px-2 py-1 rounded">
+          {job.job_type}
+        </span>
       </div>
     </Link>
   );
