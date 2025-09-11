@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// Re-initializing the client here to resolve any potential import issues.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -15,13 +14,6 @@ export default function RepDashboard() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
-
-  // An object to map job status to a Tailwind CSS color class.
-  const statusColors: { [key: string]: string } = {
-    pending: 'text-blue-600',
-    active: 'text-green-600',
-    removed: 'text-red-600',
-  };
 
   useEffect(() => {
     const checkSession = async () => {
@@ -61,8 +53,7 @@ export default function RepDashboard() {
       let query = supabase
         .from('jobs')
         .select('*')
-        .eq('created_by', userId)
-        .order('created_at', { ascending: false }); // Optional: show newest first
+        .eq('created_by', userId);
 
       if (statusFilter) {
         query = query.eq('status', statusFilter);
@@ -72,8 +63,6 @@ export default function RepDashboard() {
 
       if (!error) {
         setJobs(data || []);
-      } else {
-        console.error("Error fetching jobs:", error);
       }
 
       setLoading(false);
@@ -85,7 +74,6 @@ export default function RepDashboard() {
   }, [session, statusFilter]);
 
   const handleRemove = async (jobId: string) => {
-    // Note: Using custom modals is preferable to window.confirm/alert in a real app.
     if (!window.confirm('Are you sure you want to remove this posting?')) {
       return;
     }
@@ -110,6 +98,7 @@ export default function RepDashboard() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-red-800">💼 Rep Dashboard</h1>
+        {/* ADDED: New button to create a job */}
         <Link href="/rep/create">
           <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
             + Post a Job
@@ -126,18 +115,15 @@ export default function RepDashboard() {
         >
           <option value="">All</option>
           <option value="active">Active</option>
-          <option value="pending">Pending</option>
           <option value="removed">Removed</option>
+          <option value="pending">Pending</option>
         </select>
       </div>
 
       {loading ? (
         <p>Loading...</p>
       ) : jobs.length === 0 ? (
-        <div className="text-center py-10">
-            <p className="text-gray-500">No job postings found.</p>
-            <p className="text-gray-400 text-sm mt-2">Click "+ Post a Job" to get started.</p>
-        </div>
+        <p>No job postings found.</p>
       ) : (
         <ul className="space-y-4">
           {jobs.map((job) => (
@@ -151,7 +137,7 @@ export default function RepDashboard() {
                   </p>
                   <p className="text-sm mt-1">
                     <span className="font-medium">Status:</span>{' '}
-                    <span className={`${statusColors[job.status] || 'text-gray-600'} font-medium capitalize`}>
+                    <span className={job.status === 'removed' ? 'text-red-600' : 'text-green-600'}>
                       {job.status}
                     </span>
                   </p>
@@ -191,4 +177,3 @@ export default function RepDashboard() {
     </div>
   );
 }
-
