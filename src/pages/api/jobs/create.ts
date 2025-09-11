@@ -38,6 +38,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ message: 'Forbidden. Your role cannot create job postings.' });
   }
 
+  console.log('Attempting to create a job...'); // New console.log statement
+
   // Extract the job data from the request body
   const {
     title,
