@@ -20,7 +20,7 @@ export default function LoginPage() {
     setLoading(true);
     setErrorMsg('');
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -31,10 +31,47 @@ export default function LoginPage() {
       return;
     }
 
-    // This client-side logic will not be executed because the middleware takes over after a successful login.
-    // The middleware is responsible for redirecting the user.
-    // The router.push() call is a fallback for development and local testing.
-    router.push('/rep/dashboard');
+    const userId = authData.user?.id;
+
+    // CHANGED: Fetch user role from 'user_roles' table
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles') // CHANGED: Changed 'users' to 'user_roles'
+      .select('role, is_active') // ADDED: Also check the is_active status
+      .eq('user_id', userId)
+      .single();
+
+    if (userError || !userData) {
+      setErrorMsg('Could not retrieve user role.');
+      setLoading(false);
+      return;
+    }
+    
+    // Check if the user is active before allowing them to log in
+    if (!userData.is_active) {
+      setErrorMsg('Your account is not active. Please contact an admin.');
+      setLoading(false);
+      return;
+    }
+
+    const role = userData.role;
+
+    // Route user by role
+    switch (role) {
+      case 'student':
+        router.push('/student/dashboard');
+        break;
+      case 'faculty':
+        router.push('/faculty/dashboard');
+        break;
+      case 'rep':
+        router.push('/rep/dashboard');
+        break;
+      case 'admin':
+        router.push('/admin/dashboard');
+        break;
+      default:
+        setErrorMsg('Unknown role.');
+    }
 
     setLoading(false);
   };
