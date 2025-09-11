@@ -21,29 +21,9 @@ export async function middleware(req: NextRequest) {
   if (!session && req.nextUrl.pathname.startsWith('/rep')) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
-  if (!session && req.nextUrl.pathname.startsWith('/faculty')) {
-    return NextResponse.redirect(new URL('/login', req.url));
-  }
-
 
   // If there's a session and the user is on the login page, redirect to the dashboard
   if (session && req.nextUrl.pathname === '/login') {
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .single();
-
-    if (roleData) {
-      const role = roleData.role;
-      if (role === 'rep') {
-        return NextResponse.redirect(new URL('/rep/dashboard', req.url));
-      }
-      if (role === 'faculty') {
-        return NextResponse.redirect(new URL('/faculty/dashboard', req.url));
-      }
-    }
-
     return NextResponse.redirect(new URL('/', req.url));
   }
 
