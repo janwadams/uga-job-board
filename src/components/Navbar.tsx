@@ -63,7 +63,7 @@ export default function Navbar() {
               <span className="underline cursor-pointer">Login</span>
             </Link>
             <Link href="/signup">
-              <span className="underline cursor-pointer">Sign Up</span>
+              <span className="underline cursor-pointer">Company Sign Up</span>
             </Link>
           </>
         )}
