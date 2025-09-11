@@ -20,7 +20,7 @@ export default function LoginPage() {
     setLoading(true);
     setErrorMsg('');
 
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    const { error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -31,46 +31,10 @@ export default function LoginPage() {
       return;
     }
 
-    const userId = authData.user?.id;
-    if (!userId) {
-      setErrorMsg('Login failed. No user ID found.');
-      setLoading(false);
-      return;
-    }
-
-    // Fetch user role from 'user_roles' table
-    const { data: userData, error: userError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
-
-    if (userError || !userData) {
-      setErrorMsg('Could not retrieve user role.');
-      setLoading(false);
-      return;
-    }
-
-    const role = userData.role;
-
-    // Route user by role
-    switch (role) {
-      case 'student':
-        router.push('/student/dashboard');
-        break;
-      case 'faculty':
-        router.push('/faculty/dashboard');
-        break;
-      case 'rep':
-        router.push('/rep/dashboard');
-        break;
-      case 'admin':
-        router.push('/admin/dashboard');
-        break;
-      default:
-        setErrorMsg('Unknown role.');
-        break; // Added break to prevent falling through
-    }
+    // This client-side logic will not be executed because the middleware takes over after a successful login.
+    // The middleware is responsible for redirecting the user.
+    // The router.push() call is a fallback for development and local testing.
+    router.push('/rep/dashboard');
 
     setLoading(false);
   };
