@@ -7,12 +7,7 @@ import Navbar from '../components/Navbar';
 import '../styles/globals.css';
 
 function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
-  const [supabaseClient] = useState(() => createBrowserSupabaseClient({
-    cookieOptions: {
-      domain: process.env.NEXT_PUBLIC_VERCEL_URL || 'localhost',
-      path: '/'
-    }
-  }));
+  const [supabaseClient] = useState(() => createBrowserSupabaseClient());
 
   return (
     <SessionContextProvider
