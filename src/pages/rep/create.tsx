@@ -20,6 +20,7 @@ export default function CreateJobPosting() {
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false); // ADDED: Declared the loading state variable
 
   useEffect(() => {
     const fetchUserRole = async () => {
