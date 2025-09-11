@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
@@ -62,11 +63,6 @@ export default function HomePage() {
   const [jobTypeFilters, setJobTypeFilters] = useState<string[]>([]);
   const [industryFilter, setIndustryFilter] = useState('');
   const [sortBy, setSortBy] = useState('created_at'); // 'created_at' or 'deadline'
-  
-  // State for pagination
-  const [visibleJobsCount, setVisibleJobsCount] = useState(9);
-  const JOBS_PER_PAGE = 9;
-
 
   // Fetch all active jobs on initial load
   useEffect(() => {
@@ -126,14 +122,6 @@ export default function HomePage() {
       });
   }, [jobs, searchTerm, jobTypeFilters, industryFilter, sortBy]);
 
-  const isFilterActive = searchTerm || jobTypeFilters.length > 0 || industryFilter;
-
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setJobTypeFilters([]);
-    setIndustryFilter('');
-  };
-
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-white border-b border-gray-200">
@@ -148,17 +136,7 @@ export default function HomePage() {
           {/* Filters Sidebar */}
           <aside className="w-full lg:w-1/4">
             <div className="sticky top-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Filter & Sort</h3>
-                {isFilterActive && (
-                  <button 
-                    onClick={handleClearFilters}
-                    className="text-sm font-medium text-red-600 hover:text-red-800"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Filter & Sort</h3>
               <div className="space-y-6">
                 {/* Search */}
                 <div>
@@ -221,29 +199,12 @@ export default function HomePage() {
 
           {/* Job Listings */}
           <div className="w-full lg:w-3/4">
-            <div className="mb-4">
-              <p className="text-sm text-gray-600">
-                Showing <span className="font-bold">{filteredAndSortedJobs.slice(0, visibleJobsCount).length}</span> of <span className="font-bold">{filteredAndSortedJobs.length}</span> jobs
-              </p>
-            </div>
             {loading ? (
               <p className="text-center text-gray-500">Loading jobs...</p>
             ) : filteredAndSortedJobs.length > 0 ? (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {filteredAndSortedJobs.slice(0, visibleJobsCount).map(job => <JobCard key={job.id} job={job} />)}
-                    </div>
-                    {visibleJobsCount < filteredAndSortedJobs.length && (
-                        <div className="mt-8 text-center">
-                            <button
-                                onClick={() => setVisibleJobsCount(prev => prev + JOBS_PER_PAGE)}
-                                className="bg-red-700 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-800 transition-colors"
-                            >
-                                Load More
-                            </button>
-                        </div>
-                    )}
-                </>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredAndSortedJobs.map(job => <JobCard key={job.id} job={job} />)}
+                </div>
             ) : (
                 <div className="text-center bg-white p-10 rounded-lg shadow-sm border border-gray-200">
                     <h3 className="text-xl font-semibold text-gray-800">No Jobs Found</h3>
@@ -257,3 +218,55 @@ export default function HomePage() {
   );
 }
 
+
+
+
+
+
+
+/*
+import { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+export default function HomePage() {
+  const [jobs, setJobs] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchJobs() {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('status', 'active')
+        .gte('deadline', new Date().toISOString());
+
+      if (!error) setJobs(data);
+    }
+
+    fetchJobs();
+  }, []);
+
+  return (
+    <div className="p-8">
+      <h1 className="text-3xl font-bold mb-6 text-red-800">UGA Job Board</h1>
+      {jobs.length === 0 ? (
+        <p>No active jobs available.</p>
+      ) : (
+        <ul className="space-y-4">
+          {jobs.map((job) => (
+            <li key={job.id} className="border p-4 rounded shadow">
+              <h2 className="text-xl font-semibold">{job.title}</h2>
+              <p className="text-gray-600">{job.company}</p>
+              <p>{job.description}</p>
+              <p className="text-sm text-gray-500">Deadline: {job.deadline}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+*/
