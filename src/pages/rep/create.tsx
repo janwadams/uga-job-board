@@ -5,7 +5,6 @@ import { supabase } from '../../utils/supabaseClient';
 export default function CreateJobPosting() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -20,21 +19,16 @@ export default function CreateJobPosting() {
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
-  const [loading, setLoading] = useState(false); // ADDED: Declared the loading state variable
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchUserRole = async () => {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError || !user) {
         router.push('/login');
         return;
       }
-
-      setUserId(user.id);
 
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
@@ -54,7 +48,6 @@ export default function CreateJobPosting() {
         router.push('/unauthorized');
       }
     };
-
     fetchUserRole();
   }, [router]);
 
@@ -70,8 +63,18 @@ export default function CreateJobPosting() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     setError(null);
     setSuccess(false);
+
+    // Get the user from the session at the time of submission
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        setError('User not authenticated. Please log in again.');
+        setLoading(false);
+        return;
+    }
 
     const requiredFields = [
       'title',
@@ -86,6 +89,7 @@ export default function CreateJobPosting() {
     for (const field of requiredFields) {
       if (!formData[field as keyof typeof formData]) {
         setError(`Field "${field}" is required.`);
+        setLoading(false);
         return;
       }
     }
@@ -98,13 +102,10 @@ export default function CreateJobPosting() {
     const newJob = {
       ...formData,
       skills: parsedSkills,
-      created_by: userId,
+      created_by: user.id, // Using the user ID fetched directly in this function
       status: 'pending',
     };
     
-    // ADDED: console.log to check the created_by value before inserting
-    console.log('Inserting job with created_by:', newJob.created_by);
-
     const { error: insertError } = await supabase.from('jobs').insert([newJob]);
 
     if (insertError) {
@@ -123,6 +124,7 @@ export default function CreateJobPosting() {
         apply_method: '',
       });
     }
+    setLoading(false);
   };
 
   if (!userRole) return <p>Loading...</p>;
