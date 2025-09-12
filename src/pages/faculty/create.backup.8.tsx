@@ -1,9 +1,6 @@
-//create job posting Faculty 
-
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
-import Link from 'next/link';
 
 // A predefined list of industries for the dropdown
 const industries = [
@@ -41,7 +38,6 @@ export default function CreateJobPosting() {
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -91,7 +87,6 @@ export default function CreateJobPosting() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setSuccess(false);
 
@@ -108,7 +103,6 @@ export default function CreateJobPosting() {
     for (const field of requiredFields) {
       if (!formData[field as keyof typeof formData]) {
         setError(`Field "${field}" is required.`);
-        setLoading(false);
         return;
       }
     }
@@ -143,18 +137,12 @@ export default function CreateJobPosting() {
         apply_method: '',
       });
     }
-    setLoading(false);
   };
 
   if (!userRole) return <p>Loading...</p>;
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <Link href="/faculty/dashboard">
-        <span className="text-red-700 underline hover:text-red-900 cursor-pointer mb-6 inline-block">
-          ← Back to Faculty Dashboard
-        </span>
-      </Link>
       <h1 className="text-3xl font-bold text-red-700 mb-6">Create Job Posting</h1>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
@@ -162,6 +150,13 @@ export default function CreateJobPosting() {
       {success && (
         <div className="bg-green-100 text-green-800 p-4 rounded mb-4 border border-green-300">
           ✅ Job created successfully!
+          <br />
+          <a
+            href="/faculty/dashboard"
+            className="inline-block mt-2 text-red-700 underline hover:text-red-900"
+          >
+            ← Back to Faculty Dashboard
+          </a>
         </div>
       )}
 
@@ -183,6 +178,7 @@ export default function CreateJobPosting() {
           className="w-full p-2 border rounded"
         />
         
+        {/* UPDATED: Replaced text input with a dropdown select */}
         <select
           name="industry"
           value={formData.industry}
@@ -247,23 +243,12 @@ export default function CreateJobPosting() {
           className="w-full p-2 border rounded"
         />
 
-        <div className="flex items-center gap-4 pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800 disabled:bg-gray-400"
-            >
-              {loading ? 'Submitting...' : 'Create Job'}
-            </button>
-            <Link href="/faculty/dashboard" className="w-full">
-                <button
-                type="button"
-                className="w-full bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
-                >
-                Cancel
-                </button>
-            </Link>
-        </div>
+        <button
+          type="submit"
+          className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800"
+        >
+          Create Job
+        </button>
       </form>
     </div>
   );
