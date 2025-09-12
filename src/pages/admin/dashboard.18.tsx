@@ -30,9 +30,8 @@ interface Job {
   status: 'active' | 'pending' | 'removed' | 'rejected';
   created_at: string;
   created_by: string;
-  // Properties to be added after fetching
-  role?: string; 
-  email?: string;
+  user_email?: string; 
+  role?: string; // ADDED: Role of the creator
 }
 
 // --- Main Admin Dashboard Component ---
@@ -131,32 +130,25 @@ export default function AdminDashboard() {
   };
 
   // --- Derived Data for UI ---
-  // Create maps of user IDs to roles and emails for easy lookup
-  const { userRoleMap, userEmailMap } = useMemo(() => {
-    const roleMap = new Map<string, string>();
-    const emailMap = new Map<string, string>();
-    users.forEach(user => {
-        roleMap.set(user.user_id, user.role);
-        if (user.email) {
-            emailMap.set(user.user_id, user.email);
-        }
-    });
-    return { userRoleMap: roleMap, userEmailMap: emailMap };
+  // Create a map of user IDs to roles for easy lookup
+  const userRoleMap = useMemo(() => {
+    const map = new Map<string, string>();
+    users.forEach(user => map.set(user.user_id, user.role));
+    return map;
   }, [users]);
   
-  // Combine jobs with their creator's role and email
-  const enrichedJobs = useMemo(() => {
+  // Combine jobs with their creator's role
+  const jobsWithRoles = useMemo(() => {
     return jobs.map(job => ({
         ...job,
-        role: userRoleMap.get(job.created_by) || 'N/A',
-        email: userEmailMap.get(job.created_by) || 'N/A'
+        role: userRoleMap.get(job.created_by) || 'N/A'
     }));
-  }, [jobs, userRoleMap, userEmailMap]);
+  }, [jobs, userRoleMap]);
   
   const filteredJobs = useMemo(() => {
-    if (!statusFilter) return enrichedJobs;
-    return enrichedJobs.filter(job => job.status === statusFilter);
-  }, [enrichedJobs, statusFilter]);
+    if (!statusFilter) return jobsWithRoles;
+    return jobsWithRoles.filter(job => job.status === statusFilter);
+  }, [jobsWithRoles, statusFilter]);
 
   // --- Render ---
   return (
@@ -253,7 +245,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle }: { users: Admin
   );
 }
 
-// --- Sub-component for Jobs Tab (IMPROVED LAYOUT) ---
+// --- Sub-component for Jobs Tab (CONTENT WRAPPING LAYOUT) ---
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
 
@@ -284,14 +276,13 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
       ) : jobs.length === 0 ? (
         <p>No job postings found for the selected filter.</p>
       ) : (
-        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <table className="min-w-full table-auto">
+            <thead className="bg-gray-100">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By (ID)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -299,18 +290,17 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {jobs.map((job) => (
-                <tr key={job.id}>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">{job.title}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.company}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500 font-mono">{job.created_by}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                <tr key={job.id} className="align-top">
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900 break-words">{job.title}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500 break-words">{job.company}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500 font-mono break-all">{job.created_by}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500 capitalize">{job.role}</td>
+                  <td className="px-6 py-4 text-center">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
                       {job.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                  <td className="px-6 py-4 text-center text-sm font-medium">
                     <div className="relative inline-block text-left">
                       <button 
                         onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)}
