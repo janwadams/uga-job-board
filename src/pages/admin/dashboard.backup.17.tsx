@@ -245,7 +245,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle }: { users: Admin
   );
 }
 
-// --- Sub-component for Jobs Tab (CONTENT WRAPPING LAYOUT) ---
+// --- Sub-component for Jobs Tab (IMPROVED LAYOUT) ---
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
 
@@ -276,8 +276,8 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
       ) : jobs.length === 0 ? (
         <p>No job postings found for the selected filter.</p>
       ) : (
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <table className="min-w-full table-auto">
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <table className="min-w-full">
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
@@ -290,17 +290,17 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {jobs.map((job) => (
-                <tr key={job.id} className="align-top">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900 break-words">{job.title}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 break-words">{job.company}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 font-mono break-all">{job.created_by}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 capitalize">{job.role}</td>
-                  <td className="px-6 py-4 text-center">
+                <tr key={job.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{job.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.company}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{job.created_by}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
                       {job.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-center text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="relative inline-block text-left">
                       <button 
                         onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)}
