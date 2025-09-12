@@ -7,21 +7,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// --- SVG Icon Components ---
-const EyeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-  </svg>
-);
-
-const EyeOffIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M8 12a4 4 0 004 4m0 0l6-6m-6 6l-6-6" />
-  </svg>
-);
-
-
 export default function LoginPage() {
   const router = useRouter();
 
@@ -29,7 +14,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,14 +69,14 @@ export default function LoginPage() {
         break;
       default:
         setErrorMsg('Unknown role.');
-        break;
+        break; // Added break to prevent falling through
     }
 
     setLoading(false);
   };
 
   return (
-    <div className="max-w-md mx-auto mt-20 p-8 border rounded shadow bg-white">
+    <div className="max-w-md mx-auto mt-20 p-8 border rounded shadow">
       <h1 className="text-2xl font-bold mb-6 text-center text-red-700">UGA Job Board Login</h1>
 
       <form onSubmit={handleLogin} className="space-y-4">
@@ -105,24 +89,14 @@ export default function LoginPage() {
           className="w-full border p-2 rounded"
         />
 
-        <div className="relative">
-          <input
-            type={showPassword ? 'text' : 'password'}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full border p-2 rounded pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 px-3 flex items-center"
-            aria-label="Toggle password visibility"
-          >
-            {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-          </button>
-        </div>
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="w-full border p-2 rounded"
+        />
 
         {errorMsg && <p className="text-red-600 text-sm">{errorMsg}</p>}
 
@@ -137,4 +111,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
