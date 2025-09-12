@@ -160,7 +160,7 @@ export default function AdminDashboard() {
 
   // --- Render ---
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+    <div className="p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-red-800">👑 Admin Dashboard</h1>
         <Link href="/admin/analytics">
@@ -253,7 +253,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle }: { users: Admin
   );
 }
 
-// --- Sub-component for Jobs Tab ---
+// --- Sub-component for Jobs Tab (IMPROVED LAYOUT) ---
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
 
@@ -284,7 +284,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
       ) : jobs.length === 0 ? (
         <p>No job postings found for the selected filter.</p>
       ) : (
-        <div className="border border-gray-200 rounded-lg overflow-x-auto">
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
