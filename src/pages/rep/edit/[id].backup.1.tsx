@@ -1,28 +1,8 @@
-//edit job posting for rep
-
+// pages/rep/edit/[id].tsx
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+// CHANGED: Corrected the import path to go up only three levels
 import { supabase } from '../../../utils/supabaseClient';
-import Link from 'next/link';
-
-// A predefined list of industries for the dropdown
-const industries = [
-  'Technology',
-  'Healthcare',
-  'Finance',
-  'Education',
-  'Marketing & Advertising',
-  'Engineering',
-  'Sales',
-  'Retail',
-  'Hospitality',
-  'Government',
-  'Non-Profit',
-  'Manufacturing',
-  'Arts & Entertainment',
-  'Other',
-];
-
 
 export default function EditJobPosting() {
   const router = useRouter();
@@ -42,7 +22,6 @@ export default function EditJobPosting() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -50,21 +29,16 @@ export default function EditJobPosting() {
     const fetchJob = async () => {
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('id', id)
-        .eq('created_by', user.id)
+        .eq('created_by', user?.id)
         .single();
 
       if (error || !data) {
         setError('Job not found or you are not authorized to edit.');
-        setTimeout(() => router.push('/rep/dashboard'), 2000);
+        router.push('/rep/dashboard');
       } else {
         setFormData({
           title: data.title,
@@ -96,7 +70,6 @@ export default function EditJobPosting() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError(null);
     setSuccess(false);
 
@@ -106,12 +79,6 @@ export default function EditJobPosting() {
       .filter(Boolean);
 
     const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-        setError('Authentication error. Please log in again.');
-        setIsSubmitting(false);
-        return;
-    }
 
     const { error: updateError } = await supabase
       .from('jobs')
@@ -126,44 +93,32 @@ export default function EditJobPosting() {
         apply_method: formData.apply_method,
       })
       .eq('id', id)
-      .eq('created_by', user.id);
+      .eq('created_by', user?.id);
 
     if (updateError) {
-      setError('Failed to update job. Please try again.');
+      setError('Failed to update job.');
     } else {
       setSuccess(true);
       setTimeout(() => {
         router.push('/rep/dashboard');
       }, 1500);
     }
-    setIsSubmitting(false);
   };
 
   if (loading) return <p className="p-4">Loading job...</p>;
-  if (error && !formData.title) return <p className="p-4 text-red-600">{error}</p>;
+  if (error) return <p className="p-4 text-red-600">{error}</p>;
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <Link href="/rep/dashboard">
-        <span className="text-red-700 underline hover:text-red-900 cursor-pointer mb-6 inline-block">
-          ← Back to Rep Dashboard
-        </span>
-      </Link>
-
       <h1 className="text-3xl font-bold text-red-700 mb-6">Edit Job Posting</h1>
 
-      {success && <p className="text-green-600 mb-4">✅ Job updated successfully! Redirecting...</p>}
+      {success && <p className="text-green-600 mb-4">✅ Job updated successfully!</p>}
       {error && <p className="text-red-600 mb-4">{error}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Form fields */}
         <input type="text" name="title" value={formData.title} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Job Title" />
         <input type="text" name="company" value={formData.company} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Company" />
-        
-        <select name="industry" value={formData.industry} onChange={handleChange} className="w-full p-2 border rounded">
-          <option value="">Select Industry</option>
-          {industries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
-        </select>
+        <input type="text" name="industry" value={formData.industry} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Industry" />
 
         <select name="job_type" value={formData.job_type} onChange={handleChange} className="w-full p-2 border rounded">
           <option value="">Select Job Type</option>
@@ -173,8 +128,9 @@ export default function EditJobPosting() {
         </select>
 
         <textarea name="description" value={formData.description} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Job Description" />
+
         <input type="text" name="skills" value={formData.skills} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Required Skills (comma separated)" />
-        
+
         <label className="block font-medium mb-1">
           Application Deadline <span className="text-sm text-gray-500">(last day students can apply)</span>
         </label>
@@ -182,26 +138,8 @@ export default function EditJobPosting() {
 
         <input type="text" name="apply_method" value={formData.apply_method} onChange={handleChange} className="w-full p-2 border rounded" placeholder="Application Method (e.g. link or email)" />
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-4 pt-4">
-            <button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="w-full bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800 disabled:bg-gray-400"
-            >
-              {isSubmitting ? 'Updating...' : 'Update Job'}
-            </button>
-             <Link href="/rep/dashboard" className="w-full">
-                <button
-                type="button"
-                className="w-full bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
-                >
-                Cancel
-                </button>
-            </Link>
-        </div>
+        <button type="submit" className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">Update Job</button>
       </form>
     </div>
   );
 }
-

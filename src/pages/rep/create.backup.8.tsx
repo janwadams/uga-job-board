@@ -1,10 +1,6 @@
-//create job posting for rep
-
-
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
-import Link from 'next/link';
 
 // A predefined list of industries for the dropdown
 const industries = [
@@ -152,11 +148,6 @@ export default function CreateJobPosting() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-       <Link href="/rep/dashboard">
-        <span className="text-red-700 underline hover:text-red-900 cursor-pointer mb-6 inline-block">
-          ← Back to Rep Dashboard
-        </span>
-      </Link>
       <h1 className="text-3xl font-bold text-red-700 mb-6">Create Job Posting</h1>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
@@ -164,11 +155,17 @@ export default function CreateJobPosting() {
       {success && (
         <div className="bg-green-100 text-green-800 p-4 rounded mb-4 border border-green-300">
           ✅ Job created successfully! Your posting is awaiting review.
+          <br />
+          <a
+            href="/rep/dashboard"
+            className="inline-block mt-2 text-red-700 underline hover:text-red-900"
+          >
+            ← Back to Rep Dashboard
+          </a>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Form fields remain the same */}
         <input
           type="text"
           name="title"
@@ -185,6 +182,8 @@ export default function CreateJobPosting() {
           onChange={handleChange}
           className="w-full p-2 border rounded"
         />
+
+        {/* UPDATED: Replaced text input with a dropdown select */}
         <select
           name="industry"
           value={formData.industry}
@@ -198,6 +197,7 @@ export default function CreateJobPosting() {
             </option>
           ))}
         </select>
+
         <select
           name="job_type"
           value={formData.job_type}
@@ -209,6 +209,7 @@ export default function CreateJobPosting() {
           <option value="Part-Time">Part-Time</option>
           <option value="Full-Time">Full-Time</option>
         </select>
+
         <textarea
           name="description"
           placeholder="Job Description"
@@ -216,6 +217,7 @@ export default function CreateJobPosting() {
           onChange={handleChange}
           className="w-full p-2 border rounded"
         />
+
         <input
           type="text"
           name="skills"
@@ -224,6 +226,7 @@ export default function CreateJobPosting() {
           onChange={handleChange}
           className="w-full p-2 border rounded"
         />
+
         <label className="block font-medium mb-1">
           Application Deadline{' '}
           <span className="text-sm text-gray-500">(last day students can apply)</span>
@@ -237,6 +240,7 @@ export default function CreateJobPosting() {
           placeholder="Deadline"
           title="This is the last day students can apply"
         />
+
         <input
           type="text"
           name="apply_method"
@@ -246,24 +250,13 @@ export default function CreateJobPosting() {
           className="w-full p-2 border rounded"
         />
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-4 pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800 disabled:bg-gray-400"
-            >
-              {loading ? 'Submitting...' : 'Create Job'}
-            </button>
-            <Link href="/rep/dashboard" className="w-full">
-                <button
-                type="button"
-                className="w-full bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
-                >
-                Cancel
-                </button>
-            </Link>
-        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800"
+        >
+          Create Job
+        </button>
       </form>
     </div>
   );
