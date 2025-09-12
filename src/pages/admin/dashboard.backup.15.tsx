@@ -293,7 +293,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                 <tr key={job.id}>
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{job.title}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{job.company}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono" title={job.created_by}>{job.created_by}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono" title={job.created_by}>{job.created_by.substring(0, 8)}...</td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-center">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
