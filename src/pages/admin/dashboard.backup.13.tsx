@@ -1,9 +1,6 @@
 //admmin dashboard
 //made changes for better layout
 
-//admmin dashboard
-//made changes for better layout
-
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -254,7 +251,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-700">📋 All Job Postings</h2>
+        <h2 className="text-2xl font-bold text-gray-700">💼 All Job Postings</h2>
         <div>
           <label className="mr-2 font-medium">Filter by Status:</label>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
@@ -289,7 +286,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                 <tr key={job.id} className="text-center">
                   <td className="border px-4 py-2 text-left font-medium">{job.title}</td>
                   <td className="border px-4 py-2 text-left">{job.company}</td>
-                  <td className="border px-4 py-2 text-sm truncate" title={job.user_email}>{job.created_by.substring(0, 8)}...</td>
+                  <td className="border px-4 py-2 text-sm truncate" title={job.user_email}>{job.user_email?.substring(0, 8)}...</td>
                   <td className="border px-4 py-2">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
                       {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
@@ -305,7 +302,8 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                     {(job.status === 'active') && (
                         <button onClick={() => onJobAction(job.id, 'removed')} className="px-3 py-1 text-sm rounded bg-gray-500 text-white hover:bg-gray-600">Remove</button>
                     )}
-                    <Link href={`/admin/edit/${job.id}`} passHref>
+                     {/* Placeholder for future edit functionality */}
+                    <Link href={`/admin/edit/${job.id}`}>
                         <button className="px-3 py-1 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">Edit</button>
                     </Link>
                   </td>
