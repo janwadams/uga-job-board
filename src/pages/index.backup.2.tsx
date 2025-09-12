@@ -52,8 +52,8 @@ const JobCard = ({ job }: { job: Job }) => {
   );
 };
 
-// Main Student Dashboard Component
-export default function StudentDashboard() {
+// Main Homepage Component
+export default function HomePage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -62,6 +62,11 @@ export default function StudentDashboard() {
   const [jobTypeFilters, setJobTypeFilters] = useState<string[]>([]);
   const [industryFilter, setIndustryFilter] = useState('');
   const [sortBy, setSortBy] = useState('created_at'); // 'created_at' or 'deadline'
+  
+  // State for pagination
+  const [visibleJobsCount, setVisibleJobsCount] = useState(9);
+  const JOBS_PER_PAGE = 9;
+
 
   // Fetch all active jobs on initial load
   useEffect(() => {
@@ -70,7 +75,8 @@ export default function StudentDashboard() {
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
-        .eq('status', 'active'); // Only fetch active jobs
+        .eq('status', 'active')
+        .gte('deadline', new Date().toISOString()); // Only show jobs with future deadlines
 
       if (error) {
         console.error('Error fetching jobs:', error);
@@ -120,6 +126,14 @@ export default function StudentDashboard() {
       });
   }, [jobs, searchTerm, jobTypeFilters, industryFilter, sortBy]);
 
+  const isFilterActive = searchTerm || jobTypeFilters.length > 0 || industryFilter;
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setJobTypeFilters([]);
+    setIndustryFilter('');
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <header className="bg-white border-b border-gray-200">
@@ -130,52 +144,38 @@ export default function StudentDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {/* --- NEW FILTERS SECTION --- */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Search */}
-            <div className="md:col-span-2">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700">Search by Title/Company</label>
-              <input
-                type="text"
-                id="search"
-                placeholder="e.g. Software Engineer"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm p-2"
-              />
-            </div>
-            {/* Industry */}
-            <div>
-               <label htmlFor="industry" className="block text-sm font-medium text-gray-700">Industry</label>
-               <select
-                id="industry"
-                value={industryFilter}
-                onChange={(e) => setIndustryFilter(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md"
-               >
-                 <option value="">All Industries</option>
-                 {industries.map(industry => <option key={industry} value={industry}>{industry}</option>)}
-               </select>
-            </div>
-            {/* Sort By */}
-            <div>
-               <label htmlFor="sort" className="block text-sm font-medium text-gray-700">Sort By</label>
-               <select
-                id="sort"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md"
-               >
-                 <option value="created_at">Newest</option>
-                 <option value="deadline">Application Deadline</option>
-               </select>
-            </div>
-          </div>
-            {/* Job Type Checkboxes */}
-            <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700">Job Type</h4>
-                <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Filters Sidebar */}
+          <aside className="w-full lg:w-1/4">
+            <div className="sticky top-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Filter & Sort</h3>
+                {isFilterActive && (
+                  <button 
+                    onClick={handleClearFilters}
+                    className="text-sm font-medium text-red-600 hover:text-red-800"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-6">
+                {/* Search */}
+                <div>
+                  <label htmlFor="search" className="block text-sm font-medium text-gray-700">Search by Title/Company</label>
+                  <input
+                    type="text"
+                    id="search"
+                    placeholder="e.g. Software Engineer"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm p-2"
+                  />
+                </div>
+                {/* Job Type */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700">Job Type</h4>
+                  <div className="mt-2 space-y-2">
                     {['Internship', 'Part-Time', 'Full-Time'].map(type => (
                       <label key={type} className="flex items-center">
                         <input
@@ -187,24 +187,70 @@ export default function StudentDashboard() {
                         <span className="ml-2 text-sm text-gray-600">{type}</span>
                       </label>
                     ))}
+                  </div>
                 </div>
+                {/* Industry */}
+                <div>
+                   <label htmlFor="industry" className="block text-sm font-medium text-gray-700">Industry</label>
+                   <select
+                    id="industry"
+                    value={industryFilter}
+                    onChange={(e) => setIndustryFilter(e.target.value)}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md"
+                   >
+                     <option value="">All Industries</option>
+                     {industries.map(industry => <option key={industry} value={industry}>{industry}</option>)}
+                   </select>
+                </div>
+                {/* Sort By */}
+                <div>
+                   <label htmlFor="sort" className="block text-sm font-medium text-gray-700">Sort By</label>
+                   <select
+                    id="sort"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md"
+                   >
+                     <option value="created_at">Newest</option>
+                     <option value="deadline">Application Deadline</option>
+                   </select>
+                </div>
+              </div>
             </div>
-        </div>
+          </aside>
 
-        {/* Job Listings */}
-        <div>
-          {loading ? (
-            <p className="text-center text-gray-500">Loading jobs...</p>
-          ) : filteredAndSortedJobs.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredAndSortedJobs.map(job => <JobCard key={job.id} job={job} />)}
-              </div>
-          ) : (
-              <div className="text-center bg-white p-10 rounded-lg shadow-sm border border-gray-200">
-                  <h3 className="text-xl font-semibold text-gray-800">No Jobs Found</h3>
-                  <p className="text-gray-500 mt-2">Try adjusting your search or filter criteria.</p>
-              </div>
-          )}
+          {/* Job Listings */}
+          <div className="w-full lg:w-3/4">
+            <div className="mb-4">
+              <p className="text-sm text-gray-600">
+                Showing <span className="font-bold">{filteredAndSortedJobs.slice(0, visibleJobsCount).length}</span> of <span className="font-bold">{filteredAndSortedJobs.length}</span> jobs
+              </p>
+            </div>
+            {loading ? (
+              <p className="text-center text-gray-500">Loading jobs...</p>
+            ) : filteredAndSortedJobs.length > 0 ? (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {filteredAndSortedJobs.slice(0, visibleJobsCount).map(job => <JobCard key={job.id} job={job} />)}
+                    </div>
+                    {visibleJobsCount < filteredAndSortedJobs.length && (
+                        <div className="mt-8 text-center">
+                            <button
+                                onClick={() => setVisibleJobsCount(prev => prev + JOBS_PER_PAGE)}
+                                className="bg-red-700 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-800 transition-colors"
+                            >
+                                Load More
+                            </button>
+                        </div>
+                    )}
+                </>
+            ) : (
+                <div className="text-center bg-white p-10 rounded-lg shadow-sm border border-gray-200">
+                    <h3 className="text-xl font-semibold text-gray-800">No Jobs Found</h3>
+                    <p className="text-gray-500 mt-2">Try adjusting your search or filter criteria.</p>
+                </div>
+            )}
+          </div>
         </div>
       </main>
     </div>
