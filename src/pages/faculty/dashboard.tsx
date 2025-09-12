@@ -1,6 +1,4 @@
-//faculty dashboard 
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
@@ -17,13 +15,69 @@ interface Job {
   location: string;
   deadline: string;
   job_type: string;
-  status: string;
+  status: 'active' | 'pending' | 'removed' | 'rejected';
   created_by: string;
 }
 
+// Reusable Job Card Component for a cleaner structure
+const JobCard = ({ job, onRemove }: { job: Job, onRemove: (jobId: string) => void }) => {
+  const statusColors: Record<Job['status'], string> = {
+    active: 'bg-green-100 text-green-800',
+    pending: 'bg-yellow-100 text-yellow-800',
+    removed: 'bg-red-100 text-red-800',
+    rejected: 'bg-gray-100 text-gray-800',
+  };
+
+  const isArchived = job.status === 'removed' || job.status === 'rejected';
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-6 flex flex-col h-full">
+      <div className="flex-grow">
+        <div className="flex justify-between items-start">
+            <h2 className="font-bold text-xl text-gray-800">{job.title}</h2>
+            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
+                {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+            </span>
+        </div>
+        <p className="text-gray-600 mb-2">{job.company}</p>
+        <p className="text-sm text-gray-500">
+          Deadline: {new Date(job.deadline).toLocaleDateString()}
+        </p>
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
+        <Link href={`/faculty/edit/${job.id}`}>
+          <button
+            disabled={isArchived}
+            className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
+              isArchived
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            Edit
+          </button>
+        </Link>
+        <button
+          onClick={() => onRemove(job.id)}
+          disabled={isArchived}
+          className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
+            isArchived
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              : 'bg-gray-600 text-white hover:bg-gray-700'
+          }`}
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
 export default function FacultyDashboard() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -59,7 +113,6 @@ export default function FacultyDashboard() {
 
   useEffect(() => {
     const fetchJobs = async () => {
-      // Ensure session and user are available before fetching
       if (!session?.user) {
         setLoading(false);
         return;
@@ -71,7 +124,6 @@ export default function FacultyDashboard() {
       let query = supabase
         .from('jobs')
         .select('*')
-        // THIS IS THE CRITICAL FIX: Only fetch jobs created by the logged-in user
         .eq('created_by', userId);
 
       if (statusFilter) {
@@ -84,22 +136,19 @@ export default function FacultyDashboard() {
         console.error('Error fetching jobs:', error);
         setJobs([]);
       } else {
-        setJobs(data || []);
+        setJobs(data as Job[] || []);
       }
 
       setLoading(false);
     };
 
-    // Only fetch jobs if the session is confirmed
     if (session) {
       fetchJobs();
     }
   }, [session, statusFilter]);
 
   const handleRemove = async (jobId: string) => {
-    // We'll use a custom modal for confirmation in a real app,
-    // but window.confirm is fine for this context.
-    if (!confirm('Are you sure you want to remove this posting?')) {
+    if (!confirm('Are you sure you want to remove this posting? This action is permanent.')) {
       return;
     }
 
@@ -109,7 +158,6 @@ export default function FacultyDashboard() {
       .eq('id', jobId);
 
     if (error) {
-      // Similarly, a custom alert/toast would be better here.
       alert('Failed to remove job.');
     } else {
       setJobs((prev) =>
@@ -119,102 +167,76 @@ export default function FacultyDashboard() {
       );
     }
   };
+  
+  // Calculate metrics from the jobs list
+  const totalJobs = jobs.length;
+  const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
 
-  // Render a loading state until the session and role are confirmed
   if (!session || !userRole) {
     return <p className="p-8 text-center">Loading dashboard...</p>;
   }
 
-  const statusColors: { [key: string]: string } = {
-    pending: 'text-blue-600',
-    active: 'text-green-600',
-    removed: 'text-red-600',
-    rejected: 'text-gray-600'
-  };
-
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-red-800">🏫 Faculty Dashboard</h1>
-        <Link href="/faculty/create">
-          <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
-            + Post a Job
-          </button>
-        </Link>
+    <div className="bg-gray-50 min-h-screen p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-red-800">🏫 Faculty Dashboard</h1>
+          <Link href="/faculty/create">
+            <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
+              + Post a New Job
+            </button>
+          </Link>
+        </div>
+
+        {/* --- METRICS CARDS --- */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h3 className="text-gray-500 font-semibold">Total Jobs Posted</h3>
+                <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
+            </div>
+             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
+                <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
+            </div>
+        </div>
+
+        {/* --- FILTER AND JOB LISTINGS --- */}
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">Your Job Postings</h2>
+            <div>
+              <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
+              <select
+                id="statusFilter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
+              >
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="removed">Removed</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+
+          {loading ? (
+            <p className="text-center text-gray-500 py-10">Loading your jobs...</p>
+          ) : jobs.length === 0 ? (
+            <div className="text-center py-10">
+              <h3 className="text-xl font-semibold text-gray-700">No jobs posted yet.</h3>
+              <p className="text-gray-500 mt-2">Click the "Post a New Job" button to get started.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {jobs.map((job) => (
+                <JobCard key={job.id} job={job} onRemove={handleRemove} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-
-      <div className="mb-4">
-        <label className="mr-2 font-medium">Filter by Status:</label>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="p-2 border rounded"
-        >
-          <option value="">All</option>
-          <option value="active">Active</option>
-          <option value="removed">Removed</option>
-          {/* Faculty jobs are active by default, but pending could be a future state */}
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-
-      {loading ? (
-        <p>Loading your jobs...</p>
-      ) : jobs.length === 0 ? (
-        <p>You have not posted any jobs yet.</p>
-      ) : (
-        <ul className="space-y-4">
-          {jobs.map((job) => (
-            <li key={job.id} className="border p-4 rounded shadow bg-white">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="font-semibold text-lg">{job.title}</h2>
-                  <p className="text-gray-700">{job.company}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Deadline: {new Date(job.deadline).toLocaleDateString()}
-                  </p>
-                  <p className="text-sm mt-1">
-                    <span className="font-medium">Status:</span>{' '}
-                    <span className={`${statusColors[job.status] || 'text-gray-600'} font-semibold capitalize`}>
-                      {job.status}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-2 ml-4">
-                    <>
-                      <Link href={`/faculty/edit/${job.id}`}>
-                        <button
-                          disabled={job.status === 'removed' || job.status === 'rejected'}
-                          className={`px-3 py-1 rounded font-medium text-sm ${
-                            job.status === 'removed' || job.status === 'rejected'
-                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                      </Link>
-
-                      <button
-                        onClick={() => handleRemove(job.id)}
-                        disabled={job.status === 'removed' || job.status === 'rejected'}
-                        className={`px-3 py-1 rounded font-medium text-sm ${
-                          job.status === 'removed' || job.status === 'rejected'
-                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                            : 'bg-gray-600 text-white hover:bg-gray-700'
-                          }`}
-                      >
-                        Remove
-                      </button>
-                    </>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
