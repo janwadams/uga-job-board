@@ -276,31 +276,31 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
       ) : jobs.length === 0 ? (
         <p>No job postings found for the selected filter.</p>
       ) : (
-        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-          <table className="min-w-full">
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <table className="min-w-full w-full table-fixed">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By (ID)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-[25%]">Job Title</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-[20%]">Company</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-[25%]">Posted By (ID)</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 w-[10%]">Role</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 w-[10%]">Status</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 w-[10%]">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {jobs.map((job) => (
                 <tr key={job.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{job.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.company}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{job.created_by}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 truncate" title={job.title}>{job.title}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 truncate" title={job.company}>{job.company}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono truncate" title={job.created_by}>{job.created_by}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
                       {job.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                  <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
                     <div className="relative inline-block text-left">
                       <button 
                         onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)}
