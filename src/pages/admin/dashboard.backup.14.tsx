@@ -1,6 +1,9 @@
 //admmin dashboard
 //made changes for better layout
 
+//admmin dashboard
+//made changes for better layout
+
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -30,8 +33,7 @@ interface Job {
   status: 'active' | 'pending' | 'removed' | 'rejected';
   created_at: string;
   created_by: string;
-  user_email?: string; 
-  role?: string; // ADDED: Role of the creator
+  user_email?: string; // We will add this after fetching
 }
 
 // --- Main Admin Dashboard Component ---
@@ -68,6 +70,10 @@ export default function AdminDashboard() {
 
   const fetchJobs = async () => {
     setLoadingJobs(true);
+    // This query fetches all jobs and joins with a view to get the creator's email
+    // This assumes you have a view or function that links `created_by` (a UUID) to an email.
+    // A direct join on `auth.users` is not possible with RLS by default.
+    // Let's fetch jobs first.
     const { data, error } = await supabase
       .from('jobs')
       .select(`
@@ -83,7 +89,13 @@ export default function AdminDashboard() {
       console.error('Error fetching jobs:', error);
       setJobs([]);
     } else if (data) {
-        setJobs(data as Job[]);
+        // NOTE: A performant way to get user emails is via an RPC function in Supabase.
+        // For now, we are keeping it simple and will show the user ID.
+        const formattedJobs = data.map((job: any) => ({
+            ...job,
+            user_email: job.created_by // Placeholder, ideally fetch email via RPC
+        }));
+        setJobs(formattedJobs);
     }
     setLoadingJobs(false);
   };
@@ -93,7 +105,7 @@ export default function AdminDashboard() {
     fetchUsers();
     fetchJobs();
   }, []);
-  
+
   // --- Action Handlers ---
   const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
     try {
@@ -129,26 +141,11 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- Derived Data for UI ---
-  // Create a map of user IDs to roles for easy lookup
-  const userRoleMap = useMemo(() => {
-    const map = new Map<string, string>();
-    users.forEach(user => map.set(user.user_id, user.role));
-    return map;
-  }, [users]);
-  
-  // Combine jobs with their creator's role
-  const jobsWithRoles = useMemo(() => {
-    return jobs.map(job => ({
-        ...job,
-        role: userRoleMap.get(job.created_by) || 'N/A'
-    }));
-  }, [jobs, userRoleMap]);
-  
+  // --- Filtering Logic ---
   const filteredJobs = useMemo(() => {
-    if (!statusFilter) return jobsWithRoles;
-    return jobsWithRoles.filter(job => job.status === statusFilter);
-  }, [jobsWithRoles, statusFilter]);
+    if (!statusFilter) return jobs;
+    return jobs.filter(job => job.status === statusFilter);
+  }, [jobs, statusFilter]);
 
   // --- Render ---
   return (
@@ -245,10 +242,8 @@ function UsersManagementPanel({ users, loading, onStatusToggle }: { users: Admin
   );
 }
 
-// --- Sub-component for Jobs Tab (IMPROVED) ---
+// --- Sub-component for Jobs Tab ---
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
-  const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
-
   const statusColors: Record<Job['status'], string> = {
     active: 'bg-green-100 text-green-800',
     pending: 'bg-yellow-100 text-yellow-800',
@@ -276,62 +271,43 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
       ) : jobs.length === 0 ? (
         <p>No job postings found for the selected filter.</p>
       ) : (
-        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-          <table className="min-w-full table-auto">
+        <div className="overflow-x-auto">
+          <table className="min-w-full table-auto border-collapse border border-gray-200">
+            {/* Table Head */}
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Job Title</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Company</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Posted By (ID)</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Role</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">Status</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">Actions</th>
+                <th className="border px-4 py-2">Job Title</th>
+                <th className="border px-4 py-2">Company</th>
+                <th className="border px-4 py-2">Posted By (User ID)</th>
+                <th className="border px-4 py-2">Status</th>
+                <th className="border px-4 py-2">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            {/* Table Body */}
+            <tbody>
               {jobs.map((job) => (
-                <tr key={job.id}>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{job.title}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{job.company}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono" title={job.created_by}>{job.created_by.substring(0, 8)}...</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
-                      {job.status}
+                <tr key={job.id} className="text-center">
+                  <td className="border px-4 py-2 text-left font-medium">{job.title}</td>
+                  <td className="border px-4 py-2 text-left">{job.company}</td>
+                  <td className="border px-4 py-2 text-sm truncate" title={job.user_email}>{job.created_by.substring(0, 8)}...</td>
+                  <td className="border px-4 py-2">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
+                      {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
-                    <div className="relative inline-block text-left">
-                      <button 
-                        onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                        </svg>
-                      </button>
-                      {openActionMenu === job.id && (
-                        <div 
-                          className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
-                          onMouseLeave={() => setOpenActionMenu(null)}
-                        >
-                          <div className="py-1" role="menu" aria-orientation="vertical">
-                            {job.status === 'pending' && (
-                              <>
-                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approve</a>
-                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'rejected'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reject</a>
-                              </>
-                            )}
-                            {job.status === 'active' && (
-                              <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>
-                            )}
-                            <Link href={`/admin/edit/${job.id}`}>
-                              <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span>
-                            </Link>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                  <td className="border px-4 py-2 space-x-2">
+                    {job.status === 'pending' && (
+                      <>
+                        <button onClick={() => onJobAction(job.id, 'active')} className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-700">Approve</button>
+                        <button onClick={() => onJobAction(job.id, 'rejected')} className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700">Reject</button>
+                      </>
+                    )}
+                    {(job.status === 'active') && (
+                        <button onClick={() => onJobAction(job.id, 'removed')} className="px-3 py-1 text-sm rounded bg-gray-500 text-white hover:bg-gray-600">Remove</button>
+                    )}
+                    <Link href={`/admin/edit/${job.id}`} passHref>
+                        <button className="px-3 py-1 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">Edit</button>
+                    </Link>
                   </td>
                 </tr>
               ))}
