@@ -284,7 +284,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
       ) : jobs.length === 0 ? (
         <p>No job postings found for the selected filter.</p>
       ) : (
-        <div className="border border-gray-200 rounded-lg">
+        <div className="border border-gray-200 rounded-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -316,7 +316,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                         onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                         </svg>
                       </button>
