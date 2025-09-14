@@ -1,6 +1,6 @@
 // admin dashboard
 // made changes for better layout
-
+//made changes so admin can edit user info
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';

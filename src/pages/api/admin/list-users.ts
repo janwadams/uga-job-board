@@ -1,5 +1,4 @@
 // pages/api/admin/list-users.ts
-//made changes for admin dashboard 
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
@@ -18,7 +17,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin.auth.admin.listUsers(),
     ]);
 
-    if (!roles || !jobs || !usersResponse || !usersResponse.data) {
+    // CORRECTED: Check for usersResponse and usersResponse.users
+    if (!roles || !jobs || !usersResponse || !usersResponse.users) {
         throw new Error("Failed to fetch data from one or more sources.");
     }
 
@@ -30,7 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Enrich the role data with details from auth.users and job counts
     const enrichedUsers = roles.map((roleRow) => {
-      const authUser = usersResponse.data.users.find((u: any) => u.id === roleRow.user_id);
+      // CORRECTED: Access users directly from usersResponse.users
+      const authUser = usersResponse.users.find((u: any) => u.id === roleRow.user_id);
       
       // Construct the final user object to be sent to the front-end
       return {
@@ -38,10 +39,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         role: roleRow.role,
         is_active: roleRow.is_active,
         email: authUser?.email || null,
-        // ADDED: Include the new fields from the user_roles table
         first_name: roleRow.first_name,
         last_name: roleRow.last_name,
-        company_name: roleRow.company_name, // This will be null for non-reps, which is correct
+        company_name: roleRow.company_name,
         last_sign_in_at: authUser?.last_sign_in_at || null,
         jobs_posted: jobCountMap[roleRow.user_id] || 0,
       };
@@ -54,3 +54,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ error: 'Failed to fetch admin user list.', details: errorMessage });
   }
 }
+
