@@ -1,6 +1,5 @@
-//admin dashboard
-//src/pages/admin/dashboard file
-//made changes for better layout
+// admin dashboard
+// made changes for better layout
 
 
 import { useEffect, useState, useMemo } from 'react';
@@ -260,7 +259,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser }: { 
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
                     <button onClick={() => onEditUser(user)} className="text-indigo-600 hover:text-indigo-900">Edit</button>
-                    <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`font-semibold ${user.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}>
+                    <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
                       {user.is_active ? 'Disable' : 'Enable'}
                     </button>
                   </td>
@@ -276,76 +275,78 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser }: { 
 
 // --- Sub-component for Jobs Tab ---
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
-    const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
-    const statusColors: Record<Job['status'], string> = { active: 'bg-green-100 text-green-800', pending: 'bg-yellow-100 text-yellow-800', removed: 'bg-red-100 text-red-800', rejected: 'bg-gray-100 text-gray-800' };
+  const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
+  const statusColors: Record<Job['status'], string> = { active: 'bg-green-100 text-green-800', pending: 'bg-yellow-100 text-yellow-800', removed: 'bg-red-100 text-red-800', rejected: 'bg-gray-100 text-gray-800' };
 
-    return (
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-700">📋 All Job Postings</h2>
         <div>
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-700">📋 All Job Postings</h2>
-                <div>
-                    <label className="mr-2 font-medium">Filter by Status:</label>
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
-                        <option value="">All</option>
-                        <option value="pending">Pending</option>
-                        <option value="active">Active</option>
-                        <option value="removed">Removed</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
-                </div>
-            </div>
-            {loading ? (<p>Loading jobs...</p>) : jobs.length === 0 ? (<p>No job postings found for the selected filter.</p>) : (
-                <div className="border border-gray-200 rounded-lg overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By (ID)</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {jobs.map((job) => (
-                                <tr key={job.id}>
-                                    <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">{job.title}</td>
-                                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.company}</td>
-                                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500 font-mono">{job.created_by}</td>
-                                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.email}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-center"><span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>{job.status}</span></td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                                        <div className="relative inline-block text-left">
-                                            <button onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                                            </button>
-                                            {openActionMenu === job.id && (
-                                                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" onMouseLeave={() => setOpenActionMenu(null)}>
-                                                    <div className="py-1" role="menu" aria-orientation="vertical">
-                                                        {job.status === 'pending' && (
-                                                            <>
-                                                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approve</a>
-                                                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'rejected'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reject</a>
-                                                            </>
-                                                        )}
-                                                        {job.status === 'active' && (<a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>)}
-                                                        <Link href={`/admin/edit/${job.id}`}><span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span></Link>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+          <label className="mr-2 font-medium">Filter by Status:</label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="active">Active</option>
+            <option value="removed">Removed</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
-    );
+      </div>
+      {loading ? (<p>Loading jobs...</p>) : jobs.length === 0 ? (<p>No job postings found for the selected filter.</p>) : (
+        <div className="border border-gray-200 rounded-lg overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By (ID)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {jobs.map((job) => (
+                <tr key={job.id}>
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">{job.title}</td>
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.company}</td>
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500 font-mono">{job.created_by}</td>
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>{job.status}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <div className="relative inline-block text-left">
+                      <button onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                      </button>
+                      {openActionMenu === job.id && (
+                        <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" onMouseLeave={() => setOpenActionMenu(null)}>
+                          <div className="py-1" role="menu" aria-orientation="vertical">
+                            {job.status === 'pending' && (
+                              <>
+                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approve</a>
+                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'rejected'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reject</a>
+                              </>
+                            )}
+                            {job.status === 'active' && (<a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>)}
+                            <Link href={`/admin/edit/${job.id}`}><span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span></Link>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // --- NEW: Sub-component for the Edit User Modal ---
@@ -363,38 +364,31 @@ function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: ()
     };
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-                <div className="mt-3 text-center">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">Edit User Details</h3>
-                    <div className="mt-2 px-7 py-3">
-                        <form onSubmit={handleSubmit} className="space-y-4 text-left">
-                            <div>
-                                <label className="font-medium">First Name</label>
-                                <input type="text" name="first_name" value={formData.first_name} onChange={handleChange} className="w-full mt-1 p-2 border rounded" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4">Edit User: {user.email}</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
+                            <input type="text" name="first_name" id="first_name" value={formData.first_name} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                        </div>
+                        <div>
+                            <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
+                            <input type="text" name="last_name" id="last_name" value={formData.last_name} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                        </div>
+                        {user.role === 'rep' && (
+                             <div>
+                                <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
+                                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
                             </div>
-                            <div>
-                                <label className="font-medium">Last Name</label>
-                                <input type="text" name="last_name" value={formData.last_name} onChange={handleChange} className="w-full mt-1 p-2 border rounded" />
-                            </div>
-                            {/* Only show company name for reps */}
-                            {formData.role === 'rep' && (
-                                <div>
-                                    <label className="font-medium">Company Name</label>
-                                    <input type="text" name="company_name" value={formData.company_name || ''} onChange={handleChange} className="w-full mt-1 p-2 border rounded" />
-                                </div>
-                            )}
-                        </form>
+                        )}
                     </div>
-                    <div className="items-center px-4 py-3 space-x-4">
-                        <button onClick={handleSubmit} className="px-4 py-2 bg-red-700 text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            Save Changes
-                        </button>
-                        <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
-                            Cancel
-                        </button>
+                    <div className="mt-6 flex justify-end gap-4">
+                        <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">Cancel</button>
+                        <button type="submit" className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">Save Changes</button>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     );
