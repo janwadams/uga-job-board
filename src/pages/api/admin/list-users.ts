@@ -1,6 +1,5 @@
-/*
-
 // pages/api/admin/list-users.ts
+//made changes for admin dashboard 
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
@@ -12,78 +11,46 @@ const supabaseAdmin = createClient(
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const [{ data: roles }, { data: jobs }, { data: users }] = await Promise.all([
+    const [{ data: roles }, { data: jobs }, { data: usersResponse }] = await Promise.all([
+      // Select all fields from user_roles, which now includes first_name, last_name, etc.
       supabaseAdmin.from('user_roles').select('*'),
       supabaseAdmin.from('jobs').select('created_by'),
       supabaseAdmin.auth.admin.listUsers(),
     ]);
 
-    // Count jobs
-    const jobCountMap = jobs.reduce((acc: any, job: any) => {
+    if (!roles || !jobs || !usersResponse || !usersResponse.data) {
+        throw new Error("Failed to fetch data from one or more sources.");
+    }
+
+    // Count jobs posted by each user
+    const jobCountMap = jobs.reduce((acc: { [key: string]: number }, job: any) => {
       acc[job.created_by] = (acc[job.created_by] || 0) + 1;
       return acc;
     }, {});
 
-    // Map each user
-    const enriched = roles.map((roleRow) => {
-      const authUser = users.users.find((u: any) => u.id === roleRow.user_id);
+    // Enrich the role data with details from auth.users and job counts
+    const enrichedUsers = roles.map((roleRow) => {
+      const authUser = usersResponse.data.users.find((u: any) => u.id === roleRow.user_id);
+      
+      // Construct the final user object to be sent to the front-end
       return {
         user_id: roleRow.user_id,
         role: roleRow.role,
         is_active: roleRow.is_active,
+        email: authUser?.email || null,
+        // ADDED: Include the new fields from the user_roles table
+        first_name: roleRow.first_name,
+        last_name: roleRow.last_name,
+        company_name: roleRow.company_name, // This will be null for non-reps, which is correct
         last_sign_in_at: authUser?.last_sign_in_at || null,
         jobs_posted: jobCountMap[roleRow.user_id] || 0,
       };
     });
 
-    res.status(200).json({ users: enriched });
+    res.status(200).json({ users: enrichedUsers });
   } catch (error) {
     console.error('[Admin List Users] Error:', error);
-    res.status(500).json({ error: 'Failed to fetch admin user list.' });
-  }
-}
-*/
-
-// pages/api/admin/list-users.ts
-
-import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Make sure this is only used server-side!
-);
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  try {
-    const [{ data: roles }, { data: jobs }, { data: users }] = await Promise.all([
-      supabaseAdmin.from('user_roles').select('*'),
-      supabaseAdmin.from('jobs').select('created_by'),
-      supabaseAdmin.auth.admin.listUsers(),
-    ]);
-
-    // Count jobs
-    const jobCountMap = jobs.reduce((acc: any, job: any) => {
-      acc[job.created_by] = (acc[job.created_by] || 0) + 1;
-      return acc;
-    }, {});
-
-    // Map each user
-    const enriched = roles.map((roleRow) => {
-      const authUser = users.users.find((u: any) => u.id === roleRow.user_id);
-      return {
-        user_id: roleRow.user_id,
-        role: roleRow.role,
-        is_active: roleRow.is_active,
-        email: authUser?.email || null, // ADDED: Include the user's email from auth.users
-        last_sign_in_at: authUser?.last_sign_in_at || null,
-        jobs_posted: jobCountMap[roleRow.user_id] || 0,
-      };
-    });
-
-    res.status(200).json({ users: enriched });
-  } catch (error) {
-    console.error('[Admin List Users] Error:', error);
-    res.status(500).json({ error: 'Failed to fetch admin user list.' });
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    res.status(500).json({ error: 'Failed to fetch admin user list.', details: errorMessage });
   }
 }
