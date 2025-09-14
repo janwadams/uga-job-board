@@ -1,5 +1,5 @@
 //admin dashboard
-/src/pages/admin/dashboard file
+//src/pages/admin/dashboard file
 //made changes for better layout
 
 
