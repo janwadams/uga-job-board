@@ -1,4 +1,4 @@
-// pages/api/auth/register-rep.ts for company rep
+// pages/api/auth/register-student.ts
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
@@ -14,59 +14,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // UPDATED: Now expecting first_name and last_name in the request body
-  const { email, password, company_name, first_name, last_name } = req.body;
+  const { email, password, firstName, lastName } = req.body;
 
-  // UPDATED: Added validation for the new name fields
-  if (!email || !password || !company_name || !first_name || !last_name) {
+  // --- Student-specific validation ---
+  if (!email || !password || !firstName || !lastName) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
 
+  // Ensure the email is a valid .edu address
+  if (!email.toLowerCase().endsWith('.edu')) {
+      return res.status(400).json({ error: 'Please use a valid .edu email address.' });
+  }
+
   try {
-    // Step 1: Create the new user in auth.users
+    // Step 1: Create the new student user in the auth.users table
     const { data: { user }, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
-      email_confirm: true, // Auto-confirm email because an admin will approve the account
+      email_confirm: true, // Auto-confirm student emails
       user_metadata: { 
-        company_name: company_name,
-        first_name: first_name,
-        last_name: last_name,
+        first_name: firstName,
+        last_name: lastName,
       },
     });
 
     if (signUpError || !user) {
-      console.error('[Register Rep] Supabase sign-up error:', signUpError?.message);
+      console.error('[Register Student] Supabase sign-up error:', signUpError?.message);
       return res.status(400).json({ error: 'A user with this email already exists or the password is too weak.' });
     }
 
-    // Step 2: Insert the full user record into the user_roles table
+    // Step 2: Insert a record into the user_roles table to assign the student role
+    // NOTE: This assumes you have added 'first_name' and 'last_name' columns to your 'user_roles' table.
     const { error: rolesError } = await supabaseAdmin
       .from('user_roles')
       .insert([
         { 
           user_id: user.id,
-          role: 'rep',          // Assign the 'rep' role
-          is_active: false,     // Rep accounts require admin approval
-          first_name: first_name, // Save the first name
-          last_name: last_name,  // Save the last name
-          company_name: company_name, // Save the company name
+          role: 'student',      // Assign the 'student' role
+          is_active: true,      // Students are active by default and don't need admin approval
+          first_name: firstName,
+          last_name: lastName,
         },
       ]);
 
     if (rolesError) {
-      console.error('[Register Rep] Failed to insert into user_roles:', rolesError.message);
-      // IMPORTANT: Clean up the created auth user if the role assignment fails
+      console.error('[Register Student] Failed to insert into user_roles:', rolesError.message);
+      // Clean up the created user if role assignment fails
       await supabaseAdmin.auth.admin.deleteUser(user.id);
       return res.status(500).json({ error: 'Failed to assign a role to the new user. The user was not created.' });
     }
 
     // Step 3: Return a success message
-    return res.status(200).json({ message: 'Account created successfully. Awaiting admin approval.' });
+    return res.status(200).json({ message: 'Account created successfully! You can now log in.' });
 
   } catch (error) {
-    console.error('[Register Rep] Unexpected server error:', error);
+    console.error('[Register Student] Unexpected server error:', error);
     return res.status(500).json({ error: 'An internal server error occurred.' });
   }
 }
-

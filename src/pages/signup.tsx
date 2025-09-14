@@ -1,59 +1,44 @@
+//company rep sign up form
+//pages/signup.tsx
+
+
 import { useState } from 'react';
-
-// Eye icon component for the password toggle
-const EyeIcon = ({ SvgClassName, pathClassName }: { SvgClassName?: string, pathClassName?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 20 20"
-    fill="currentColor"
-    className={SvgClassName || "h-5 w-5"}
-  >
-    <path
-      d="M10 12a2 2 0 100-4 2 2 0 000 4z"
-      className={pathClassName}
-    />
-    <path
-      fillRule="evenodd"
-      d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.522 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-      clipRule="evenodd"
-      className={pathClassName}
-    />
-  </svg>
-);
-
-// Eye-slashed icon component for the password toggle
-const EyeSlashedIcon = ({ SvgClassName, pathClassName }: { SvgClassName?: string, pathClassName?: string }) => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        viewBox="0 0 20 20" 
-        fill="currentColor" 
-        className={SvgClassName || "h-5 w-5"}
-    >
-        <path d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06l-1.745-1.745a10.029 10.029 0 003.3-4.38c-1.28-4.05-5.523-7-9.5-7-1.57 0-3.044.4-4.333 1.11L3.28 2.22z" />
-        <path d="M10 5a5 5 0 015 5c0 .638-.112 1.246-.317 1.807l-1.036-1.036A3.5 3.5 0 0010 7.5a3.5 3.5 0 00-3.149 2.256l-1.036-1.036A4.954 4.954 0 0110 5zM2.05 10a10.028 10.028 0 003.3 4.38l1.036-1.036A3.5 3.5 0 0110 12.5a3.5 3.5 0 01.522-1.842l1.036-1.036A4.99 4.99 0 002.05 10z" />
-    </svg>
-);
-
+import Link from 'next/link';
 
 export default function Signup() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [companyName, setCompanyName] = useState('');
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    companyName: '',
+  });
+  
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage('');
     setError('');
 
-    // --- Validation ---
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
+
+    setLoading(true);
 
     try {
       const response = await fetch('/api/auth/register-rep', {
@@ -61,7 +46,13 @@ export default function Signup() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password, company_name: companyName }),
+        body: JSON.stringify({ 
+          email: formData.email, 
+          password: formData.password, 
+          company_name: formData.companyName,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+        }),
       });
 
       const data = await response.json();
@@ -74,92 +65,101 @@ export default function Signup() {
     } catch (err) {
       console.error('Signup error:', err);
       setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100">
+    <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center text-red-800">Company Rep Signup</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center text-red-700">Company Rep Signup</h1>
         <form onSubmit={handleSignup} className="space-y-4">
-          <div>
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="companyName">
-              Company Name
-            </label>
-            <input
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              id="companyName"
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              required
-            />
+          <div className="flex gap-4">
+              <input
+                name="firstName"
+                type="text"
+                placeholder="First Name"
+                value={formData.firstName}
+                onChange={handleChange}
+                required
+                className="w-full border p-2 rounded"
+              />
+              <input
+                name="lastName"
+                type="text"
+                placeholder="Last Name"
+                value={formData.lastName}
+                onChange={handleChange}
+                required
+                className="w-full border p-2 rounded"
+              />
           </div>
-          <div>
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
-              Company Email
-            </label>
+          <input
+            name="companyName"
+            type="text"
+            placeholder="Company Name"
+            value={formData.companyName}
+            onChange={handleChange}
+            required
+            className="w-full border p-2 rounded"
+          />
+          <input
+            name="email"
+            type="email"
+            placeholder="Company Email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full border p-2 rounded"
+          />
+          <div className="relative">
             <input
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
               required
+              className="w-full border p-2 rounded pr-10"
             />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                {showPassword ? 'Hide' : 'Show'}
+            </button>
           </div>
           <div className="relative">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
-              Password
-            </label>
             <input
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              name="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
               required
+              className="w-full border p-2 rounded pr-10"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 top-7 pr-3 flex items-center text-sm leading-5"
-            >
-                {showPassword ? <EyeSlashedIcon SvgClassName="h-5 w-5 text-gray-500"/> : <EyeIcon SvgClassName="h-5 w-5 text-gray-500" />}
+            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                {showConfirmPassword ? 'Hide' : 'Show'}
             </button>
           </div>
-          <div className="relative">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="confirmPassword">
-              Confirm Password
-            </label>
-            <input
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
-              id="confirmPassword"
-              type={showPassword ? 'text' : 'password'}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 top-7 pr-3 flex items-center text-sm leading-5"
-            >
-                {showPassword ? <EyeSlashedIcon SvgClassName="h-5 w-5 text-gray-500"/> : <EyeIcon SvgClassName="h-5 w-5 text-gray-500" />}
-            </button>
-          </div>
-          <div className="flex items-center justify-between pt-2">
-            <button
-              className="bg-red-800 hover:bg-red-900 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
-              type="submit"
-            >
-              Request Account
-            </button>
-          </div>
+          
+          <button
+            className="w-full bg-red-800 hover:bg-red-900 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-gray-400"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? 'Submitting...' : 'Request Account'}
+          </button>
         </form>
         {message && <p className="text-green-500 text-center mt-4">{message}</p>}
         {error && <p className="text-red-500 text-center mt-4">{error}</p>}
+         <p className="text-center text-sm text-gray-600 mt-4">
+          Already have an account?{' '}
+          <Link href="/login">
+            <span className="text-red-700 hover:underline cursor-pointer">Log In</span>
+          </Link>
+        </p>
       </div>
     </div>
   );
 }
+
