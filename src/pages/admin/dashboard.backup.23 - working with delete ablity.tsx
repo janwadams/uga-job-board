@@ -1,6 +1,3 @@
-// admin dashboard
-// made changes for better layout
-
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
@@ -54,7 +51,6 @@ export default function AdminDashboard() {
   // State for the Edit User Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-
 
   // --- Data Fetching Functions ---
   const fetchUsers = async () => {
@@ -113,7 +109,7 @@ export default function AdminDashboard() {
   const handleJobAction = async (jobId: string, newStatus: Job['status']) => {
     let rejectionNote = null;
     if (newStatus === 'rejected') {
-      rejectionNote = prompt("Provide a rejection note (optional):");
+      rejectionNote = prompt('Provide a rejection note (optional):');
       if (rejectionNote === null) return; // User cancelled
     }
 
@@ -160,6 +156,32 @@ export default function AdminDashboard() {
       alert('An unexpected error occurred.');
     }
   };
+
+  // NEW: Action Handler for Deleting a User
+  const handleDeleteUser = async (userToDelete: AdminUser) => {
+    if (window.confirm(`Are you sure you want to permanently delete the user: ${userToDelete.email}? This action is irreversible.`)) {
+      try {
+        const response = await fetch('/api/admin/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userToDelete }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          alert('User deleted successfully.');
+          fetchUsers(); // Refresh the user list after deletion
+        } else {
+          alert('Failed to delete user: ' + (data.details || data.error));
+        }
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('An unexpected error occurred during deletion.');
+      }
+    }
+  };
+
 
   // --- Derived Data for UI ---
   const { userRoleMap, userEmailMap } = useMemo(() => {
@@ -210,7 +232,7 @@ export default function AdminDashboard() {
         </nav>
       </div>
 
-      {activeTab === 'users' && <UsersManagementPanel users={users} loading={loadingUsers} onStatusToggle={handleStatusToggle} onEditUser={openEditModal} />}
+      {activeTab === 'users' && <UsersManagementPanel users={users} loading={loadingUsers} onStatusToggle={handleStatusToggle} onEditUser={openEditModal} onDeleteUser={handleDeleteUser} />}
       {activeTab === 'jobs' && <JobsManagementPanel jobs={filteredJobs} loading={loadingJobs} onJobAction={handleJobAction} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
 
       {isModalOpen && editingUser && (
@@ -222,7 +244,7 @@ export default function AdminDashboard() {
 
 
 // --- Sub-component for Users Tab ---
-function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser }: { users: AdminUser[], loading: boolean, onStatusToggle: (userId: string, currentStatus: boolean) => void, onEditUser: (user: AdminUser) => void }) {
+function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDeleteUser }: { users: AdminUser[], loading: boolean, onStatusToggle: (userId: string, currentStatus: boolean) => void, onEditUser: (user: AdminUser) => void, onDeleteUser: (user: AdminUser) => void }) {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4 text-gray-700">👥 All Platform Users</h2>
@@ -256,6 +278,8 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser }: { 
                     <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
                       {user.is_active ? 'Disable' : 'Enable'}
                     </button>
+                    {/* NEW: Delete button */}
+                    <button onClick={() => onDeleteUser(user)} className="text-red-600 hover:text-red-900">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -391,4 +415,3 @@ function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: ()
     </div>
   );
 }
-
