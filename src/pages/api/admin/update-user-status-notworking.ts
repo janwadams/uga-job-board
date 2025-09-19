@@ -1,9 +1,9 @@
 // pages/api/admin/update-user-status.ts
-// WARNING: This version includes auditing but is INSECURE as it lacks an admin check.
-
 import { createClient } from '@supabase/supabase-js';
 import { NextApiRequest, NextApiResponse } from 'next';
+import { getSession } from '../../../utils/supabase-admin'; // You might need this helper
 
+// This API route must use the SERVICE_ROLE_KEY to perform admin actions.
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -15,23 +15,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // 1. Authenticate the admin making the request (CRITICAL SECURITY STEP)
+    const session = await getSession(req, res);
+    if (!session || session.user.app_metadata.user_role !== 'admin') {
+      return res.status(401).json({ error: 'Unauthorized: Not an admin.' });
+    }
+    const adminEmail = session.user.email;
+
+    // 2. Get data from the request body
     const { userId, isActive } = req.body;
     if (!userId || typeof isActive !== 'boolean') {
       return res.status(400).json({ error: 'User ID and isActive status are required.' });
     }
     
-    // Update the user's status in the 'user_roles' table
+    // 3. Update the user's status in your 'user_roles' table
+    //    ADJUSTED to match your file's table and column names.
     const { error: updateError } = await supabaseAdmin
-      .from('user_roles')
+      .from('user_roles') // Using your table name
       .update({ is_active: isActive })
-      .eq('user_id', userId);
+      .eq('user_id', userId); // Using your column name
 
     if (updateError) {
       console.error('Error updating user status:', updateError);
       return res.status(500).json({ error: 'Failed to update user status.' });
     }
 
-    // THIS PART IS ADDED BACK IN: Log this action to the audit table
+    // 4. NEW: Log this action to the audit table
     const actionTaken = isActive ? 'enabled' : 'disabled';
 
     const { error: auditError } = await supabaseAdmin
@@ -39,14 +48,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .insert({
         user_id: userId,
         action: actionTaken,
-        // We don't know who the admin is, so we can't log it.
-        changed_by_admin_email: 'unknown (insecure endpoint)', 
+        changed_by_admin_email: adminEmail,
       });
     
     if (auditError) {
+        // The main action succeeded, but auditing failed.
+        // Log this serious issue but don't fail the whole request.
         console.error('CRITICAL: Failed to write to user_status_audit log:', auditError);
     }
 
+    // 5. Success!
     res.status(200).json({ message: 'User status updated and action logged.' });
 
   } catch (error) {
