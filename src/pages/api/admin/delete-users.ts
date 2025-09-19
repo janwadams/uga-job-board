@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // 1. Get the current admin user's session
-    const session = await getSession(req);
+    const session = await getSession(req,res);
     if (!session || session.user.app_metadata.user_role !== 'admin') {
       return res.status(401).json({ error: 'Unauthorized: Not an admin.' });
     }

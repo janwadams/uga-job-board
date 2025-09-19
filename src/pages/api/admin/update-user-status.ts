@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // 1. Authenticate the admin making the request (CRITICAL SECURITY STEP)
-    const session = await getSession(req);
+    const session = await getSession(req, res);
     if (!session || session.user.app_metadata.user_role !== 'admin') {
       return res.status(401).json({ error: 'Unauthorized: Not an admin.' });
     }
