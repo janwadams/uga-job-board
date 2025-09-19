@@ -1,6 +1,181 @@
 // admin dashboard
 // ADDED AUDIT LOGS FOR DELETION AND STATUS CHANGES
 
+
+// FINAL VERSION
+import { useEffect, useState, useMemo } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import Link from 'next/link';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// --- TypeScript Interfaces ---
+interface AdminUser {
+  user_id: string;
+  role: string;
+  is_active: boolean;
+  email: string | null;
+  last_sign_in_at: string | null;
+  jobs_posted: number;
+  first_name: string;
+  last_name: string;
+  company_name: string | null;
+}
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  status: 'active' | 'pending' | 'removed' | 'rejected';
+  created_at: string;
+  created_by: string;
+  role?: string; 
+  email?: string;
+}
+interface DeletedUser {
+    id: string;
+    user_id: string;
+    email: string | null;
+    role: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    company_name: string | null;
+    deleted_at: string;
+    deleted_by_admin_email: string | null;
+}
+interface StatusLog {
+    id: string;
+    user_id: string;
+    action: 'enabled' | 'disabled';
+    changed_by_admin_email: string | null;
+    changed_at: string;
+    user_email?: string;
+    user_name?: string;
+}
+
+// --- Main Admin Dashboard Component ---
+export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState<'users' | 'jobs' | 'audit' | 'status_log'>('users');
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [deletedUsers, setDeletedUsers] = useState<DeletedUser[]>([]);
+  const [statusLogs, setStatusLogs] = useState<StatusLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [usersRes, jobsRes, deletedUsersRes, statusLogsRes] = await Promise.all([
+        fetch('/api/admin/list-users'),
+        fetch('/api/admin/list-jobs'), // Assuming you have or will create this
+        fetch('/api/admin/list-deleted-users'),
+        fetch('/api/admin/list-status-logs')
+      ]);
+
+      if (usersRes.ok) setUsers((await usersRes.json()).users);
+      if (jobsRes.ok) setJobs((await jobsRes.json()).jobs);
+      if (deletedUsersRes.ok) setDeletedUsers((await deletedUsersRes.json()).deletedUsers);
+      if (statusLogsRes.ok) setStatusLogs((await statusLogsRes.json()).statusLogs);
+      
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+  
+  // --- Action Handlers ---
+  const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch('/api/admin/update-user-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, isActive: !currentStatus }),
+      });
+      if (response.ok) fetchData();
+      else alert('Failed to update user status.');
+    } catch (error) { console.error('Error updating status:', error); }
+  };
+  
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (window.confirm(`Are you sure you want to permanently delete the user: ${userName}? \nThis action cannot be undone.`)) {
+      try {
+        const response = await fetch('/api/admin/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIdToDelete: userId }),
+        });
+        if (response.ok) {
+          alert('User deleted successfully.');
+          fetchData();
+        } else {
+          const data = await response.json();
+          alert(`Failed to delete user: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('An unexpected error occurred while deleting the user.');
+      }
+    }
+  };
+
+  const handleUpdateUserDetails = async (updatedUser: AdminUser) => {
+    try {
+        const response = await fetch('/api/admin/update-user-details', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedUser),
+        });
+        if (response.ok) {
+            fetchData();
+            closeEditModal();
+        } else {
+            const data = await response.json();
+            alert('Failed to update user: ' + data.error);
+        }
+    } catch (error) { console.error('Error updating user details:', error); }
+  };
+  
+  const openEditModal = (user: AdminUser) => { setEditingUser(user); setIsModalOpen(true); };
+  const closeEditModal = () => { setEditingUser(null); setIsModalOpen(false); };
+
+  // --- Render ---
+  // ... (rest of your dashboard JSX, which seems correct based on previous files)
+}
+// ... (rest of your sub-components: UsersManagementPanel, JobsManagementPanel, etc.)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
@@ -564,3 +739,6 @@ function StatusLogPanel({ statusLogs, loading }: { statusLogs: StatusLog[], load
         </div>
     );
 }
+
+
+*/

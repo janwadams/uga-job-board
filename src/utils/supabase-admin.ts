@@ -1,3 +1,34 @@
+
+
+
+// FINAL VERSION
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { NextApiRequest, NextApiResponse } from 'next';
+
+export const getSession = async (req: NextApiRequest, res: NextApiResponse) => {
+  const supabase = createServerSupabaseClient({ req, res });
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) {
+    console.error('Error getting session:', error.message);
+    return null;
+  }
+  return session;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 // src/utils/supabase-admin.ts
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -24,3 +55,4 @@ export const getSession = async (req: NextApiRequest, res: NextApiResponse) => {
   
   return session;
 };
+*/
