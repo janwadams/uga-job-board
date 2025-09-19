@@ -1,5 +1,5 @@
 // pages/api/admin/update-user-status.ts
-// FINAL SECURE VERSION: Uses Supabase's ban feature AND updates the local is_active flag.
+// FINAL SECURE VERSION (v2): Corrects a typo in the audit log insert.
 
 import { createClient } from '@supabase/supabase-js';
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -16,7 +16,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // We are using the secure version with the admin check.
     const session = await getSession(req, res);
     if (!session || session.user.app_metadata.user_role !== 'admin') {
       return res.status(401).json({ error: 'Unauthorized: Not an admin.' });
@@ -28,7 +27,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     
     // Step 1: Update the user in Supabase's auth system to actually prevent login.
-    // To disable, we ban them. To enable, we set the ban duration to 'none'.
     const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       { ban_duration: isActive ? 'none' : '100y' } // '100y' is effectively a permanent ban
@@ -50,12 +48,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to update user is_active flag.' });
     }
     
-    // (Optional but recommended) We can also add this to your status audit log.
+    // Step 3: Add this action to your status audit log with the typo corrected.
     const actionTaken = isActive ? 'enabled' : 'disabled';
     await supabaseAdmin.from('user_status_audit').insert({
       user_id: userId,
       action: actionTaken,
-      changed_by__admin_email: session.user.email,
+      changed_by_admin_email: session.user.email, // TYPO CORRECTED HERE
     });
 
     res.status(200).json({ message: 'User status updated and synced with auth system.' });
