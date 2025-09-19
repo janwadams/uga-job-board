@@ -1,7 +1,9 @@
 // pages/api/admin/update-user-details.ts
+// FINAL SECURE VERSION: Adds an admin security check.
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { getSession } from '../../../utils/supabase-admin'; // Import the security helper
 
 // Initialize the Supabase Admin client with the service role key to bypass RLS
 const supabaseAdmin = createClient(
@@ -12,6 +14,12 @@ const supabaseAdmin = createClient(
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  // ADDED: Security check to ensure only admins can perform this action.
+  const session = await getSession(req, res);
+  if (!session || session.user.app_metadata.user_role !== 'admin') {
+    return res.status(401).json({ error: 'Unauthorized: Not an admin.' });
   }
 
   const { user_id, first_name, last_name, company_name } = req.body;
@@ -43,4 +51,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
-
