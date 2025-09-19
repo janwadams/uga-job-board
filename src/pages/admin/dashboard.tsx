@@ -283,7 +283,7 @@ export default function AdminDashboard() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-red-800">荘 Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold text-red-800">👑 Admin Dashboard</h1>
         <Link href="/admin/analytics">
           <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
             投 View Analytics
