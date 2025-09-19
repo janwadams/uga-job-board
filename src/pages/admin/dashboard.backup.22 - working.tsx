@@ -1,8 +1,12 @@
+// admin dashboard
+// made changes for better layout
+//made changes so admin can edit user info
+
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// NOTE: It's better practice to use the shared Supabase client from /utils,
+// NOTE: It's better practice to use the shared Supabase client from /utils, 
 // but for simplicity and to match your existing files, we'll initialize it here.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,6 +14,7 @@ const supabase = createClient(
 );
 
 // --- TypeScript Interfaces for our data ---
+// UPDATED: Added new fields to the AdminUser interface
 interface AdminUser {
   user_id: string;
   role: string;
@@ -30,7 +35,7 @@ interface Job {
   created_at: string;
   created_by: string;
   // Properties to be added after fetching
-  role?: string;
+  role?: string; 
   email?: string;
 }
 
@@ -44,13 +49,14 @@ export default function AdminDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
-
+  
   // State for job filtering
   const [statusFilter, setStatusFilter] = useState<string>('');
 
-  // State for the Edit User Modal
+  // NEW: State for the Edit User Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+
 
   // --- Data Fetching Functions ---
   const fetchUsers = async () => {
@@ -80,7 +86,7 @@ export default function AdminDashboard() {
       console.error('Error fetching jobs:', error);
       setJobs([]);
     } else if (data) {
-      setJobs(data as Job[]);
+        setJobs(data as Job[]);
     }
     setLoadingJobs(false);
   };
@@ -90,7 +96,7 @@ export default function AdminDashboard() {
     fetchUsers();
     fetchJobs();
   }, []);
-
+  
   // --- Action Handlers ---
   const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
     try {
@@ -109,10 +115,10 @@ export default function AdminDashboard() {
   const handleJobAction = async (jobId: string, newStatus: Job['status']) => {
     let rejectionNote = null;
     if (newStatus === 'rejected') {
-      rejectionNote = prompt('Provide a rejection note (optional):');
+      rejectionNote = prompt("Provide a rejection note (optional):");
       if (rejectionNote === null) return; // User cancelled
     }
-
+    
     try {
       const response = await fetch('/api/admin/manage-job-posting', {
         method: 'POST',
@@ -122,65 +128,42 @@ export default function AdminDashboard() {
       if (response.ok) fetchJobs(); // Re-fetch jobs after update
       else alert('Failed to update job status.');
     } catch (error) {
-      console.error('Error updating job status:', error);
+        console.error('Error updating job status:', error);
     }
   };
+  
+    // NEW: Handlers for opening and closing the edit modal
+    const openEditModal = (user: AdminUser) => {
+        setEditingUser(user);
+        setIsModalOpen(true);
+    };
 
-  const openEditModal = (user: AdminUser) => {
-    setEditingUser(user);
-    setIsModalOpen(true);
-  };
+    const closeEditModal = () => {
+        setEditingUser(null);
+        setIsModalOpen(false);
+    };
+    
+    // NEW: Handler to submit the user details update
+    const handleUpdateUserDetails = async (updatedUser: AdminUser) => {
+        try {
+            const response = await fetch('/api/admin/update-user-details', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedUser),
+            });
 
-  const closeEditModal = () => {
-    setEditingUser(null);
-    setIsModalOpen(false);
-  };
-
-  const handleUpdateUserDetails = async (updatedUser: AdminUser) => {
-    try {
-      const response = await fetch('/api/admin/update-user-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUser),
-      });
-
-      if (response.ok) {
-        fetchUsers(); // Refresh the user list
-        closeEditModal(); // Close the modal on success
-      } else {
-        const data = await response.json();
-        alert('Failed to update user: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error updating user details:', error);
-      alert('An unexpected error occurred.');
-    }
-  };
-
-  // NEW: Action Handler for Deleting a User
-  const handleDeleteUser = async (userToDelete: AdminUser) => {
-    if (window.confirm(`Are you sure you want to permanently delete the user: ${userToDelete.email}? This action is irreversible.`)) {
-      try {
-        const response = await fetch('/api/admin/delete-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userToDelete }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          alert('User deleted successfully.');
-          fetchUsers(); // Refresh the user list after deletion
-        } else {
-          alert('Failed to delete user: ' + (data.details || data.error));
+            if (response.ok) {
+                fetchUsers(); // Refresh the user list
+                closeEditModal(); // Close the modal on success
+            } else {
+                const data = await response.json();
+                alert('Failed to update user: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error updating user details:', error);
+            alert('An unexpected error occurred.');
         }
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('An unexpected error occurred during deletion.');
-      }
-    }
-  };
+    };
 
 
   // --- Derived Data for UI ---
@@ -188,22 +171,22 @@ export default function AdminDashboard() {
     const roleMap = new Map<string, string>();
     const emailMap = new Map<string, string>();
     users.forEach(user => {
-      roleMap.set(user.user_id, user.role);
-      if (user.email) {
-        emailMap.set(user.user_id, user.email);
-      }
+        roleMap.set(user.user_id, user.role);
+        if (user.email) {
+            emailMap.set(user.user_id, user.email);
+        }
     });
     return { userRoleMap: roleMap, userEmailMap: emailMap };
   }, [users]);
-
+  
   const enrichedJobs = useMemo(() => {
     return jobs.map(job => ({
-      ...job,
-      role: userRoleMap.get(job.created_by) || 'N/A',
-      email: userEmailMap.get(job.created_by) || 'N/A'
+        ...job,
+        role: userRoleMap.get(job.created_by) || 'N/A',
+        email: userEmailMap.get(job.created_by) || 'N/A'
     }));
   }, [jobs, userRoleMap, userEmailMap]);
-
+  
   const filteredJobs = useMemo(() => {
     if (!statusFilter) return enrichedJobs;
     return enrichedJobs.filter(job => job.status === statusFilter);
@@ -232,9 +215,10 @@ export default function AdminDashboard() {
         </nav>
       </div>
 
-      {activeTab === 'users' && <UsersManagementPanel users={users} loading={loadingUsers} onStatusToggle={handleStatusToggle} onEditUser={openEditModal} onDeleteUser={handleDeleteUser} />}
+      {activeTab === 'users' && <UsersManagementPanel users={users} loading={loadingUsers} onStatusToggle={handleStatusToggle} onEditUser={openEditModal} />}
       {activeTab === 'jobs' && <JobsManagementPanel jobs={filteredJobs} loading={loadingJobs} onJobAction={handleJobAction} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
-
+    
+      {/* NEW: Render the Edit User Modal */}
       {isModalOpen && editingUser && (
         <EditUserModal user={editingUser} onClose={closeEditModal} onSave={handleUpdateUserDetails} />
       )}
@@ -244,7 +228,7 @@ export default function AdminDashboard() {
 
 
 // --- Sub-component for Users Tab ---
-function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDeleteUser }: { users: AdminUser[], loading: boolean, onStatusToggle: (userId: string, currentStatus: boolean) => void, onEditUser: (user: AdminUser) => void, onDeleteUser: (user: AdminUser) => void }) {
+function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser }: { users: AdminUser[], loading: boolean, onStatusToggle: (userId: string, currentStatus: boolean) => void, onEditUser: (user: AdminUser) => void }) {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4 text-gray-700">👥 All Platform Users</h2>
@@ -270,7 +254,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {user.is_active ? 'Active' : 'Disabled'}
+                        {user.is_active ? 'Active' : 'Disabled'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
@@ -278,8 +262,6 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
                     <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
                       {user.is_active ? 'Disable' : 'Enable'}
                     </button>
-                    {/* NEW: Delete button */}
-                    <button onClick={() => onDeleteUser(user)} className="text-red-600 hover:text-red-900">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -350,12 +332,8 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                                 <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'rejected'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reject</a>
                               </>
                             )}
-                            {job.status === 'active' && (
-                              <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>
-                            )}
-                            <Link href={`/admin/edit/${job.id}`}>
-                              <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span>
-                            </Link>
+                            {job.status === 'active' && (<a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>)}
+                            <Link href={`/admin/edit/${job.id}`}><span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span></Link>
                           </div>
                         </div>
                       )}
@@ -371,47 +349,48 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
   );
 }
 
-// --- Sub-component for the Edit User Modal ---
+// --- NEW: Sub-component for the Edit User Modal ---
 function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: () => void, onSave: (user: AdminUser) => void }) {
-  const [formData, setFormData] = useState(user);
+    const [formData, setFormData] = useState(user);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(formData);
+    };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4">Edit User: {user.email}</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
-              <input type="text" name="first_name" id="first_name" value={formData.first_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4">Edit User: {user.email}</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
+                            <input type="text" name="first_name" id="first_name" value={formData.first_name} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                        </div>
+                        <div>
+                            <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
+                            <input type="text" name="last_name" id="last_name" value={formData.last_name} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                        </div>
+                        {user.role === 'rep' && (
+                             <div>
+                                <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
+                                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                            </div>
+                        )}
+                    </div>
+                    <div className="mt-6 flex justify-end gap-4">
+                        <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300">Cancel</button>
+                        <button type="submit" className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">Save Changes</button>
+                    </div>
+                </form>
             </div>
-            <div>
-              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
-              <input type="text" name="last_name" id="last_name" value={formData.last_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-            </div>
-            {user.role === 'rep' && (
-              <div>
-                <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
-                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-              </div>
-            )}
-          </div>
-          <div className="mt-6 flex justify-end space-x-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800">Save Changes</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+        </div>
+    );
 }
+
