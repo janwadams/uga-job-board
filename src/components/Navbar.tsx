@@ -34,8 +34,10 @@ export default function Navbar() {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
+        // Re-fetch profile when auth state changes to logged in
         fetchSessionAndProfile();
       } else {
+        // Clear profile on logout
         setUserProfile(null);
       }
     });
@@ -66,15 +68,12 @@ export default function Navbar() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <Link href="/">
-            <div className="flex items-center space-x-4 cursor-pointer group">
-              {/* CORRECTED: Official UGA Arch Logo SVG */}
-              <svg className="h-10 w-10" viewBox="0 0 100 100" fill="white" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M50 0C22.3858 0 0 22.3858 0 50C0 77.6142 22.3858 100 50 100C77.6142 100 100 77.6142 100 50C100 22.3858 77.6142 0 50 0ZM50 93C26.2924 93 7 73.7076 7 50C7 26.2924 26.2924 7 50 7C73.7076 7 93 26.2924 93 50C93 73.7076 73.7076 93 50 93Z"/>
-                <path d="M60 56.5H67V63.5H60V56.5Z"/>
-                <path d="M33 56.5H40V63.5H33V56.5Z"/>
-                <path d="M50 25C40.0751 25 32 33.0751 32 43V50H68V43C68 33.0751 59.9249 25 50 25ZM50 43C48.067 43 46.5 41.433 46.5 39.5C46.5 37.567 48.067 36 50 36C51.933 36 53.5 37.567 53.5 39.5C53.5 41.433 51.933 43 50 43Z"/>
+            <div className="flex items-center space-x-4 cursor-pointer">
+              {/* CORRECTED: Replaced placeholder with official UGA Arch Logo SVG */}
+              <svg width="50" height="50" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M128 128H0V0H128V128ZM38.3999 92.8V60.9333H21.3333V92.8H38.3999ZM52.2666 92.8V35.2H69.3333V92.8H52.2666ZM73.1999 92.8V60.9333H90.2666V92.8H73.1999ZM107.733 92.8V35.2H90.2666V57.0667H73.1999V35.2H52.2666V57.0667H38.3999V35.2H21.3333V57.0667H3.8147e-06V96.6667H128V0H111.6V92.8H107.733Z" fill="white"/>
               </svg>
-              <span className="text-2xl font-heading font-bold text-white group-hover:text-uga-red transition-colors">
+              <span className="text-2xl font-heading font-bold hover:text-uga-red transition-colors">
                 UGA Job Board
               </span>
             </div>
@@ -106,7 +105,7 @@ export default function Navbar() {
                   <span className="font-body hover:text-uga-red transition-colors cursor-pointer">Student Sign Up</span>
                 </Link>
                 <Link href="/signup">
-                  <span className="font-body bg-uga-red px-4 py-2 rounded-md hover:bg-opacity-80 transition-colors cursor-pointer">
+                  <span className="font-body font-bold text-uga-white bg-uga-red px-4 py-2 rounded-md hover:bg-opacity-80 transition-colors cursor-pointer">
                     Company Sign Up
                   </span>
                 </Link>
