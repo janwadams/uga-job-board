@@ -34,8 +34,10 @@ export default function Navbar() {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
+        // Re-fetch profile when auth state changes to logged in
         fetchSessionAndProfile();
       } else {
+        // Clear profile on logout
         setUserProfile(null);
       }
     });
@@ -67,10 +69,12 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-20">
           <Link href="/">
             <div className="flex items-center space-x-4 cursor-pointer group">
-              {/* CORRECTED: Replaced placeholder with the official UGA Arch Logo as an inline SVG */}
-              <svg className="h-12 w-auto" viewBox="0 0 128 128" fill="white" xmlns="http://www.w3.org/2000/svg">
-                <path d="M124 128V114.867H4V128H124V128ZM124 106.133V0H4V106.133H25.3333V50.6667H42.6667V106.133H56.1333V34.1333H71.8667V106.133H85.3333V50.6667H102.667V106.133H124V106.133Z" />
-              </svg>
+              {/* UPDATED: Replaced inline SVG with an img tag pointing to the official PNG logo */}
+              <img 
+                src="https://bitbucket.org/ugamc/uga-icons/src/master/icons/mstile-70x70.png?format=raw" 
+                alt="UGA Arch Logo" 
+                className="h-12 w-12"
+              />
               <span className="text-2xl font-heading font-bold group-hover:text-uga-red transition-colors">
                 UGA Job Board
               </span>
