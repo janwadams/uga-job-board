@@ -68,12 +68,14 @@ export default function Navbar() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <Link href="/">
-            <div className="flex items-center space-x-4 cursor-pointer">
-              {/* CORRECTED: Replaced placeholder with official UGA Arch Logo SVG */}
-              <svg width="50" height="50" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M128 128H0V0H128V128ZM38.3999 92.8V60.9333H21.3333V92.8H38.3999ZM52.2666 92.8V35.2H69.3333V92.8H52.2666ZM73.1999 92.8V60.9333H90.2666V92.8H73.1999ZM107.733 92.8V35.2H90.2666V57.0667H73.1999V35.2H52.2666V57.0667H38.3999V35.2H21.3333V57.0667H3.8147e-06V96.6667H128V0H111.6V92.8H107.733Z" fill="white"/>
-              </svg>
-              <span className="text-2xl font-heading font-bold hover:text-uga-red transition-colors">
+            <div className="flex items-center space-x-4 cursor-pointer group">
+              {/* UPDATED: Replaced inline SVG with an img tag pointing to the official PNG logo */}
+              <img 
+                src="https://bitbucket.org/ugamc/uga-icons/src/master/icons/mstile-70x70.png?format=raw" 
+                alt="UGA Arch Logo" 
+                className="h-12 w-12"
+              />
+              <span className="text-2xl font-heading font-bold group-hover:text-uga-red transition-colors">
                 UGA Job Board
               </span>
             </div>
