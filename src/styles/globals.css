@@ -1,17 +1,17 @@
-/*body {
-  font-family: sans-serif;
-  background: #f9f9f9;
-  margin: 0;
-}*/
-
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Merriweather:wght@700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Optional: Custom UGA branding */
+/* Apply base font styles from UGA Brand Guide */
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #f7f7f7;
-  color: #1a1a1a;
+  font-family: 'Lato', sans-serif;
+  color: #252525; /* UGA Arch Black */
+  background-color: #F5F5F5; /* A light gray for the body background */
+}
+
+/* Apply heading styles from UGA Brand Guide */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Merriweather', serif;
 }
