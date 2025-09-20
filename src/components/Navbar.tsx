@@ -1,3 +1,4 @@
+//src/components/navbar.tsx
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -8,10 +9,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// --- Navbar Component ---
+interface UserProfile {
+  first_name: string;
+  role: string;
+}
+
 export default function Navbar() {
   const [session, setSession] = useState<any>(null);
-  const [userProfile, setUserProfile] = useState<{ first_name: string, role: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -20,25 +25,33 @@ export default function Navbar() {
       setSession(session);
 
       if (session?.user) {
-        const { data: profileData } = await supabase
+        const { data: profileData, error } = await supabase
           .from('user_roles')
           .select('first_name, role')
           .eq('user_id', session.user.id)
           .single();
-        setUserProfile(profileData);
+        
+        if (profileData) {
+          setUserProfile(profileData);
+        }
+      } else {
+        setUserProfile(null);
       }
     };
 
     fetchSessionAndProfile();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session?.user) {
-        fetchSessionAndProfile();
-      } else {
-        setUserProfile(null);
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        if (event === 'SIGNED_IN' && session?.user) {
+          fetchSessionAndProfile();
+        }
+        if (event === 'SIGNED_OUT') {
+          setUserProfile(null);
+        }
       }
-    });
+    );
 
     return () => {
       authListener.subscription.unsubscribe();
@@ -52,67 +65,56 @@ export default function Navbar() {
 
   const getDashboardLink = () => {
     if (!userProfile) return "/";
-    switch (userProfile.role) {
+    switch(userProfile.role) {
       case 'student': return '/student/dashboard';
-      case 'faculty': return '/faculty/dashboard';
       case 'rep': return '/rep/dashboard';
+      case 'faculty': return '/faculty/dashboard';
       case 'admin': return '/admin/dashboard';
-      default: return "/";
+      default: return '/';
     }
-  };
+  }
 
   return (
-    <header className="w-full bg-uga-black text-uga-white shadow-md">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          <Link href="/">
-            <div className="flex items-center space-x-4 cursor-pointer group">
-              {/* CORRECTED: Replaced placeholder with the official UGA Arch Logo as an inline SVG */}
-              <svg className="h-12 w-auto" viewBox="0 0 128 128" fill="white" xmlns="http://www.w3.org/2000/svg">
-                <path d="M124 128V114.867H4V128H124V128ZM124 106.133V0H4V106.133H25.3333V50.6667H42.6667V106.133H56.1333V34.1333H71.8667V106.133H85.3333V50.6667H102.667V106.133H124V106.133Z" />
-              </svg>
-              <span className="text-2xl font-heading font-bold group-hover:text-uga-red transition-colors">
-                UGA Job Board
+    <nav className="w-full p-4 bg-red-700 text-white flex justify-between items-center shadow-md">
+      <Link href="/">
+        <span className="text-lg font-bold cursor-pointer hover:opacity-90">UGA Job Board</span>
+      </Link>
+
+      <div className="flex items-center space-x-4">
+        {session ? (
+          <>
+            {userProfile?.first_name && (
+              <span className="text-sm">
+                Welcome, {userProfile.first_name}
               </span>
-            </div>
-          </Link>
-          <div className="flex items-center space-x-6">
-            {session ? (
-              <>
-                <span className="font-body">Welcome, {userProfile?.first_name || 'User'}</span>
-                {router.pathname === "/" && userProfile && (
-                   <Link href={getDashboardLink()}>
-                     <span className="font-body font-bold text-uga-white bg-uga-red px-4 py-2 rounded-md hover:bg-opacity-80 transition-colors cursor-pointer">
-                      My Dashboard
-                     </span>
-                   </Link>
-                )}
-                <button
-                  onClick={handleSignOut}
-                  className="font-body font-bold bg-gray-700 hover:bg-uga-red px-4 py-2 rounded-md transition-colors"
-                >
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login">
-                  <span className="font-body hover:text-uga-red transition-colors cursor-pointer">Login</span>
-                </Link>
-                <Link href="/signup-student">
-                  <span className="font-body hover:text-uga-red transition-colors cursor-pointer">Student Sign Up</span>
-                </Link>
-                <Link href="/signup">
-                  <span className="font-body font-bold text-uga-white bg-uga-red px-4 py-2 rounded-md hover:bg-opacity-80 transition-colors cursor-pointer">
-                    Company Sign Up
-                  </span>
-                </Link>
-              </>
             )}
-          </div>
-        </div>
-      </nav>
-    </header>
+            <Link href={getDashboardLink()}>
+                <span className="text-sm font-medium underline cursor-pointer hover:text-gray-200">
+                    My Dashboard
+                </span>
+            </Link>
+            <button
+              onClick={handleSignOut}
+              className="bg-white text-red-700 px-3 py-1 rounded font-semibold hover:bg-gray-100"
+            >
+              Sign Out
+            </button>
+          </>
+        ) : (
+          <>
+            <Link href="/login">
+              <span className="underline cursor-pointer hover:text-gray-200">Login</span>
+            </Link>
+            <Link href="/signup-student">
+              <span className="underline cursor-pointer hover:text-gray-200">Student Sign Up</span>
+            </Link>
+            <Link href="/signup">
+              <span className="underline cursor-pointer hover:text-gray-200">Company Sign Up</span>
+            </Link>
+          </>
+        )}
+      </div>
+    </nav>
   );
 }
 
