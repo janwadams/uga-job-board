@@ -153,19 +153,12 @@ export default function StudentDashboard() {
       if (error) {
         console.error('Error fetching applications:', error);
       } else if (data) {
-        const transformedApplications: Application[] = data
-          .map((item: any) => {
-            // CORRECTED: Handle case where item.jobs could be an array
-            const jobData = Array.isArray(item.jobs) ? item.jobs[0] : item.jobs;
-            if (!jobData) return null; // Skip if job data is missing
-            return {
-              id: item.id,
-              applied_at: item.applied_at,
-              status: item.status,
-              job: jobData
-            };
-          })
-          .filter((item): item is Application => item !== null); // Filter out any null entries
+        const transformedApplications: Application[] = data.map((item: any) => ({
+          id: item.id,
+          applied_at: item.applied_at,
+          status: item.status,
+          job: item.jobs
+        }));
         setApplications(transformedApplications);
       }
     } catch (error) {
@@ -227,20 +220,13 @@ export default function StudentDashboard() {
       if (error) {
         console.error('Error fetching saved jobs:', error);
       } else if (data) {
-        const transformedSavedJobs: SavedJob[] = data
-        .map((item: any) => {
-            // CORRECTED: Handle case where item.jobs could be an array
-            const jobData = Array.isArray(item.jobs) ? item.jobs[0] : item.jobs;
-            if (!jobData) return null;
-            return {
-                id: item.id,
-                saved_at: item.saved_at,
-                reminder_set: item.reminder_set,
-                reminder_date: item.reminder_date,
-                job: jobData
-            };
-        })
-        .filter((item): item is SavedJob => item !== null);
+        const transformedSavedJobs: SavedJob[] = data.map((item: any) => ({
+          id: item.id,
+          saved_at: item.saved_at,
+          reminder_set: item.reminder_set,
+          reminder_date: item.reminder_date,
+          job: item.jobs
+        }));
         setSavedJobs(transformedSavedJobs);
       }
     } catch (error) {
@@ -320,10 +306,11 @@ export default function StudentDashboard() {
         .eq('student_id', session.user.id);
 
       // Combine and filter jobs with upcoming deadlines (next 7 days)
-      const savedJobsList = savedData?.map(item => Array.isArray(item.jobs) ? item.jobs[0] : item.jobs).filter(Boolean) || [];
-      const appliedJobsList = appliedData?.map(item => Array.isArray(item.jobs) ? item.jobs[0] : item.jobs).filter(Boolean) || [];
+      // Handle the case where jobs might be returned as an array
+      const savedJobs = savedData?.map(item => Array.isArray(item.jobs) ? item.jobs[0] : item.jobs).filter(Boolean) || [];
+      const appliedJobs = appliedData?.map(item => Array.isArray(item.jobs) ? item.jobs[0] : item.jobs).filter(Boolean) || [];
       
-      const allDeadlineJobs = [...savedJobsList, ...appliedJobsList];
+      const allDeadlineJobs = [...savedJobs, ...appliedJobs];
 
       const uniqueJobs = Array.from(
         new Map(allDeadlineJobs.map(job => [job.id, job])).values()
@@ -434,19 +421,13 @@ export default function StudentDashboard() {
           .single();
 
         if (!error && data) {
-          const jobData = Array.isArray(data.jobs) ? data.jobs[0] : data.jobs;
-
-          if (jobData) {
-            const newSavedJob: SavedJob = {
-              id: data.id,
-              saved_at: data.saved_at,
-              reminder_set: data.reminder_set,
-              job: jobData
-            };
-            setSavedJobs(prev => [newSavedJob, ...prev]);
-          } else {
-              console.error("Saved job was created, but the related job data could not be fetched.");
-          }
+          const newSavedJob: SavedJob = {
+            id: data.id,
+            saved_at: data.saved_at,
+            reminder_set: data.reminder_set,
+            job: data.jobs
+          };
+          setSavedJobs(prev => [newSavedJob, ...prev]);
         }
       } catch (error) {
         console.error('Error saving job:', error);
@@ -951,4 +932,3 @@ export default function StudentDashboard() {
     </div>
   );
 }
-
