@@ -1,4 +1,5 @@
 //student/dashboard.tsx
+//testing fix
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -292,7 +293,12 @@ export default function StudentDashboard() {
       const { data: savedData } = await supabase
         .from('saved_jobs')
         .select(`
-          jobs!saved_jobs_job_id_fkey (*)
+          jobs!saved_jobs_job_id_fkey (
+            id,
+            title,
+            company,
+            deadline
+          )
         `)
         .eq('student_id', session.user.id)
         .eq('reminder_set', true);
@@ -301,7 +307,12 @@ export default function StudentDashboard() {
       const { data: appliedData } = await supabase
         .from('job_applications')
         .select(`
-          jobs!job_applications_job_id_fkey (*)
+          jobs!job_applications_job_id_fkey (
+            id,
+            title,
+            company,
+            deadline
+          )
         `)
         .eq('student_id', session.user.id);
 
