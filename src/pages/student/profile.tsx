@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { 
   UserCircleIcon,
   BriefcaseIcon,
+  BuildingOfficeIcon,
   AcademicCapIcon,
   SparklesIcon,
   CheckCircleIcon,
