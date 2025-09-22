@@ -1,7 +1,4 @@
-//api/jobs/apply.ts
-
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
@@ -14,29 +11,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verify user is authenticated
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  console.log('Apply endpoint called with:', req.body);
 
-  if (sessionError || !session) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  const { jobId, userId } = req.body;
 
-  // Check if user is a student
-  const { data: userData, error: userError } = await supabaseAdmin
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', session.user.id)
-    .single();
-
-  if (userError || !userData || userData.role !== 'student') {
-    return res.status(403).json({ error: 'Only students can apply to jobs' });
-  }
-
-  const { jobId } = req.body;
-
-  if (!jobId) {
-    return res.status(400).json({ error: 'Job ID is required' });
+  if (!jobId || !userId) {
+    return res.status(400).json({ error: 'Job ID and User ID are required' });
   }
 
   try {
@@ -62,12 +42,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Application deadline has passed' });
     }
 
-    // Check if student has already applied
+    // Check if user has already applied
     const { data: existingApplication } = await supabaseAdmin
       .from('job_applications')
       .select('id')
       .eq('job_id', jobId)
-      .eq('student_id', session.user.id)
+      .eq('student_id', userId)
       .single();
 
     if (existingApplication) {
@@ -79,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('job_applications')
       .insert([{
         job_id: jobId,
-        student_id: session.user.id,
+        student_id: userId,
         status: 'applied'
       }])
       .select()
@@ -87,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (applicationError) {
       console.error('Application creation error:', applicationError);
-      return res.status(500).json({ error: 'Failed to submit application' });
+      return res.status(500).json({ error: 'Failed to submit application: ' + applicationError.message });
     }
 
     // Track analytics event
@@ -96,9 +76,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .insert([{
         job_id: jobId,
         event_type: 'apply_click',
-        user_id: session.user.id
+        user_id: userId
       }]);
 
+    console.log('Application created successfully');
     return res.status(200).json({ 
       message: 'Application submitted successfully',
       application 

@@ -26,7 +26,7 @@ interface Job {
 
 type JobFilter = 'all' | 'faculty' | 'companies';
 
-// Enhanced Job Card component with Apply functionality
+// Enhanced Job Card component with simplified Apply functionality
 const JobCard = ({ job }: { job: Job }) => {
   const [hasApplied, setHasApplied] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
@@ -82,14 +82,27 @@ const JobCard = ({ job }: { job: Job }) => {
     checkApplicationStatus();
   }, [job.id]);
 
+  // Updated handleApply function with simplified approach
   const handleApply = async () => {
     setIsApplying(true);
     
     try {
+      // Get current session to get user ID
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        alert('Please log in to apply for jobs');
+        setIsApplying(false);
+        return;
+      }
+
       const response = await fetch('/api/jobs/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: job.id }),
+        body: JSON.stringify({ 
+          jobId: job.id,
+          userId: session.user.id 
+        }),
       });
 
       const data = await response.json();
