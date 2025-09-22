@@ -316,11 +316,10 @@ export default function StudentDashboard() {
         .eq('student_id', session.user.id);
 
       // Combine and filter jobs with upcoming deadlines (next 7 days)
-      // Handle the case where jobs might be returned as an array
-      const savedJobs = savedData?.map(item => Array.isArray(item.jobs) ? item.jobs[0] : item.jobs).filter(Boolean) || [];
-      const appliedJobs = appliedData?.map(item => Array.isArray(item.jobs) ? item.jobs[0] : item.jobs).filter(Boolean) || [];
-      
-      const allDeadlineJobs = [...savedJobs, ...appliedJobs];
+      const allDeadlineJobs = [
+        ...(savedData?.map(item => item.jobs) || []),
+        ...(appliedData?.map(item => item.jobs) || [])
+      ];
 
       const uniqueJobs = Array.from(
         new Map(allDeadlineJobs.map(job => [job.id, job])).values()
