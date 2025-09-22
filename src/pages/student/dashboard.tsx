@@ -1,5 +1,5 @@
 //student/dashboard.tsx
-
+//fixing build issues 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
