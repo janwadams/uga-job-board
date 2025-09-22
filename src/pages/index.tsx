@@ -92,33 +92,60 @@ export default function StudentDashboard() {
     const fetchJobsWithCreatorInfo = async () => {
       setLoading(true);
       
-      // Enhanced query that joins with user_roles to get creator information
-      const { data, error } = await supabase
+      // First, get all active jobs (this should work like your original code)
+      const { data: jobsData, error: jobsError } = await supabase
         .from('jobs')
-        .select(`
-          *,
-          user_roles:created_by (
-            role,
-            first_name,
-            last_name,
-            company_name
-          )
-        `)
+        .select('*')
         .eq('status', 'active');
 
-      if (error) {
-        console.error('Error fetching jobs:', error);
-      } else {
-        // Transform the data to include creator role information
-        const enrichedJobs = data?.map(job => ({
-          ...job,
-          creator_role: job.user_roles?.role,
-          creator_name: job.user_roles?.role === 'rep' 
-            ? job.user_roles?.company_name 
-            : `${job.user_roles?.first_name} ${job.user_roles?.last_name}`
-        })) || [];
-        setJobs(enrichedJobs);
+      if (jobsError) {
+        console.error('Error fetching jobs:', jobsError);
+        setLoading(false);
+        return;
       }
+
+      if (!jobsData || jobsData.length === 0) {
+        setJobs([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique creator IDs
+      const creatorIds = [...new Set(jobsData.map(job => job.created_by))];
+      
+      // Fetch creator role information
+      const { data: creatorsData, error: creatorsError } = await supabase
+        .from('user_roles')
+        .select('user_id, role, first_name, last_name, company_name')
+        .in('user_id', creatorIds);
+
+      if (creatorsError) {
+        console.error('Error fetching creators:', creatorsError);
+        // Still show jobs even if we can't get creator info
+        setJobs(jobsData);
+        setLoading(false);
+        return;
+      }
+
+      // Create a map for quick lookup
+      const creatorsMap = new Map();
+      creatorsData?.forEach(creator => {
+        creatorsMap.set(creator.user_id, creator);
+      });
+
+      // Enrich jobs with creator information
+      const enrichedJobs = jobsData.map(job => {
+        const creator = creatorsMap.get(job.created_by);
+        return {
+          ...job,
+          creator_role: creator?.role || 'unknown',
+          creator_name: creator?.role === 'rep' 
+            ? creator?.company_name 
+            : `${creator?.first_name || ''} ${creator?.last_name || ''}`.trim()
+        };
+      });
+
+      setJobs(enrichedJobs);
       setLoading(false);
     };
 
