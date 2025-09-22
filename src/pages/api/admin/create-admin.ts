@@ -30,14 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'An account with this email already exists.' });
     }
 
-    // Also check Supabase auth users (in case there's a mismatch)
-    const { data: authUsers, error: authCheckError } = await supabaseAdmin.auth.admin.listUsers();
-    
-    if (authUsers?.users?.find(user => user.email?.toLowerCase() === email.toLowerCase())) {
-      return res.status(400).json({ error: 'An account with this email already exists.' });
-    }
-
-    // Create the admin user
+    // Create the admin user (this will also catch duplicate emails in Supabase auth)
     const { data: { user }, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
@@ -50,7 +43,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (signUpError || !user) {
       // Handle specific duplicate email error from Supabase
-      if (signUpError?.message?.includes('already registered') || signUpError?.message?.includes('already exists')) {
+      if (signUpError?.message?.includes('already registered') || 
+          signUpError?.message?.includes('already exists') || 
+          signUpError?.message?.includes('duplicate')) {
         return res.status(400).json({ error: 'An account with this email already exists.' });
       }
       return res.status(400).json({ error: 'Failed to create user: ' + signUpError?.message });
