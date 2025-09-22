@@ -1,8 +1,12 @@
-// admin dashboard with admin account creation functionality
+// admin dashboard
+// made changes for better layout
+
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
+// NOTE: It's better practice to use the shared Supabase client from /utils,
+// but for simplicity and to match your existing files, we'll initialize it here.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -51,8 +55,6 @@ export default function AdminDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
-  // State for Create Admin Modal
-  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
 
   // --- Data Fetching Functions ---
   const fetchUsers = async () => {
@@ -213,22 +215,12 @@ export default function AdminDashboard() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-red-800">Admin Dashboard</h1>
-        <div className="flex space-x-4">
-          <Link href="/admin/analytics">
-            <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
-              View Analytics
-            </button>
-          </Link>
-          {activeTab === 'users' && (
-            <button
-              onClick={() => setShowCreateAdmin(true)}
-              className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
-            >
-              + Create Admin Account
-            </button>
-          )}
-        </div>
+        <h1 className="text-3xl font-bold text-red-800">👑 Admin Dashboard</h1>
+        <Link href="/admin/analytics">
+          <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
+            📊 View Analytics
+          </button>
+        </Link>
       </div>
 
       <div className="mb-4 border-b border-gray-200">
@@ -248,166 +240,16 @@ export default function AdminDashboard() {
       {isModalOpen && editingUser && (
         <EditUserModal user={editingUser} onClose={closeEditModal} onSave={handleUpdateUserDetails} />
       )}
-
-      {showCreateAdmin && (
-        <CreateAdminModal 
-          onClose={() => setShowCreateAdmin(false)}
-          onSuccess={() => {
-            setShowCreateAdmin(false);
-            fetchUsers();
-          }}
-        />
-      )}
     </div>
   );
 }
 
-// --- Create Admin Modal Component ---
-function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/admin/create-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Admin account created successfully!');
-        onSuccess();
-      } else {
-        setError(data.error || 'Failed to create admin account.');
-      }
-    } catch (err) {
-      setError('An unexpected error occurred.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-red-800">Create New Admin Account</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex gap-4">
-            <input
-              name="firstName"
-              type="text"
-              placeholder="First Name"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded"
-            />
-            <input
-              name="lastName"
-              type="text"
-              placeholder="Last Name"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded"
-            />
-          </div>
-          
-          <input
-            name="email"
-            type="email"
-            placeholder="Admin Email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          />
-          
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          />
-          
-          <input
-            name="confirmPassword"
-            type="password"
-            placeholder="Confirm Password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          />
-
-          {error && <p className="text-red-600 text-sm">{error}</p>}
-
-          <div className="flex justify-end space-x-4 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800 disabled:bg-gray-400"
-            >
-              {loading ? 'Creating...' : 'Create Admin'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // --- Sub-component for Users Tab ---
 function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDeleteUser }: { users: AdminUser[], loading: boolean, onStatusToggle: (userId: string, currentStatus: boolean) => void, onEditUser: (user: AdminUser) => void, onDeleteUser: (user: AdminUser) => void }) {
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4 text-gray-700">All Platform Users</h2>
+      <h2 className="text-2xl font-bold mb-4 text-gray-700">👥 All Platform Users</h2>
       {loading ? (<p>Loading users...</p>) : (
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">
@@ -458,7 +300,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-700">All Job Postings</h2>
+        <h2 className="text-2xl font-bold text-gray-700">📋 All Job Postings</h2>
         <div>
           <label className="mr-2 font-medium">Filter by Status:</label>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
@@ -490,4 +332,88 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                   <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">{job.title}</td>
                   <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.company}</td>
                   <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500 font-mono">{job.created_by}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>{job.status}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <div className="relative inline-block text-left">
+                      <button onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                      </button>
+                      {openActionMenu === job.id && (
+                        <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" onMouseLeave={() => setOpenActionMenu(null)}>
+                          <div className="py-1" role="menu" aria-orientation="vertical">
+                            {job.status === 'pending' && (
+                              <>
+                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approve</a>
+                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'rejected'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reject</a>
+                              </>
+                            )}
+                            {job.status === 'active' && (
+                              <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>
+                            )}
+                            <Link href={`/admin/edit/${job.id}`}>
+                              <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span>
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Sub-component for the Edit User Modal ---
+function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: () => void, onSave: (user: AdminUser) => void }) {
+  const [formData, setFormData] = useState(user);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-4">Edit User: {user.email}</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
+              <input type="text" name="first_name" id="first_name" value={formData.first_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
+              <input type="text" name="last_name" id="last_name" value={formData.last_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            {user.role === 'rep' && (
+              <div>
+                <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
+                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              </div>
+            )}
+          </div>
+          <div className="mt-6 flex justify-end space-x-4">
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
+            <button type="submit" className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
