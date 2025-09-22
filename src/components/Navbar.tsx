@@ -82,7 +82,7 @@ export default function Navbar() {
                 className="h-12 w-auto"
               />
               <span className="text-2xl font-heading font-bold text-uga-white transition-colors">
-                UNIVERSITY OF GEOGIA Job Board
+                UNIVERSITY OF GEORGIA
               </span>
             </div>
           </Link>
