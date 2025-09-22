@@ -1,5 +1,5 @@
 //student/dashboard.tsx
-//fixing build issues 
+//Phase 3 Implementation - All build issues fixed
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
@@ -434,7 +434,12 @@ export default function StudentDashboard() {
   const getDaysUntilDeadline = (deadline: string) => Math.ceil((new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
   const isJobSaved = (jobId: string) => savedJobs.some(sj => sj.job.id === jobId);
 
-  const JobCard = ({ job, showApplyButton = true, showSaveButton = true }: { job: Job, showApplyButton?: boolean, showSaveButton?: boolean }) => {
+  const JobCard = ({ job, showApplyButton = true, showSaveButton = true, savedJobId = null }: { 
+    job: Job, 
+    showApplyButton?: boolean, 
+    showSaveButton?: boolean,
+    savedJobId?: string | null 
+  }) => {
     const isSaved = isJobSaved(job.id);
     const savedJob = savedJobs.find(sj => sj.job.id === job.id);
     const daysUntil = job.deadline ? getDaysUntilDeadline(job.deadline) : null;
@@ -836,4 +841,3 @@ export default function StudentDashboard() {
     </div>
   );
 }
-
