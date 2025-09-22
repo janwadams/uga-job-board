@@ -12,22 +12,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  console.log('=== DEBUG: Create admin endpoint hit ===');
-  
-  // TEMPORARILY SKIP AUTH CHECK FOR DEBUGGING
-  // Let's see if the basic functionality works first
-  
+  // Verify the requesting user is an admin
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+  if (sessionError || !session) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Check if requesting user is admin
+  const { data: userData, error: userError } = await supabaseAdmin
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', session.user.id)
+    .single();
+
+  if (userError || !userData || userData.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden - Admin access required' });
+  }
+
   const { email, password, firstName, lastName } = req.body;
-  
-  console.log('Request body:', { email, firstName, lastName, passwordLength: password?.length });
 
   if (!email || !password || !firstName || !lastName) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
 
   try {
-    console.log('Attempting to create user with Supabase Admin...');
-    
     // Create the admin user
     const { data: { user }, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
@@ -40,11 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (signUpError || !user) {
-      console.error('Supabase user creation failed:', signUpError);
       return res.status(400).json({ error: 'Failed to create user: ' + signUpError?.message });
     }
-
-    console.log('User created successfully, now adding to user_roles...');
 
     // Add to user_roles table with admin role
     const { error: rolesError } = await supabaseAdmin
@@ -60,17 +67,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ]);
 
     if (rolesError) {
-      console.error('Role assignment failed:', rolesError);
       // Clean up the created user if role assignment fails
       await supabaseAdmin.auth.admin.deleteUser(user.id);
-      return res.status(500).json({ error: 'Failed to assign admin role: ' + rolesError.message });
+      return res.status(500).json({ error: 'Failed to assign admin role.' });
     }
 
-    console.log('Admin account created successfully!');
     return res.status(200).json({ message: 'Admin account created successfully.' });
 
   } catch (error) {
-    console.error('Unexpected error creating admin:', error);
+    console.error('Error creating admin:', error);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 }
