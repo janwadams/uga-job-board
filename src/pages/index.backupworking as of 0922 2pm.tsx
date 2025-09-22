@@ -26,89 +26,13 @@ interface Job {
 
 type JobFilter = 'all' | 'faculty' | 'companies';
 
-// Enhanced Job Card component with Apply functionality
+// Enhanced Job Card component with creator info
 const JobCard = ({ job }: { job: Job }) => {
-  const [hasApplied, setHasApplied] = useState(false);
-  const [isApplying, setIsApplying] = useState(false);
-  const [checkingApplication, setCheckingApplication] = useState(true);
-  const [isStudent, setIsStudent] = useState(false);
-  
   const jobTypeColors = {
     'Internship': 'bg-blue-100 text-blue-800',
     'Part-Time': 'bg-yellow-100 text-yellow-800',
     'Full-Time': 'bg-green-100 text-green-800',
   };
-
-  // Check if user has already applied (only for authenticated students)
-  useEffect(() => {
-    const checkApplicationStatus = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          setCheckingApplication(false);
-          return;
-        }
-
-        // Check if user is a student
-        const { data: userData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (userData?.role !== 'student') {
-          setCheckingApplication(false);
-          return;
-        }
-
-        setIsStudent(true);
-
-        // Check if already applied
-        const { data: application } = await supabase
-          .from('job_applications')
-          .select('id')
-          .eq('job_id', job.id)
-          .eq('student_id', session.user.id)
-          .single();
-
-        setHasApplied(!!application);
-      } catch (error) {
-        console.error('Error checking application status:', error);
-      } finally {
-        setCheckingApplication(false);
-      }
-    };
-
-    checkApplicationStatus();
-  }, [job.id]);
-
-  const handleApply = async () => {
-    setIsApplying(true);
-    
-    try {
-      const response = await fetch('/api/jobs/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: job.id }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setHasApplied(true);
-        alert('Application submitted successfully!');
-      } else {
-        alert(data.error || 'Failed to submit application');
-      }
-    } catch (error) {
-      alert('An error occurred. Please try again.');
-    } finally {
-      setIsApplying(false);
-    }
-  };
-
-  // Check if deadline has passed
-  const isExpired = new Date(job.deadline) < new Date();
 
   return (
     <div className="border border-gray-200 bg-white rounded-lg p-6 flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -138,40 +62,14 @@ const JobCard = ({ job }: { job: Job }) => {
         }`}>
           {job.job_type}
         </span>
-        
-        <p className={`text-sm mb-4 ${isExpired ? 'text-red-500' : 'text-gray-500'}`}>
-          {isExpired ? 'Application deadline passed' : `Apply by: ${new Date(job.deadline).toLocaleDateString()}`}
+        <p className="text-sm text-gray-500 mb-4">
+          Apply by: {new Date(job.deadline).toLocaleDateString()}
         </p>
-
-        <div className="flex gap-2">
-          <Link href={`/jobs/${job.id}`} passHref className="flex-1">
-            <button className="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">
-              View Details
-            </button>
-          </Link>
-          
-          {/* Apply Button - only show for students and if not expired */}
-          {!checkingApplication && isStudent && !isExpired && (
-            <>
-              {hasApplied ? (
-                <button 
-                  disabled
-                  className="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-lg cursor-not-allowed opacity-75"
-                >
-                  Applied
-                </button>
-              ) : (
-                <button
-                  onClick={handleApply}
-                  disabled={isApplying}
-                  className="flex-1 bg-red-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-800 disabled:bg-red-400 transition-colors"
-                >
-                  {isApplying ? 'Applying...' : 'Apply Now'}
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        <Link href={`/jobs/${job.id}`} passHref>
+          <button className="w-full bg-red-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors">
+            View Details
+          </button>
+        </Link>
       </div>
     </div>
   );
@@ -194,7 +92,7 @@ export default function StudentDashboard() {
     const fetchJobsWithCreatorInfo = async () => {
       setLoading(true);
       
-      // First, get all active jobs
+      // First, get all active jobs (this should work like your original code)
       const { data: jobsData, error: jobsError } = await supabase
         .from('jobs')
         .select('*')
