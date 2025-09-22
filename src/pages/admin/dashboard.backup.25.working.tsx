@@ -266,7 +266,7 @@ export default function AdminDashboard() {
   );
 }
 
-// --- Create Admin Modal Component with Password Visibility ---
+// --- Create Admin Modal Component ---
 function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -277,8 +277,6 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -306,10 +304,10 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: formData.email.trim(),
+          email: formData.email,
           password: formData.password,
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
+          firstName: formData.firstName,
+          lastName: formData.lastName,
         }),
       });
 
@@ -327,20 +325,6 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
       setLoading(false);
     }
   };
-
-  // Eye icon components
-  const EyeIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-    </svg>
-  );
-
-  const EyeOffIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M8 12a4 4 0 004 4m0 0l6-6m-6 6l-6-6" />
-    </svg>
-  );
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
@@ -379,45 +363,25 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
             className="w-full border p-2 rounded"
           />
           
-          <div className="relative">
-            <input
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 px-3 flex items-center"
-              aria-label="Toggle password visibility"
-            >
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-            </button>
-          </div>
+          <input
+            name="password"
+            type="password"
+            placeholder="Password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            className="w-full border p-2 rounded"
+          />
           
-          <div className="relative">
-            <input
-              name="confirmPassword"
-              type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute inset-y-0 right-0 px-3 flex items-center"
-              aria-label="Toggle confirm password visibility"
-            >
-              {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-            </button>
-          </div>
+          <input
+            name="confirmPassword"
+            type="password"
+            placeholder="Confirm Password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            required
+            className="w-full border p-2 rounded"
+          />
 
           {error && <p className="text-red-600 text-sm">{error}</p>}
 
@@ -601,7 +565,7 @@ function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: ()
             {user.role === 'rep' && (
               <div>
                 <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
-         		<input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
             )}
           </div>

@@ -12,31 +12,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  console.log('=== DEBUG: Create admin endpoint hit ===');
+  
+  // TEMPORARILY SKIP AUTH CHECK FOR DEBUGGING
+  // Let's see if the basic functionality works first
+  
   const { email, password, firstName, lastName } = req.body;
+  
+  console.log('Request body:', { email, firstName, lastName, passwordLength: password?.length });
 
   if (!email || !password || !firstName || !lastName) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
 
   try {
-    // Check for duplicate email in user_roles table first
-    const { data: existingUser, error: checkError } = await supabaseAdmin
-      .from('user_roles')
-      .select('email, user_id')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (existingUser) {
-      return res.status(400).json({ error: 'An account with this email already exists.' });
-    }
-
-    // Also check Supabase auth users (in case there's a mismatch)
-    const { data: authUsers, error: authCheckError } = await supabaseAdmin.auth.admin.listUsers();
+    console.log('Attempting to create user with Supabase Admin...');
     
-    if (authUsers?.users?.find(user => user.email?.toLowerCase() === email.toLowerCase())) {
-      return res.status(400).json({ error: 'An account with this email already exists.' });
-    }
-
     // Create the admin user
     const { data: { user }, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
@@ -49,12 +40,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (signUpError || !user) {
-      // Handle specific duplicate email error from Supabase
-      if (signUpError?.message?.includes('already registered') || signUpError?.message?.includes('already exists')) {
-        return res.status(400).json({ error: 'An account with this email already exists.' });
-      }
+      console.error('Supabase user creation failed:', signUpError);
       return res.status(400).json({ error: 'Failed to create user: ' + signUpError?.message });
     }
+
+    console.log('User created successfully, now adding to user_roles...');
 
     // Add to user_roles table with admin role
     const { error: rolesError } = await supabaseAdmin
@@ -66,16 +56,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           is_active: true,
           first_name: firstName,
           last_name: lastName,
-          email: email.toLowerCase(), // Store email in user_roles too
         },
       ]);
 
     if (rolesError) {
+      console.error('Role assignment failed:', rolesError);
       // Clean up the created user if role assignment fails
       await supabaseAdmin.auth.admin.deleteUser(user.id);
       return res.status(500).json({ error: 'Failed to assign admin role: ' + rolesError.message });
     }
 
+    console.log('Admin account created successfully!');
     return res.status(200).json({ message: 'Admin account created successfully.' });
 
   } catch (error) {
