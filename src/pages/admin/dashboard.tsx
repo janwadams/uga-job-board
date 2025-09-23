@@ -1,10 +1,12 @@
-// admin dashboard - using direct Supabase queries (no API routes)
+// admin dashboard
+// made changes for better layout
 
 import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
+// NOTE: It's better practice to use the shared Supabase client from /utils,
+// but for simplicity and to match your existing files, we'll initialize it here.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -17,7 +19,7 @@ interface AdminUser {
   is_active: boolean;
   email: string | null;
   last_sign_in_at: string | null;
-  jobs_posted?: number;
+  jobs_posted: number;
   first_name: string;
   last_name: string;
   company_name: string | null;
@@ -30,16 +32,13 @@ interface Job {
   status: 'active' | 'pending' | 'removed' | 'rejected';
   created_at: string;
   created_by: string;
-  rejection_note?: string;
   // Properties to be added after fetching
-  creator?: AdminUser;
+  role?: string;
+  email?: string;
 }
 
 // --- Main Admin Dashboard Component ---
 export default function AdminDashboard() {
-  const router = useRouter();
-  const [session, setSession] = useState<any>(null);
-  
   // State for the active tab
   const [activeTab, setActiveTab] = useState<'users' | 'jobs'>('users');
 
@@ -59,99 +58,19 @@ export default function AdminDashboard() {
   // State for Create Admin Modal
   const [showCreateAdmin, setShowCreateAdmin] = useState(false);
 
-  // Check authentication
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error || !session) {
-      router.push('/login');
-      return;
-    }
-
-    // Check if user is an admin
-    const { data: userData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .single();
-
-    if (userData?.role !== 'admin') {
-      router.push('/unauthorized');
-      return;
-    }
-
-    setSession(session);
-    fetchUsers();
-    fetchJobs();
-  };
-
   // --- Data Fetching Functions ---
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      // Get all users from user_roles table
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
-
-      if (rolesError) {
-        console.error('Error fetching roles:', rolesError);
-        setUsers([]);
-        return;
+      const response = await fetch('/api/admin/list-users');
+      const data = await response.json();
+      if (response.ok) {
+        setUsers(data.users);
+      } else {
+        console.error('Failed to fetch admin users:', data.error);
       }
-
-      // Get profiles data for these users
-      const userIds = rolesData.map(r => r.user_id);
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', userIds);
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-      }
-
-      // Combine the data
-      const combinedUsers = rolesData.map(role => {
-        const profile = profilesData?.find(p => p.id === role.user_id);
-        
-        // Try to get name from different possible fields in profiles
-        let firstName = profile?.first_name || '';
-        let lastName = profile?.last_name || '';
-        
-        // If no first/last name, try to split full_name if it exists
-        if (!firstName && !lastName && profile?.full_name) {
-          const nameParts = profile.full_name.split(' ');
-          firstName = nameParts[0] || '';
-          lastName = nameParts.slice(1).join(' ') || '';
-        }
-        
-        // Fallback to "User" if still no name
-        if (!firstName && !lastName) {
-          firstName = 'User';
-          lastName = role.user_id.substring(0, 8);
-        }
-        
-        return {
-          user_id: role.user_id,
-          role: role.role,
-          is_active: role.is_active !== false, // Default to true if not set
-          email: profile?.email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-          first_name: firstName,
-          last_name: lastName,
-          company_name: profile?.company_name || null,
-          last_sign_in_at: null
-        };
-      });
-
-      setUsers(combinedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
-      setUsers([]);
     } finally {
       setLoadingUsers(false);
     }
@@ -159,40 +78,35 @@ export default function AdminDashboard() {
 
   const fetchJobs = async () => {
     setLoadingJobs(true);
-    try {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('jobs')
+      .select(`id, title, company, status, created_at, created_by`);
 
-      if (error) {
-        console.error('Error fetching jobs:', error);
-        setJobs([]);
-      } else {
-        setJobs(data || []);
-      }
-    } catch (error) {
-      console.error('Unexpected error:', error);
+    if (error) {
+      console.error('Error fetching jobs:', error);
       setJobs([]);
-    } finally {
-      setLoadingJobs(false);
+    } else if (data) {
+      setJobs(data as Job[]);
     }
+    setLoadingJobs(false);
   };
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchUsers();
+    fetchJobs();
+  }, []);
 
   // --- Action Handlers ---
   const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .update({ is_active: !currentStatus })
-        .eq('user_id', userId);
-
-      if (error) {
-        alert('Failed to update user status.');
-        console.error(error);
-      } else {
-        fetchUsers(); // Re-fetch users after update
-      }
+      const response = await fetch('/api/admin/update-user-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, isActive: !currentStatus }),
+      });
+      if (response.ok) fetchUsers(); // Re-fetch users after update
+      else alert('Failed to update user status.');
     } catch (error) {
       console.error('Error updating status:', error);
     }
@@ -201,32 +115,18 @@ export default function AdminDashboard() {
   const handleJobAction = async (jobId: string, newStatus: Job['status']) => {
     let rejectionNote = null;
     if (newStatus === 'rejected') {
-      rejectionNote = prompt("Provide a rejection note (required):");
-      if (!rejectionNote || rejectionNote.trim().length < 10) {
-        alert('Please provide a detailed rejection reason (at least 10 characters)');
-        return;
-      }
+      rejectionNote = prompt("Provide a rejection note (optional):");
+      if (rejectionNote === null) return; // User cancelled
     }
 
     try {
-      const updateData: any = { status: newStatus };
-      if (rejectionNote) {
-        updateData.rejection_note = rejectionNote;
-      } else if (newStatus === 'active') {
-        updateData.rejection_note = null; // Clear rejection note when approving
-      }
-
-      const { error } = await supabase
-        .from('jobs')
-        .update(updateData)
-        .eq('id', jobId);
-
-      if (error) {
-        alert('Failed to update job status.');
-        console.error(error);
-      } else {
-        fetchJobs(); // Re-fetch jobs after update
-      }
+      const response = await fetch('/api/admin/manage-job-posting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, status: newStatus, rejectionNote }),
+      });
+      if (response.ok) fetchJobs(); // Re-fetch jobs after update
+      else alert('Failed to update job status.');
     } catch (error) {
       console.error('Error updating job status:', error);
     }
@@ -244,20 +144,18 @@ export default function AdminDashboard() {
 
   const handleUpdateUserDetails = async (updatedUser: AdminUser) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          first_name: updatedUser.first_name,
-          last_name: updatedUser.last_name,
-          company_name: updatedUser.company_name
-        })
-        .eq('id', updatedUser.user_id);
+      const response = await fetch('/api/admin/update-user-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser),
+      });
 
-      if (error) {
-        alert('Failed to update user: ' + error.message);
-      } else {
+      if (response.ok) {
         fetchUsers(); // Refresh the user list
         closeEditModal(); // Close the modal on success
+      } else {
+        const data = await response.json();
+        alert('Failed to update user: ' + data.error);
       }
     } catch (error) {
       console.error('Error updating user details:', error);
@@ -266,34 +164,54 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteUser = async (userToDelete: AdminUser) => {
-    alert('User deletion is disabled for safety. Please deactivate the user instead.');
-    // In production, you'd implement proper user deletion with all related data cleanup
+    if (window.confirm(`Are you sure you want to permanently delete the user: ${userToDelete.email}? This action is irreversible.`)) {
+        try {
+            const response = await fetch('/api/admin/delete-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userToDelete }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('User deleted successfully.');
+                fetchUsers(); // Refresh the user list
+            } else {
+                alert('Failed to delete user: ' + (data.details || data.error));
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            alert('An unexpected error occurred.');
+        }
+    }
   };
 
   // --- Derived Data for UI ---
-  const enrichedJobs = useMemo(() => {
-    return jobs.map(job => {
-      const creator = users.find(u => u.user_id === job.created_by);
-      return {
-        ...job,
-        creator
-      };
+  const { userRoleMap, userEmailMap } = useMemo(() => {
+    const roleMap = new Map<string, string>();
+    const emailMap = new Map<string, string>();
+    users.forEach(user => {
+      roleMap.set(user.user_id, user.role);
+      if (user.email) {
+        emailMap.set(user.user_id, user.email);
+      }
     });
-  }, [jobs, users]);
+    return { userRoleMap: roleMap, userEmailMap: emailMap };
+  }, [users]);
+
+  const enrichedJobs = useMemo(() => {
+    return jobs.map(job => ({
+      ...job,
+      role: userRoleMap.get(job.created_by) || 'N/A',
+      email: userEmailMap.get(job.created_by) || 'N/A'
+    }));
+  }, [jobs, userRoleMap, userEmailMap]);
 
   const filteredJobs = useMemo(() => {
     if (!statusFilter) return enrichedJobs;
     return enrichedJobs.filter(job => job.status === statusFilter);
   }, [enrichedJobs, statusFilter]);
-
-  // Calculate pending jobs count
-  const pendingJobsCount = useMemo(() => {
-    return jobs.filter(job => job.status === 'pending').length;
-  }, [jobs]);
-
-  if (!session) {
-    return <p className="p-8 text-center">Loading...</p>;
-  }
 
   // --- Render ---
   return (
@@ -301,16 +219,6 @@ export default function AdminDashboard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-red-800">Admin Dashboard</h1>
         <div className="flex space-x-4">
-          <Link href="/admin/job-reviews">
-            <button className="relative bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800">
-              Review Jobs
-              {pendingJobsCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
-                  {pendingJobsCount}
-                </span>
-              )}
-            </button>
-          </Link>
           <Link href="/admin/analytics">
             <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
               View Analytics
@@ -333,31 +241,10 @@ export default function AdminDashboard() {
             Manage Users
           </button>
           <button onClick={() => setActiveTab('jobs')} className={`${activeTab === 'jobs' ? 'border-red-700 text-red-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}>
-            Manage Jobs ({jobs.length})
+            Manage Jobs
           </button>
         </nav>
       </div>
-
-      {/* Alert for pending jobs */}
-      {pendingJobsCount > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <div className="flex items-start">
-            <svg className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div>
-              <p className="text-yellow-800 font-medium">
-                {pendingJobsCount} job{pendingJobsCount > 1 ? 's' : ''} pending review
-              </p>
-              <Link href="/admin/job-reviews">
-                <button className="text-yellow-700 underline text-sm font-medium mt-1 hover:text-yellow-800">
-                  Review pending jobs →
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'users' && <UsersManagementPanel users={users} loading={loadingUsers} onStatusToggle={handleStatusToggle} onEditUser={openEditModal} onDeleteUser={handleDeleteUser} />}
       {activeTab === 'jobs' && <JobsManagementPanel jobs={filteredJobs} loading={loadingJobs} onJobAction={handleJobAction} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
@@ -379,7 +266,7 @@ export default function AdminDashboard() {
   );
 }
 
-// --- Create Admin Modal Component ---
+// --- Create Admin Modal Component with Password Visibility ---
 function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -415,53 +302,24 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
     setLoading(true);
 
     try {
-      // Create the user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email.trim(),
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName.trim(),
-            last_name: formData.lastName.trim(),
-          }
-        }
+      const response = await fetch('/api/admin/create-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+        }),
       });
 
-      if (authError) {
-        setError(authError.message);
-        setLoading(false);
-        return;
-      }
+      const data = await response.json();
 
-      if (authData.user) {
-        // Add user role as admin
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: 'admin',
-            is_active: true
-          });
-
-        if (roleError) {
-          setError('User created but failed to assign admin role. Please update manually.');
-        }
-
-        // Add to profiles table
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email: formData.email.trim(),
-            first_name: formData.firstName.trim(),
-            last_name: formData.lastName.trim(),
-            full_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`
-          });
-
-        if (!roleError && !profileError) {
-          alert('Admin account created successfully! The user will receive a confirmation email.');
-          onSuccess();
-        }
+      if (response.ok) {
+        alert('Admin account created successfully!');
+        onSuccess();
+      } else {
+        setError(data.error || 'Failed to create admin account.');
       }
     } catch (err) {
       setError('An unexpected error occurred.');
@@ -480,8 +338,7 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
 
   const EyeOffIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.969 9.969 0 012.635-3.993m2.507-1.517A9.966 9.966 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.018 10.018 0 01-3.563 4.229m-3.49.771a3 3 0 11-4.243-4.243" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M8 12a4 4 0 004 4m0 0l6-6m-6 6l-6-6" />
     </svg>
   );
 
@@ -621,6 +478,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
                     <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
                       {user.is_active ? 'Disable' : 'Enable'}
                     </button>
+                    <button onClick={() => onDeleteUser(user)} className="px-3 py-1 rounded text-white text-xs bg-gray-700 hover:bg-gray-800">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -633,7 +491,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
 }
 
 // --- Sub-component for Jobs Tab ---
-function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: any[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
+function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const statusColors: Record<Job['status'], string> = { active: 'bg-green-100 text-green-800', pending: 'bg-yellow-100 text-yellow-800', removed: 'bg-red-100 text-red-800', rejected: 'bg-gray-100 text-gray-800' };
 
@@ -659,7 +517,8 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By (ID)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -670,16 +529,11 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                 <tr key={job.id}>
                   <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">{job.title}</td>
                   <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.company}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">
-                    {job.creator ? `${job.creator.first_name} ${job.creator.last_name}` : 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
-                    {job.creator?.role || 'N/A'}
-                  </td>
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500 font-mono">{job.created_by}</td>
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
-                      {job.status}
-                    </span>
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>{job.status}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="relative inline-block text-left">
@@ -697,9 +551,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                             )}
                             {job.status === 'active' && (
                               <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>
-                            )}
-                            {job.status === 'rejected' && (
-                              <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'pending'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reactivate for Review</a>
                             )}
                             <Link href={`/admin/edit/${job.id}`}>
                               <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span>
@@ -750,7 +601,7 @@ function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: ()
             {user.role === 'rep' && (
               <div>
                 <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
-                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+         		<input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
             )}
           </div>
