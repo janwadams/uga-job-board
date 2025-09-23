@@ -56,6 +56,9 @@ export default function AdminDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
+  // State for Create Admin Modal
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+
   // Check authentication
   useEffect(() => {
     checkAuth();
@@ -115,13 +118,31 @@ export default function AdminDashboard() {
       // Combine the data
       const combinedUsers = rolesData.map(role => {
         const profile = profilesData?.find(p => p.id === role.user_id);
+        
+        // Try to get name from different possible fields in profiles
+        let firstName = profile?.first_name || '';
+        let lastName = profile?.last_name || '';
+        
+        // If no first/last name, try to split full_name if it exists
+        if (!firstName && !lastName && profile?.full_name) {
+          const nameParts = profile.full_name.split(' ');
+          firstName = nameParts[0] || '';
+          lastName = nameParts.slice(1).join(' ') || '';
+        }
+        
+        // Fallback to "User" if still no name
+        if (!firstName && !lastName) {
+          firstName = 'User';
+          lastName = role.user_id.substring(0, 8);
+        }
+        
         return {
           user_id: role.user_id,
           role: role.role,
           is_active: role.is_active !== false, // Default to true if not set
-          email: profile?.email || null,
-          first_name: profile?.first_name || '',
-          last_name: profile?.last_name || '',
+          email: profile?.email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+          first_name: firstName,
+          last_name: lastName,
           company_name: profile?.company_name || null,
           last_sign_in_at: null
         };
@@ -295,6 +316,14 @@ export default function AdminDashboard() {
               View Analytics
             </button>
           </Link>
+          {activeTab === 'users' && (
+            <button
+              onClick={() => setShowCreateAdmin(true)}
+              className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
+            >
+              + Create Admin Account
+            </button>
+          )}
         </div>
       </div>
 
@@ -336,6 +365,223 @@ export default function AdminDashboard() {
       {isModalOpen && editingUser && (
         <EditUserModal user={editingUser} onClose={closeEditModal} onSave={handleUpdateUserDetails} />
       )}
+
+      {showCreateAdmin && (
+        <CreateAdminModal 
+          onClose={() => setShowCreateAdmin(false)}
+          onSuccess={() => {
+            setShowCreateAdmin(false);
+            fetchUsers();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// --- Create Admin Modal Component ---
+function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Create the user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: formData.password,
+        options: {
+          data: {
+            first_name: formData.firstName.trim(),
+            last_name: formData.lastName.trim(),
+          }
+        }
+      });
+
+      if (authError) {
+        setError(authError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (authData.user) {
+        // Add user role as admin
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: authData.user.id,
+            role: 'admin',
+            is_active: true
+          });
+
+        if (roleError) {
+          setError('User created but failed to assign admin role. Please update manually.');
+        }
+
+        // Add to profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            email: formData.email.trim(),
+            first_name: formData.firstName.trim(),
+            last_name: formData.lastName.trim(),
+            full_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`
+          });
+
+        if (!roleError && !profileError) {
+          alert('Admin account created successfully! The user will receive a confirmation email.');
+          onSuccess();
+        }
+      }
+    } catch (err) {
+      setError('An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Eye icon components
+  const EyeIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  );
+
+  const EyeOffIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.969 9.969 0 012.635-3.993m2.507-1.517A9.966 9.966 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.018 10.018 0 01-3.563 4.229m-3.49.771a3 3 0 11-4.243-4.243" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
+    </svg>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-red-800">Create New Admin Account</h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex gap-4">
+            <input
+              name="firstName"
+              type="text"
+              placeholder="First Name"
+              value={formData.firstName}
+              onChange={handleChange}
+              required
+              className="w-full border p-2 rounded"
+            />
+            <input
+              name="lastName"
+              type="text"
+              placeholder="Last Name"
+              value={formData.lastName}
+              onChange={handleChange}
+              required
+              className="w-full border p-2 rounded"
+            />
+          </div>
+          
+          <input
+            name="email"
+            type="email"
+            placeholder="Admin Email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full border p-2 rounded"
+          />
+          
+          <div className="relative">
+            <input
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full border p-2 rounded pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 px-3 flex items-center"
+              aria-label="Toggle password visibility"
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+          
+          <div className="relative">
+            <input
+              name="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              className="w-full border p-2 rounded pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute inset-y-0 right-0 px-3 flex items-center"
+              aria-label="Toggle confirm password visibility"
+            >
+              {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+
+          <div className="flex justify-end space-x-4 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800 disabled:bg-gray-400"
+            >
+              {loading ? 'Creating...' : 'Create Admin'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
