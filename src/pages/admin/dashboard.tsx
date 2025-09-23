@@ -1,615 +1,305 @@
-// admin dashboard
-// made changes for better layout
+//pages/admin/dashboard.tsx
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// NOTE: It's better practice to use the shared Supabase client from /utils,
-// but for simplicity and to match your existing files, we'll initialize it here.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// --- TypeScript Interfaces for our data ---
-interface AdminUser {
-  user_id: string;
-  role: string;
-  is_active: boolean;
-  email: string | null;
-  last_sign_in_at: string | null;
-  jobs_posted: number;
-  first_name: string;
-  last_name: string;
-  company_name: string | null;
-}
-
 interface Job {
   id: string;
   title: string;
   company: string;
+  location: string;
+  deadline: string;
+  job_type: string;
   status: 'active' | 'pending' | 'removed' | 'rejected';
-  created_at: string;
   created_by: string;
-  // Properties to be added after fetching
-  role?: string;
-  email?: string;
+  rejection_note?: string;
 }
 
-// --- Main Admin Dashboard Component ---
-export default function AdminDashboard() {
-  // State for the active tab
-  const [activeTab, setActiveTab] = useState<'users' | 'jobs'>('users');
-
-  // State for data
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadingJobs, setLoadingJobs] = useState(true);
-
-  // State for job filtering
-  const [statusFilter, setStatusFilter] = useState<string>('');
-
-  // State for the Edit User Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-
-  // State for Create Admin Modal
-  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
-
-  // --- Data Fetching Functions ---
-  const fetchUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const response = await fetch('/api/admin/list-users');
-      const data = await response.json();
-      if (response.ok) {
-        setUsers(data.users);
-      } else {
-        console.error('Failed to fetch admin users:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setLoadingUsers(false);
-    }
+// Reusable Job Card Component
+const JobCard = ({ job, onRemove }: { job: Job, onRemove: (jobId: string) => void }) => {
+  const statusColors: Record<Job['status'], string> = {
+    active: 'bg-green-100 text-green-800',
+    pending: 'bg-yellow-100 text-yellow-800',
+    removed: 'bg-red-100 text-red-800',
+    rejected: 'bg-gray-100 text-gray-800',
   };
 
-  const fetchJobs = async () => {
-    setLoadingJobs(true);
-    const { data, error } = await supabase
+  const isArchived = job.status === 'removed' || job.status === 'rejected';
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-6 flex flex-col h-full">
+      <div className="flex-grow">
+        <div className="flex justify-between items-start">
+            <h2 className="font-bold text-xl text-gray-800">{job.title}</h2>
+            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
+                {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+            </span>
+        </div>
+        <p className="text-gray-600 mb-2">{job.company}</p>
+        <p className="text-sm text-gray-500">
+          Deadline: {new Date(job.deadline).toLocaleDateString()}
+        </p>
+        
+        {/* Show rejection note preview if job is rejected */}
+        {job.status === 'rejected' && job.rejection_note && (
+          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+            <p className="text-xs text-red-700 font-medium">Rejection Reason:</p>
+            <p className="text-xs text-red-600 line-clamp-2">{job.rejection_note}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
+        <Link href={`/rep/edit/${job.id}`}>
+          <button
+            disabled={isArchived}
+            className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
+              isArchived
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {job.status === 'rejected' ? 'Edit & Resubmit' : 'Edit'}
+          </button>
+        </Link>
+        <button
+          onClick={() => onRemove(job.id)}
+          disabled={isArchived}
+          className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
+            isArchived
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              : 'bg-gray-600 text-white hover:bg-gray-700'
+          }`}
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+export default function RepDashboard() {
+  const router = useRouter();
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !sessionData.session) {
+        router.push('/login');
+        return;
+      }
+
+      const user = sessionData.session.user;
+      
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (roleError || !roleData || roleData.role !== 'rep') {
+          router.push('/unauthorized');
+          return;
+      }
+      
+      setUserRole(roleData.role);
+      setSession(sessionData.session);
+    };
+    checkSession();
+  }, [router]);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      if (!session?.user) {
+        setLoading(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      setLoading(true);
+
+      let query = supabase
+        .from('jobs')
+        .select('*')
+        .eq('created_by', userId)
+        .order('created_at', { ascending: false });
+
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+      
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching jobs:', error);
+        setJobs([]);
+      } else {
+        setJobs(data as Job[] || []);
+      }
+
+      setLoading(false);
+    };
+
+    if (session) {
+      fetchJobs();
+    }
+  }, [session, statusFilter]);
+
+  const handleRemove = async (jobId: string) => {
+    if (!confirm('Are you sure you want to remove this posting?')) {
+      return;
+    }
+
+    const { error } = await supabase
       .from('jobs')
-      .select(`id, title, company, status, created_at, created_by`);
+      .update({ status: 'removed' })
+      .eq('id', jobId);
 
     if (error) {
-      console.error('Error fetching jobs:', error);
-      setJobs([]);
-    } else if (data) {
-      setJobs(data as Job[]);
-    }
-    setLoadingJobs(false);
-  };
-
-  // Fetch initial data
-  useEffect(() => {
-    fetchUsers();
-    fetchJobs();
-  }, []);
-
-  // --- Action Handlers ---
-  const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
-    try {
-      const response = await fetch('/api/admin/update-user-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, isActive: !currentStatus }),
-      });
-      if (response.ok) fetchUsers(); // Re-fetch users after update
-      else alert('Failed to update user status.');
-    } catch (error) {
-      console.error('Error updating status:', error);
+      alert('Failed to remove job.');
+    } else {
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === jobId ? { ...job, status: 'removed' } : job
+        )
+      );
     }
   };
+  
+  // Calculate metrics from the jobs list
+  const totalJobs = jobs.length;
+  const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
+  const pendingJobs = useMemo(() => jobs.filter(j => j.status === 'pending').length, [jobs]);
+  const rejectedJobs = useMemo(() => jobs.filter(j => j.status === 'rejected').length, [jobs]);
 
-  const handleJobAction = async (jobId: string, newStatus: Job['status']) => {
-    let rejectionNote = null;
-    if (newStatus === 'rejected') {
-      rejectionNote = prompt("Provide a rejection note (optional):");
-      if (rejectionNote === null) return; // User cancelled
-    }
+  if (!session || !userRole) {
+    return <p className="p-8 text-center">Loading dashboard...</p>;
+  }
 
-    try {
-      const response = await fetch('/api/admin/manage-job-posting', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, status: newStatus, rejectionNote }),
-      });
-      if (response.ok) fetchJobs(); // Re-fetch jobs after update
-      else alert('Failed to update job status.');
-    } catch (error) {
-      console.error('Error updating job status:', error);
-    }
-  };
-
-  const openEditModal = (user: AdminUser) => {
-    setEditingUser(user);
-    setIsModalOpen(true);
-  };
-
-  const closeEditModal = () => {
-    setEditingUser(null);
-    setIsModalOpen(false);
-  };
-
-  const handleUpdateUserDetails = async (updatedUser: AdminUser) => {
-    try {
-      const response = await fetch('/api/admin/update-user-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUser),
-      });
-
-      if (response.ok) {
-        fetchUsers(); // Refresh the user list
-        closeEditModal(); // Close the modal on success
-      } else {
-        const data = await response.json();
-        alert('Failed to update user: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error updating user details:', error);
-      alert('An unexpected error occurred.');
-    }
-  };
-
-  const handleDeleteUser = async (userToDelete: AdminUser) => {
-    if (window.confirm(`Are you sure you want to permanently delete the user: ${userToDelete.email}? This action is irreversible.`)) {
-        try {
-            const response = await fetch('/api/admin/delete-user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userToDelete }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                alert('User deleted successfully.');
-                fetchUsers(); // Refresh the user list
-            } else {
-                alert('Failed to delete user: ' + (data.details || data.error));
-            }
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            alert('An unexpected error occurred.');
-        }
-    }
-  };
-
-  // --- Derived Data for UI ---
-  const { userRoleMap, userEmailMap } = useMemo(() => {
-    const roleMap = new Map<string, string>();
-    const emailMap = new Map<string, string>();
-    users.forEach(user => {
-      roleMap.set(user.user_id, user.role);
-      if (user.email) {
-        emailMap.set(user.user_id, user.email);
-      }
-    });
-    return { userRoleMap: roleMap, userEmailMap: emailMap };
-  }, [users]);
-
-  const enrichedJobs = useMemo(() => {
-    return jobs.map(job => ({
-      ...job,
-      role: userRoleMap.get(job.created_by) || 'N/A',
-      email: userEmailMap.get(job.created_by) || 'N/A'
-    }));
-  }, [jobs, userRoleMap, userEmailMap]);
-
-  const filteredJobs = useMemo(() => {
-    if (!statusFilter) return enrichedJobs;
-    return enrichedJobs.filter(job => job.status === statusFilter);
-  }, [enrichedJobs, statusFilter]);
-
-  // --- Render ---
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-red-800">Admin Dashboard</h1>
-        <div className="flex space-x-4">
-          <Link href="/admin/analytics">
-            <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
-              View Analytics
-            </button>
-          </Link>
-          {activeTab === 'users' && (
-            <button
-              onClick={() => setShowCreateAdmin(true)}
-              className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
-            >
-              + Create Admin Account
-            </button>
+    <div className="bg-gray-50 min-h-screen p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-red-800">💼 Rep Dashboard</h1>
+          <div className="flex gap-3">
+            <Link href="/rep/job-status">
+              <button className="relative bg-white text-red-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors shadow-sm border border-red-700">
+                View Job Status
+                {rejectedJobs > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center">
+                    {rejectedJobs}
+                  </span>
+                )}
+              </button>
+            </Link>
+            <Link href="/rep/create">
+              <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
+                + Post a New Job
+              </button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Alert for rejected jobs */}
+        {rejectedJobs > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start">
+              <svg className="h-5 w-5 text-red-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p className="text-red-800 font-medium">
+                  You have {rejectedJobs} rejected job{rejectedJobs > 1 ? 's' : ''} that need{rejectedJobs === 1 ? 's' : ''} attention
+                </p>
+                <p className="text-red-700 text-sm mt-1">
+                  Review admin feedback and resubmit after making necessary changes.
+                </p>
+                <Link href="/rep/job-status?filter=rejected">
+                  <button className="text-red-700 underline text-sm font-medium mt-2 hover:text-red-800">
+                    View rejected jobs →
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- METRICS CARDS --- */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h3 className="text-gray-500 font-semibold">Total Jobs Posted</h3>
+                <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
+            </div>
+             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h3 className="text-gray-500 font-semibold">Pending Review</h3>
+                <p className="text-4xl font-bold text-yellow-500 mt-2">{pendingJobs}</p>
+                {pendingJobs > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">Awaiting admin approval</p>
+                )}
+            </div>
+             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
+                <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h3 className="text-gray-500 font-semibold">Rejected</h3>
+                <p className="text-4xl font-bold text-red-600 mt-2">{rejectedJobs}</p>
+                {rejectedJobs > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">Needs revision</p>
+                )}
+            </div>
+        </div>
+
+        {/* --- FILTER AND JOB LISTINGS --- */}
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">Your Job Postings</h2>
+            <div>
+              <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
+              <select
+                id="statusFilter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
+              >
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="active">Active</option>
+                <option value="rejected">Rejected</option>
+                <option value="removed">Removed</option>
+              </select>
+            </div>
+          </div>
+
+          {loading ? (
+            <p className="text-center text-gray-500 py-10">Loading your jobs...</p>
+          ) : jobs.length === 0 ? (
+            <div className="text-center py-10">
+              <h3 className="text-xl font-semibold text-gray-700">No jobs posted yet.</h3>
+              <p className="text-gray-500 mt-2">Click the "Post a New Job" button to get started.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {jobs.map((job) => (
+                <JobCard key={job.id} job={job} onRemove={handleRemove} />
+              ))}
+            </div>
           )}
         </div>
-      </div>
-
-      <div className="mb-4 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-          <button onClick={() => setActiveTab('users')} className={`${activeTab === 'users' ? 'border-red-700 text-red-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}>
-            Manage Users
-          </button>
-          <button onClick={() => setActiveTab('jobs')} className={`${activeTab === 'jobs' ? 'border-red-700 text-red-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}>
-            Manage Jobs
-          </button>
-        </nav>
-      </div>
-
-      {activeTab === 'users' && <UsersManagementPanel users={users} loading={loadingUsers} onStatusToggle={handleStatusToggle} onEditUser={openEditModal} onDeleteUser={handleDeleteUser} />}
-      {activeTab === 'jobs' && <JobsManagementPanel jobs={filteredJobs} loading={loadingJobs} onJobAction={handleJobAction} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
-
-      {isModalOpen && editingUser && (
-        <EditUserModal user={editingUser} onClose={closeEditModal} onSave={handleUpdateUserDetails} />
-      )}
-
-      {showCreateAdmin && (
-        <CreateAdminModal 
-          onClose={() => setShowCreateAdmin(false)}
-          onSuccess={() => {
-            setShowCreateAdmin(false);
-            fetchUsers();
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-// --- Create Admin Modal Component with Password Visibility ---
-function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/admin/create-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email.trim(),
-          password: formData.password,
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Admin account created successfully!');
-        onSuccess();
-      } else {
-        setError(data.error || 'Failed to create admin account.');
-      }
-    } catch (err) {
-      setError('An unexpected error occurred.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Eye icon components
-  const EyeIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-    </svg>
-  );
-
-  const EyeOffIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M8 12a4 4 0 004 4m0 0l6-6m-6 6l-6-6" />
-    </svg>
-  );
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-red-800">Create New Admin Account</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex gap-4">
-            <input
-              name="firstName"
-              type="text"
-              placeholder="First Name"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded"
-            />
-            <input
-              name="lastName"
-              type="text"
-              placeholder="Last Name"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded"
-            />
-          </div>
-          
-          <input
-            name="email"
-            type="email"
-            placeholder="Admin Email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          />
-          
-          <div className="relative">
-            <input
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 px-3 flex items-center"
-              aria-label="Toggle password visibility"
-            >
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-            </button>
-          </div>
-          
-          <div className="relative">
-            <input
-              name="confirmPassword"
-              type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute inset-y-0 right-0 px-3 flex items-center"
-              aria-label="Toggle confirm password visibility"
-            >
-              {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-            </button>
-          </div>
-
-          {error && <p className="text-red-600 text-sm">{error}</p>}
-
-          <div className="flex justify-end space-x-4 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800 disabled:bg-gray-400"
-            >
-              {loading ? 'Creating...' : 'Create Admin'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// --- Sub-component for Users Tab ---
-function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDeleteUser }: { users: AdminUser[], loading: boolean, onStatusToggle: (userId: string, currentStatus: boolean) => void, onEditUser: (user: AdminUser) => void, onDeleteUser: (user: AdminUser) => void }) {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4 text-gray-700">All Platform Users</h2>
-      {loading ? (<p>Loading users...</p>) : (
-        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.user_id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.first_name} {user.last_name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.company_name || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {user.is_active ? 'Active' : 'Disabled'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
-                    <button onClick={() => onEditUser(user)} className="px-3 py-1 rounded text-white text-xs bg-indigo-600 hover:bg-indigo-700">Edit</button>
-                    <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
-                      {user.is_active ? 'Disable' : 'Enable'}
-                    </button>
-                    <button onClick={() => onDeleteUser(user)} className="px-3 py-1 rounded text-white text-xs bg-gray-700 hover:bg-gray-800">Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// --- Sub-component for Jobs Tab ---
-function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
-  const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
-  const statusColors: Record<Job['status'], string> = { active: 'bg-green-100 text-green-800', pending: 'bg-yellow-100 text-yellow-800', removed: 'bg-red-100 text-red-800', rejected: 'bg-gray-100 text-gray-800' };
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-700">All Job Postings</h2>
-        <div>
-          <label className="mr-2 font-medium">Filter by Status:</label>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
-            <option value="">All</option>
-            <option value="pending">Pending</option>
-            <option value="active">Active</option>
-            <option value="removed">Removed</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
-      </div>
-      {loading ? (<p>Loading jobs...</p>) : jobs.length === 0 ? (<p>No job postings found for the selected filter.</p>) : (
-        <div className="border border-gray-200 rounded-lg overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By (ID)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {jobs.map((job) => (
-                <tr key={job.id}>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">{job.title}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.company}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500 font-mono">{job.created_by}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>{job.status}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                    <div className="relative inline-block text-left">
-                      <button onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
-                      </button>
-                      {openActionMenu === job.id && (
-                        <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" onMouseLeave={() => setOpenActionMenu(null)}>
-                          <div className="py-1" role="menu" aria-orientation="vertical">
-                            {job.status === 'pending' && (
-                              <>
-                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approve</a>
-                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'rejected'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reject</a>
-                              </>
-                            )}
-                            {job.status === 'active' && (
-                              <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>
-                            )}
-                            <Link href={`/admin/edit/${job.id}`}>
-                              <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span>
-                            </Link>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// --- Sub-component for the Edit User Modal ---
-function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: () => void, onSave: (user: AdminUser) => void }) {
-  const [formData, setFormData] = useState(user);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4">Edit User: {user.email}</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
-              <input type="text" name="first_name" id="first_name" value={formData.first_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-            </div>
-            <div>
-              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
-              <input type="text" name="last_name" id="last_name" value={formData.last_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-            </div>
-            {user.role === 'rep' && (
-              <div>
-                <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
-         		<input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-              </div>
-            )}
-          </div>
-          <div className="mt-6 flex justify-end space-x-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800">Save Changes</button>
-          </div>
-        </form>
       </div>
     </div>
   );
