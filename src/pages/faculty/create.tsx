@@ -1,4 +1,4 @@
-//create job posting for rep/faculty/create.tsx - improved version
+//create job posting for rep/faculty/create.tsx - fixed version with dynamic routing
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
@@ -72,6 +72,20 @@ export default function CreateJobPosting() {
   
   // For rich text description (basic formatting)
   const [descriptionLength, setDescriptionLength] = useState(0);
+
+  // Helper function to get the dashboard path based on role
+  const getDashboardPath = (role: string) => {
+    switch(role) {
+      case 'faculty':
+        return '/faculty/dashboard';
+      case 'rep':
+        return '/rep/dashboard';
+      case 'staff':
+        return '/staff/dashboard';
+      default:
+        return '/dashboard'; // fallback
+    }
+  };
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -190,7 +204,7 @@ export default function CreateJobPosting() {
       deadline: formData.deadline,
       apply_method: formData.apply_method,
       created_by: user.id,
-      status: 'pending',
+      status: userRole === 'faculty' ? 'active' : 'pending', // Faculty posts are auto-approved
     };
     
     const { error: insertError } = await supabase.from('jobs').insert([newJob]);
@@ -216,9 +230,11 @@ export default function CreateJobPosting() {
       setSelectedSkills([]);
       setDescriptionLength(0);
       
-      // Redirect after 2 seconds
+      // Redirect to the appropriate dashboard based on role after 2 seconds
       setTimeout(() => {
-        router.push('/rep/dashboard');
+        if (userRole) {
+          router.push(getDashboardPath(userRole));
+        }
       }, 2000);
     }
     setLoading(false);
@@ -226,9 +242,12 @@ export default function CreateJobPosting() {
 
   if (!userRole) return <p className="p-6 text-center">Loading...</p>;
 
+  // Get the appropriate dashboard path for the current user
+  const dashboardPath = getDashboardPath(userRole);
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <Link href="/rep/dashboard">
+      <Link href={dashboardPath}>
         <span className="text-red-700 underline hover:text-red-900 cursor-pointer mb-6 inline-block">
           ← Back to Dashboard
         </span>
@@ -244,7 +263,7 @@ export default function CreateJobPosting() {
 
       {success && (
         <div className="bg-green-100 text-green-800 p-4 rounded mb-4 border border-green-300">
-          ✅ Job created successfully! Your posting is awaiting review. Redirecting...
+          ✅ Job created successfully! {userRole === 'faculty' ? 'Your posting is now live.' : 'Your posting is awaiting review.'} Redirecting...
         </div>
       )}
 
@@ -518,7 +537,7 @@ export default function CreateJobPosting() {
           >
             {loading ? 'Creating Job Posting...' : 'Create Job Posting'}
           </button>
-          <Link href="/rep/dashboard" className="w-full">
+          <Link href={dashboardPath} className="w-full">
             <button
               type="button"
               className="w-full bg-gray-200 text-gray-800 px-4 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
