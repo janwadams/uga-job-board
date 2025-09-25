@@ -1,4 +1,4 @@
-//scr/pages/index.tsx - Updated to filter out expired jobs
+// pages/index.tsx - Enhanced main job board page
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
@@ -47,7 +47,7 @@ const JobCardSkeleton = () => (
   </div>
 );
 
-// Job card component - no expired jobs will reach here now
+// Simplified job card without auth checks
 const JobCard = ({ job, isStudent, hasApplied, onApply }: { 
   job: Job;
   isStudent: boolean;
@@ -56,10 +56,11 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
 }) => {
   const router = useRouter();
   
-  // calculate deadline info - job won't be expired but might be urgent
+  // calculate deadline info
   const daysUntilDeadline = Math.ceil(
     (new Date(job.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
   );
+  const isExpired = daysUntilDeadline < 0;
   const isUrgent = daysUntilDeadline >= 0 && daysUntilDeadline <= 3;
   const isNew = (new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60) <= 48;
 
@@ -70,7 +71,11 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
   };
 
   return (
-    <div className="border bg-white rounded-lg p-6 flex flex-col transition-all duration-300 border-gray-200 hover:shadow-lg hover:border-gray-300">
+    <div className={`border bg-white rounded-lg p-6 flex flex-col transition-all duration-300 ${
+      isExpired 
+        ? 'opacity-60 border-gray-200' 
+        : 'border-gray-200 hover:shadow-lg hover:border-gray-300'
+    }`}>
       <div className="flex-grow">
         <div className="flex justify-between items-start mb-3">
           <div className="flex-1 pr-2">
@@ -78,7 +83,7 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
               <h3 className="font-bold text-xl text-gray-800 line-clamp-1">
                 {job.title}
               </h3>
-              {isNew && (
+              {isNew && !isExpired && (
                 <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full shrink-0">
                   NEW
                 </span>
@@ -146,9 +151,12 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
           </span>
           
           <span className={`text-sm font-medium ${
-            isUrgent ? 'text-orange-600' : 'text-gray-600'
+            isExpired ? 'text-red-600' :
+            isUrgent ? 'text-orange-600' :
+            'text-gray-600'
           }`}>
-            {daysUntilDeadline === 0 ? 'Due today!' :
+            {isExpired ? 'Expired' :
+             daysUntilDeadline === 0 ? 'Due today!' :
              daysUntilDeadline === 1 ? 'Due tomorrow' :
              isUrgent ? `${daysUntilDeadline} days left` :
              new Date(job.deadline).toLocaleDateString()}
@@ -164,7 +172,7 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
           </Link>
           
           {/* only show apply for students */}
-          {isStudent && (
+          {isStudent && !isExpired && (
             <>
               {hasApplied ? (
                 <button 
@@ -185,7 +193,7 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
           )}
           
           {/* prompt non-students to sign up */}
-          {!isStudent && (
+          {!isStudent && !isExpired && (
             <button
               onClick={() => router.push('/login')}
               className="flex-1 bg-red-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
@@ -199,7 +207,7 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
   );
 };
 
-// Main component
+// Main component - properly named now
 export default function JobBoard() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -279,14 +287,11 @@ export default function JobBoard() {
     setLoading(true);
     
     try {
-      const today = new Date().toISOString().split('T')[0]; // get today's date in YYYY-MM-DD format
-      
-      // get only active jobs that haven't expired yet
+      // get all active jobs
       const { data: jobsData, error: jobsError } = await supabase
         .from('jobs')
         .select('*')
         .eq('status', 'active')
-        .gte('deadline', today) // only get jobs with deadline today or in the future
         .order('created_at', { ascending: false });
 
       if (jobsError) throw jobsError;
@@ -322,15 +327,7 @@ export default function JobBoard() {
         };
       });
 
-      // double-check to filter out any expired jobs that might have slipped through
-      const activeJobs = enrichedJobs.filter(job => {
-        const deadline = new Date(job.deadline);
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // reset time to start of day for fair comparison
-        return deadline >= now;
-      });
-
-      setJobs(activeJobs);
+      setJobs(enrichedJobs);
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
@@ -464,7 +461,7 @@ export default function JobBoard() {
 
   const totalPages = Math.ceil(finalFilteredJobs.length / JOBS_PER_PAGE);
 
-  // get counts - only active (non-expired) jobs
+  // get counts
   const jobCounts = useMemo(() => ({
     all: jobs.length,
     faculty: jobs.filter(job => 
@@ -473,18 +470,17 @@ export default function JobBoard() {
     companies: jobs.filter(job => job.creator_role === 'rep').length
   }), [jobs]);
 
-  // stats for hero section - all are active jobs now
+  // stats for hero section
   const stats = useMemo(() => {
+    const activeJobs = jobs.filter(job => 
+      new Date(job.deadline) >= new Date()
+    ).length;
     const newJobs = jobs.filter(job => {
       const hours = (new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60);
       return hours <= 48;
     }).length;
     
-    return { 
-      activeJobs: jobs.length, // all jobs are active now
-      newJobs, 
-      totalJobs: jobs.length 
-    };
+    return { activeJobs, newJobs, totalJobs: jobs.length };
   }, [jobs]);
 
   return (
@@ -495,7 +491,7 @@ export default function JobBoard() {
           <h1 className="text-4xl font-bold mb-3">UGA Job Board</h1>
           <p className="text-xl opacity-95 mb-6">Find your next opportunity at the University of Georgia</p>
           
-          {/* quick stats - showing only active jobs */}
+          {/* quick stats */}
           <div className="grid grid-cols-3 gap-4 max-w-md">
             <div>
               <p className="text-3xl font-bold">{stats.activeJobs}</p>
@@ -667,7 +663,7 @@ export default function JobBoard() {
         {/* results count */}
         {!loading && (
           <div className="mb-4 text-sm text-gray-600">
-            Showing {paginatedJobs.length} of {finalFilteredJobs.length} active jobs
+            Showing {paginatedJobs.length} of {finalFilteredJobs.length} jobs
             {(searchTerm || jobTypeFilters.length > 0 || industryFilter || quickFilter) && 
               ' (filtered)'}
           </div>
@@ -748,12 +744,10 @@ export default function JobBoard() {
           ) : (
             <div className="text-center bg-white p-12 rounded-lg shadow-sm">
               <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                No active jobs found
+                No jobs found
               </h3>
               <p className="text-gray-600 mb-4">
-                {(searchTerm || jobTypeFilters.length > 0 || industryFilter || quickFilter) 
-                  ? 'Try adjusting your filters or search terms'
-                  : 'Check back soon for new opportunities'}
+                Try adjusting your filters or search terms
               </p>
               {(searchTerm || jobTypeFilters.length > 0 || industryFilter || quickFilter) && (
                 <button
