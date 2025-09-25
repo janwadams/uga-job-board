@@ -81,7 +81,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // fetch active and pending jobs (actually all non-expired jobs)
+  // fetch active and pending jobs
   const fetchJobs = async () => {
     setLoadingJobs(true);
     
@@ -297,7 +297,7 @@ export default function AdminDashboard() {
     }));
   }, [archivedJobs, userRoleMap, userEmailMap, userNameMap]);
 
-  // filter current jobs by status
+  // filter active jobs
   const filteredJobs = useMemo(() => {
     if (!statusFilter) return enrichedJobs;
     return enrichedJobs.filter(job => job.status === statusFilter);
@@ -357,7 +357,7 @@ export default function AdminDashboard() {
             onClick={() => setActiveTab('jobs')} 
             className={`${activeTab === 'jobs' ? 'border-red-700 text-red-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
           >
-            Current Jobs ({jobs.length})
+            Active Jobs ({jobs.length})
           </button>
           <button 
             onClick={() => setActiveTab('archived')} 
@@ -622,7 +622,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
   );
 }
 
-// component for jobs tab - now with clickable titles
+// component for jobs tab
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const statusColors: Record<Job['status'], string> = { active: 'bg-green-100 text-green-800', pending: 'bg-yellow-100 text-yellow-800', removed: 'bg-red-100 text-red-800', rejected: 'bg-gray-100 text-gray-800', archived: 'bg-gray-100 text-gray-800' };
@@ -630,7 +630,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-gray-700">All Current Job Postings</h2>
+        <h2 className="text-2xl font-bold text-gray-700">All Job Postings</h2>
         <div>
           <label className="mr-2 font-medium">Filter by Status:</label>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
@@ -649,7 +649,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By (ID)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -659,19 +659,9 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
             <tbody className="bg-white divide-y divide-gray-200">
               {jobs.map((job) => (
                 <tr key={job.id}>
-                  {/* make the job title clickable to view details */}
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">
-                    <Link href={`/admin/view/${job.id}`}>
-                      <span className="hover:text-blue-600 hover:underline cursor-pointer">
-                        {job.title}
-                      </span>
-                    </Link>
-                  </td>
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">{job.title}</td>
                   <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.company}</td>
-                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">
-                    {job.creator_name}
-                    <span className="text-xs text-gray-400 block">{job.created_by}</span>
-                  </td>
+                  <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500 font-mono">{job.created_by}</td>
                   <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">{job.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{job.role}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -685,10 +675,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       {openActionMenu === job.id && (
                         <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" onMouseLeave={() => setOpenActionMenu(null)}>
                           <div className="py-1" role="menu" aria-orientation="vertical">
-                            {/* add view option at the top of the menu */}
-                            <Link href={`/admin/view/${job.id}`}>
-                              <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">View Details</span>
-                            </Link>
                             {job.status === 'pending' && (
                               <>
                                 <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approve</a>
@@ -716,7 +702,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
   );
 }
 
-// component for archived jobs tab
+// new component for archived jobs tab
 function ArchivedJobsPanel({ 
   jobs, 
   loading, 
