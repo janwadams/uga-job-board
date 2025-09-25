@@ -20,23 +20,20 @@ interface Job {
   status: 'active' | 'pending' | 'removed' | 'rejected' | 'archived';
   created_by: string;
   created_at: string;
-  rejection_note?: string; // add field for rejection feedback
 }
 
 // reusable job card component
-const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected }: { 
+const JobCard = ({ job, onRemove, onReactivate, isArchived }: { 
   job: Job, 
   onRemove?: (jobId: string) => void,
   onReactivate?: (jobId: string) => void,
-  onRevise?: (jobId: string) => void,
-  isArchived?: boolean,
-  isRejected?: boolean 
+  isArchived?: boolean 
 }) => {
   const statusColors: Record<Job['status'], string> = {
     active: 'bg-green-100 text-green-800',
     pending: 'bg-yellow-100 text-yellow-800',
     removed: 'bg-red-100 text-red-800',
-    rejected: 'bg-red-100 text-red-800',
+    rejected: 'bg-gray-100 text-gray-800',
     archived: 'bg-gray-100 text-gray-800',
   };
 
@@ -72,14 +69,6 @@ const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected
             Location: {job.location}
           </p>
         )}
-        
-        {/* show rejection feedback if this is a rejected job */}
-        {isRejected && job.rejection_note && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-            <p className="text-sm font-semibold text-red-800">Admin Feedback:</p>
-            <p className="text-sm text-red-700 mt-1">{job.rejection_note}</p>
-          </div>
-        )}
       </div>
 
       <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
@@ -95,21 +84,6 @@ const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected
             <Link href={`/rep/view/${job.id}`}>
               <button className="px-4 py-2 rounded font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                 View Details
-              </button>
-            </Link>
-          </>
-        ) : isRejected ? (
-          // buttons for rejected jobs
-          <>
-            <button
-              onClick={() => onRevise && onRevise(job.id)}
-              className="px-4 py-2 rounded font-semibold text-sm bg-yellow-600 text-white hover:bg-yellow-700 transition-colors"
-            >
-              Revise & Resubmit
-            </button>
-            <Link href={`/rep/view/${job.id}`}>
-              <button className="px-4 py-2 rounded font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                View Full Details
               </button>
             </Link>
           </>
@@ -148,15 +122,13 @@ const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected
 
 export default function RepDashboard() {
   const router = useRouter();
-  // add state for active tab switching - now includes rejected
-  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'rejected'>('active');
+  // add state for active tab switching
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [archivedJobs, setArchivedJobs] = useState<Job[]>([]);
-  const [rejectedJobs, setRejectedJobs] = useState<Job[]>([]);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(true);
-  const [loadingRejected, setLoadingRejected] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -188,7 +160,7 @@ export default function RepDashboard() {
     checkSession();
   }, [router]);
 
-  // fetch active jobs (not expired, not rejected)
+  // fetch active jobs (not expired)
   useEffect(() => {
     const fetchJobs = async () => {
       if (!session?.user) {
@@ -208,7 +180,6 @@ export default function RepDashboard() {
         .select('*')
         .eq('created_by', userId)
         .gte('deadline', today.toISOString()) // only get non-expired jobs
-        .neq('status', 'rejected') // exclude rejected jobs
         .order('created_at', { ascending: false });
 
       if (statusFilter) {
@@ -266,39 +237,6 @@ export default function RepDashboard() {
 
     if (session) {
       fetchArchivedJobs();
-    }
-  }, [session]);
-
-  // fetch rejected jobs (jobs with rejected status)
-  useEffect(() => {
-    const fetchRejectedJobs = async () => {
-      if (!session?.user) {
-        setLoadingRejected(false);
-        return;
-      }
-      
-      const userId = session.user.id;
-      setLoadingRejected(true);
-
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('created_by', userId)
-        .eq('status', 'rejected') // only get rejected jobs
-        .order('created_at', { ascending: false }); // newest first
-
-      if (error) {
-        console.error('Error fetching rejected jobs:', error);
-        setRejectedJobs([]);
-      } else {
-        setRejectedJobs(data as Job[] || []);
-      }
-
-      setLoadingRejected(false);
-    };
-
-    if (session) {
-      fetchRejectedJobs();
     }
   }, [session]);
 
@@ -366,19 +304,12 @@ export default function RepDashboard() {
       alert('An error occurred while reactivating the job.');
     }
   };
-
-  // handle revising a rejected job - takes user to edit page
-  const handleRevise = (jobId: string) => {
-    // navigate to edit page where they can fix the issues
-    router.push(`/rep/edit/${jobId}`);
-  };
   
-  // calculate metrics from all lists
-  const totalJobs = jobs.length + archivedJobs.length + rejectedJobs.length;
+  // calculate metrics from both active and archived lists
+  const totalJobs = jobs.length + archivedJobs.length;
   const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
   const pendingJobs = useMemo(() => jobs.filter(j => j.status === 'pending').length, [jobs]);
   const totalArchived = archivedJobs.length;
-  const totalRejected = rejectedJobs.length;
 
   if (!session || !userRole) {
     return <p className="p-8 text-center">Loading dashboard...</p>;
@@ -397,22 +328,18 @@ export default function RepDashboard() {
         </div>
 
         {/* metrics cards showing job statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Total Posted</h3>
+            <h3 className="text-gray-500 font-semibold">Total Jobs Posted</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Active</h3>
-            <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Pending</h3>
+            <h3 className="text-gray-500 font-semibold">Pending Review</h3>
             <p className="text-4xl font-bold text-yellow-500 mt-2">{pendingJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Rejected</h3>
-            <p className="text-4xl font-bold text-red-600 mt-2">{totalRejected}</p>
+            <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
+            <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Archived</h3>
@@ -420,7 +347,7 @@ export default function RepDashboard() {
           </div>
         </div>
 
-        {/* tabs to switch between active, archived, and rejected jobs */}
+        {/* tabs to switch between active and archived jobs */}
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button 
@@ -434,20 +361,6 @@ export default function RepDashboard() {
               Current Jobs ({jobs.length})
             </button>
             <button 
-              onClick={() => setActiveTab('rejected')} 
-              className={`${
-                activeTab === 'rejected' 
-                  ? 'border-red-700 text-red-800' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg relative`}
-            >
-              Rejected ({rejectedJobs.length})
-              {/* show a red dot if there are rejected jobs that need attention */}
-              {rejectedJobs.length > 0 && (
-                <span className="absolute -top-1 -right-2 h-3 w-3 bg-red-500 rounded-full"></span>
-              )}
-            </button>
-            <button 
               onClick={() => setActiveTab('archived')} 
               className={`${
                 activeTab === 'archived' 
@@ -455,7 +368,7 @@ export default function RepDashboard() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
             >
-              Archived ({archivedJobs.length})
+              Archived Jobs ({archivedJobs.length})
             </button>
           </nav>
         </div>
@@ -478,6 +391,7 @@ export default function RepDashboard() {
                   <option value="pending">Pending</option>
                   <option value="active">Active</option>
                   <option value="removed">Removed</option>
+                  <option value="rejected">Rejected</option>
                 </select>
               </div>
             </div>
@@ -501,38 +415,6 @@ export default function RepDashboard() {
                     job={job} 
                     onRemove={handleRemove}
                     isArchived={false}
-                    isRejected={false}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : activeTab === 'rejected' ? (
-          // rejected jobs section
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Rejected Jobs - Need Revision</h2>
-              <p className="text-gray-600 mt-2">
-                These jobs were rejected by admin. Review the feedback and revise them before resubmitting.
-              </p>
-            </div>
-
-            {loadingRejected ? (
-              <p className="text-center text-gray-500 py-10">Loading rejected jobs...</p>
-            ) : rejectedJobs.length === 0 ? (
-              <div className="text-center py-10 bg-green-50 rounded-lg">
-                <h3 className="text-xl font-semibold text-green-700">No rejected jobs!</h3>
-                <p className="text-gray-600 mt-2">Great job! All your submissions have been approved.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {rejectedJobs.map((job) => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    onRevise={handleRevise}
-                    isArchived={false}
-                    isRejected={true}
                   />
                 ))}
               </div>
@@ -563,7 +445,6 @@ export default function RepDashboard() {
                     job={job} 
                     onReactivate={handleReactivate}
                     isArchived={true}
-                    isRejected={false}
                   />
                 ))}
               </div>
