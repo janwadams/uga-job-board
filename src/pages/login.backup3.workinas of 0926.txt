@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
-import Link from 'next/link';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -135,15 +134,7 @@ export default function LoginPage() {
           {loading ? 'Logging in...' : 'Log In'}
         </button>
       </form>
-
-      {/* forgot password link - new addition */}
-      <div className="mt-4 text-center">
-        <Link href="/forgot-password">
-          <span className="text-sm text-red-600 hover:text-red-800 hover:underline cursor-pointer">
-            Forgot your password?
-          </span>
-        </Link>
-      </div>
     </div>
   );
 }
+
