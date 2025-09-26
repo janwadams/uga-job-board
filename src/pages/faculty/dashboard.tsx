@@ -303,22 +303,22 @@ export default function FacultyDashboard() {
       
       // Fetch all jobs with applications and views
       const { data: jobsWithData, error: jobsError } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          job_applications (
-            id,
-            created_at,
-            status,
-            user_id
-          ),
-          job_views (
-            id,
-            created_at,
-            user_id
-          )
-        `)
-        .eq('created_by', userId);
+  .from('jobs')
+  .select(`
+    *,
+    job_applications (
+      id,
+      applied_at,    // ← Use correct column name
+      status,
+      student_id     // ← Use correct column name
+    ),
+    job_views (
+      id,
+      viewed_at,
+      user_id
+    )
+  `)
+  .eq('created_by', userId);
 
       if (jobsError) throw jobsError;
 
