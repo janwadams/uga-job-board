@@ -1,5 +1,6 @@
 // /pages/forgot-password.tsx
 // page where users request a password reset link
+// in test mode, bypasses email and goes directly to reset page
 
 import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -10,6 +11,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// check if we're in test mode - set this to true for development
+const IS_TEST_MODE = true; // change this to false for production
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -24,9 +28,24 @@ export default function ForgotPasswordPage() {
     setErrorMsg('');
     setSuccess(false);
 
-    // request password reset from supabase
+    // in test mode, skip email and go directly to reset page
+    if (IS_TEST_MODE) {
+      // store the email temporarily so we know which user is resetting
+      localStorage.setItem('reset_email', email);
+      
+      // show success message briefly then redirect
+      setSuccess(true);
+      setLoading(false);
+      
+      setTimeout(() => {
+        router.push('/reset-password?test=true');
+      }, 2000);
+      
+      return;
+    }
+
+    // production mode - send actual email
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // this is where the user will be sent after clicking the link in their email
       redirectTo: `${window.location.origin}/reset-password`,
     });
 
@@ -45,10 +64,22 @@ export default function ForgotPasswordPage() {
     <div className="max-w-md mx-auto mt-20 p-8 border rounded shadow bg-white">
       <h1 className="text-2xl font-bold mb-6 text-center text-red-700">Reset Your Password</h1>
 
+      {/* test mode warning banner */}
+      {IS_TEST_MODE && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+          <p className="text-sm text-yellow-800">
+            <strong>Test Mode Active:</strong> Email sending is bypassed for testing.
+          </p>
+        </div>
+      )}
+
       {!success ? (
         <>
           <p className="text-gray-600 mb-6 text-center">
-            Enter your email address and we'll send you a link to reset your password.
+            {IS_TEST_MODE 
+              ? "Enter your email address to test the password reset flow."
+              : "Enter your email address and we'll send you a link to reset your password."
+            }
           </p>
 
           <form onSubmit={handleResetRequest} className="space-y-4">
@@ -69,12 +100,12 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full bg-red-700 hover:bg-red-800 text-white font-semibold py-2 px-4 rounded disabled:bg-gray-400"
             >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {loading ? 'Processing...' : IS_TEST_MODE ? 'Continue to Reset' : 'Send Reset Link'}
             </button>
           </form>
         </>
       ) : (
-        // success message after email is sent
+        // success message after email is sent or test mode activated
         <div className="text-center">
           <div className="mb-6">
             <svg className="mx-auto h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,22 +113,30 @@ export default function ForgotPasswordPage() {
             </svg>
           </div>
           
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Check Your Email!</h2>
-          
-          <p className="text-gray-600 mb-6">
-            We've sent a password reset link to <strong>{email}</strong>
-          </p>
-          
-          <p className="text-sm text-gray-500 mb-6">
-            The link will expire in 1 hour. If you don't see the email, check your spam folder.
-          </p>
-
-          <button
-            onClick={() => setSuccess(false)}
-            className="text-red-600 hover:text-red-800 text-sm underline"
-          >
-            Didn't receive the email? Try again
-          </button>
+          {IS_TEST_MODE ? (
+            <>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Test Mode: Redirecting...</h2>
+              <p className="text-gray-600 mb-6">
+                Taking you to the password reset page for <strong>{email}</strong>
+              </p>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Check Your Email!</h2>
+              <p className="text-gray-600 mb-6">
+                We've sent a password reset link to <strong>{email}</strong>
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                The link will expire in 1 hour. If you don't see the email, check your spam folder.
+              </p>
+              <button
+                onClick={() => setSuccess(false)}
+                className="text-red-600 hover:text-red-800 text-sm underline"
+              >
+                Didn't receive the email? Try again
+              </button>
+            </>
+          )}
         </div>
       )}
 
