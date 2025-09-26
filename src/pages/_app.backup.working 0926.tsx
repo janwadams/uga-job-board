@@ -18,11 +18,10 @@ function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
       supabaseClient={supabaseClient}
       initialSession={pageProps.initialSession}
     >
-      {/* Using Merriweather Sans as the default body font per UGA brand guidelines */}
-      {/* It performs well at small sizes and in longer-form text */}
-      <div className="font-merriweather-sans bg-uga-light-gray min-h-screen">
+      {/* This wrapper applies the UGA brand fonts and background color to every page */}
+      <div className="font-body bg-uga-light-gray min-h-screen">
         <Navbar />
-        {/* Main content area with consistent padding */}
+        {/* This main tag ensures every page has a consistent layout and padding */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Component {...pageProps} />
         </main>
@@ -32,3 +31,4 @@ function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
 }
 
 export default App;
+

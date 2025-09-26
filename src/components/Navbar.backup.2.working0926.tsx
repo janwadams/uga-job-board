@@ -80,8 +80,7 @@ export default function Navbar() {
                 alt="UGA Logo" 
                 className="h-12 w-auto"
               />
-              {/* Using Oswald for the main heading as per UGA brand guidelines */}
-              <span className="text-2xl font-oswald font-bold text-uga-white transition-colors tracking-wide">
+              <span className="text-2xl font-heading font-bold text-uga-white transition-colors">
                 UNIVERSITY OF GEORGIA
               </span>
             </div>
@@ -89,21 +88,21 @@ export default function Navbar() {
 
           {/* Combined Navigation Links */}
           <div className="flex items-center space-x-6">
-            {/* App-Specific Links - Using Merriweather Sans for UI elements */}
-            <div className="flex items-center space-x-6 font-merriweather-sans">
+            {/* App-Specific Links */}
+            <div className="flex items-center space-x-6">
                  {session ? (
                   <>
-                    <span className="font-medium">Welcome, {userProfile?.first_name || 'User'}</span>
+                    <span className="font-body">Welcome, {userProfile?.first_name || 'User'}</span>
                     {router.pathname === "/" && userProfile && (
                        <Link href={getDashboardLink()}>
-                         <span className="font-semibold text-uga-red bg-uga-white px-4 py-2 rounded-md hover:bg-opacity-90 transition-colors cursor-pointer">
+                         <span className="font-body font-bold text-uga-red bg-uga-white px-4 py-2 rounded-md hover:bg-opacity-90 transition-colors cursor-pointer">
                           My Dashboard
                          </span>
                        </Link>
                     )}
                     <button
                       onClick={handleSignOut}
-                      className="font-semibold bg-uga-black bg-opacity-20 hover:bg-opacity-40 px-4 py-2 rounded-md transition-colors"
+                      className="font-body font-bold bg-uga-black bg-opacity-20 hover:bg-opacity-40 px-4 py-2 rounded-md transition-colors"
                     >
                       Sign Out
                     </button>
@@ -111,13 +110,13 @@ export default function Navbar() {
                 ) : (
                   <>
                     <Link href="/login">
-                      <span className="hover:text-gray-200 transition-colors cursor-pointer">Login</span>
+                      <span className="font-body hover:text-gray-200 transition-colors cursor-pointer">Login</span>
                     </Link>
                     <Link href="/signup-student">
-                      <span className="hover:text-gray-200 transition-colors cursor-pointer">Student Sign Up</span>
+                      <span className="font-body hover:text-gray-200 transition-colors cursor-pointer">Student Sign Up</span>
                     </Link>
                     <Link href="/signup">
-                      <span className="font-semibold text-uga-red bg-uga-white px-4 py-2 rounded-md hover:bg-opacity-90 transition-colors cursor-pointer">
+                      <span className="font-body font-bold text-uga-red bg-uga-white px-4 py-2 rounded-md hover:bg-opacity-90 transition-colors cursor-pointer">
                         Company Sign Up
                       </span>
                     </Link>
@@ -128,8 +127,8 @@ export default function Navbar() {
             {/* Subtle Separator */}
             <div className="h-6 w-px bg-white bg-opacity-30"></div>
 
-            {/* UGA Global Links - Using Merriweather Sans for small text */}
-            <div className="hidden md:flex items-center space-x-5 text-sm font-merriweather-sans">
+            {/* UGA Global Links */}
+            <div className="hidden md:flex items-center space-x-5 text-sm">
                 <a href="https://www.uga.edu" target="_blank" rel="noopener noreferrer" className="hover:text-gray-200">UGA</a>
                 <a href="https://give.uga.edu/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-200">Give</a>
                 <a href="https://calendar.uga.edu/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-200">Calendar</a>

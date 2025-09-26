@@ -1,4 +1,3 @@
-
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -15,11 +14,19 @@ module.exports = {
         'uga-medium-gray': '#A3A3A3',
       },
       fontFamily: {
-        heading: ['Merriweather', 'serif'],
-        body: ['Lato', 'sans-serif'],
+        // UGA Official Typography - Based on Brand Guidelines
+        
+        // Primary fonts - Use for prominent elements
+        'heading': ['Oswald', 'sans-serif'],        // Headlines, subheads, infographics
+        'body': ['Merriweather Sans', 'sans-serif'], // General text and UI elements
+        
+        // Direct font access for specific use cases
+        'oswald': ['Oswald', 'sans-serif'],         // Primary sans-serif
+        'merriweather': ['Merriweather', 'serif'],  // Primary serif (sophisticated)
+        'merriweather-sans': ['Merriweather Sans', 'sans-serif'], // Secondary sans-serif
+        'georgia': ['Georgia', 'serif'],            // Secondary serif (documents)
       },
     },
   },
   plugins: [],
 };
-
