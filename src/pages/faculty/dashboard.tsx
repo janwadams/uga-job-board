@@ -303,24 +303,28 @@ export default function FacultyDashboard() {
       
       // Fetch all jobs with applications and views
       const { data: jobsWithData, error: jobsError } = await supabase
-  .from('jobs')
-  .select(`
-    *,
-    job_applications (
-      id,
-      applied_at,
-      status,
-      student_id
-    ),
-    job_views (
-      id,
-      viewed_at,
-      user_id
-    )
-  `)
-  .eq('created_by', userId);
+        .from('jobs')
+        .select(`
+          *,
+          job_applications (
+            id,
+            applied_at,
+            status,
+            student_id
+          ),
+          job_views (
+            id,
+            viewed_at,
+            user_id
+          )
+        `)
+        .eq('created_by', userId);
 
       if (jobsError) throw jobsError;
+
+      // Log data to help see what we're getting (you can remove these later)
+      console.log('Jobs fetched:', jobsWithData?.length);
+      console.log('Sample job with applications:', jobsWithData?.[0]);
 
       // Calculate overview metrics
       const totalJobs = jobsWithData?.length || 0;
@@ -356,12 +360,14 @@ export default function FacultyDashboard() {
       
       jobsWithData?.forEach(job => {
         if (job.job_applications && job.job_applications.length > 0) {
+          // Sort applications by when they were submitted
           const sortedApps = [...job.job_applications].sort((a, b) => 
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime() // FIXED: changed from created_at to applied_at
           );
           const firstApp = sortedApps[0];
+          // Calculate days between job posting and first application
           const daysToApply = Math.ceil(
-            (new Date(firstApp.created_at).getTime() - new Date(job.created_at).getTime()) 
+            (new Date(firstApp.applied_at).getTime() - new Date(job.created_at).getTime()) // FIXED: changed from created_at to applied_at
             / (1000 * 60 * 60 * 24)
           );
           if (daysToApply > 0) {
@@ -401,8 +407,9 @@ export default function FacultyDashboard() {
       
       // Count applications and views by date
       jobsWithData?.forEach(job => {
+        // Count applications for each day
         job.job_applications?.forEach(app => {
-          const appDate = new Date(app.created_at);
+          const appDate = new Date(app.applied_at); // FIXED: changed from created_at to applied_at
           if (appDate >= startDate) {
             const dateKey = appDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
@@ -411,8 +418,9 @@ export default function FacultyDashboard() {
           }
         });
         
+        // Count views for each day
         job.job_views?.forEach(view => {
-          const viewDate = new Date(view.created_at);
+          const viewDate = new Date(view.viewed_at); // FIXED: changed from created_at to viewed_at
           if (viewDate >= startDate) {
             const dateKey = viewDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
