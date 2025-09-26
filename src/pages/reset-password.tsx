@@ -129,6 +129,13 @@ export default function ResetPasswordPage() {
         setTimeout(() => {
           router.push('/login');
         }, 3000);
+        
+      } catch (error) {
+        console.error('Error updating password:', error);
+        setErrorMsg('Failed to update password. Please try again.');
+        setLoading(false);
+        return;
+      }
       
     } else {
       // production mode - update via supabase
