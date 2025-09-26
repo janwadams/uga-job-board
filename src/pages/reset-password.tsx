@@ -1,5 +1,6 @@
 // /pages/reset-password.tsx
-// page where users set their new password after clicking the email link
+// page where users set their new password
+// in test mode, allows password reset without email verification
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -36,26 +37,42 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isValidToken, setIsValidToken] = useState(false);
   const [checkingToken, setCheckingToken] = useState(true);
+  const [testEmail, setTestEmail] = useState('');
 
   useEffect(() => {
-    // check if we have a valid session from the reset link
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
+    // check if we're in test mode
+    const isTestMode = router.query.test === 'true';
+    
+    if (isTestMode) {
+      // test mode - get email from localStorage
+      const email = localStorage.getItem('reset_email');
+      if (email) {
+        setTestEmail(email);
         setIsValidToken(true);
       } else {
-        // check if there's an error in the URL (happens with expired links)
-        const error = new URLSearchParams(window.location.search).get('error');
-        if (error) {
-          setErrorMsg('Password reset link is invalid or has expired. Please request a new one.');
-        }
+        setErrorMsg('Test mode error: No email found. Please start from forgot password page.');
       }
       setCheckingToken(false);
-    };
+    } else {
+      // production mode - check for valid session from reset link
+      const checkSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          setIsValidToken(true);
+        } else {
+          // check if there's an error in the URL (happens with expired links)
+          const error = new URLSearchParams(window.location.search).get('error');
+          if (error) {
+            setErrorMsg('Password reset link is invalid or has expired. Please request a new one.');
+          }
+        }
+        setCheckingToken(false);
+      };
 
-    checkSession();
-  }, []);
+      checkSession();
+    }
+  }, [router.query.test]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,25 +92,65 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
 
-    // update the user's password
-    const { error } = await supabase.auth.updateUser({
-      password: password
-    });
+    // check if we're in test mode
+    const isTestMode = router.query.test === 'true';
+    
+    if (isTestMode && testEmail) {
+      // test mode - update password using our api endpoint
+      try {
+        const response = await fetch('/api/admin/reset-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: testEmail,
+            newPassword: password,
+            testMode: true
+          }),
+        });
 
-    if (error) {
-      setErrorMsg('Error updating password: ' + error.message);
+        const data = await response.json();
+
+        if (!response.ok) {
+          setErrorMsg(data.error || 'Failed to update password');
+          setLoading(false);
+          return;
+        }
+
+        // clear the stored email
+        localStorage.removeItem('reset_email');
+        
+        // show success
+        setSuccess(true);
+        setLoading(false);
+        
+        // redirect to login after 3 seconds
+        setTimeout(() => {
+          router.push('/login');
+        }, 3000);
+      
+    } else {
+      // production mode - update via supabase
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
+
+      if (error) {
+        setErrorMsg('Error updating password: ' + error.message);
+        setLoading(false);
+        return;
+      }
+
+      // success - show message and redirect
+      setSuccess(true);
       setLoading(false);
-      return;
+
+      // redirect to login after 3 seconds
+      setTimeout(() => {
+        router.push('/login');
+      }, 3000);
     }
-
-    // success - show message and redirect
-    setSuccess(true);
-    setLoading(false);
-
-    // redirect to login after 3 seconds
-    setTimeout(() => {
-      router.push('/login');
-    }, 3000);
   };
 
   // show loading while checking token
@@ -121,7 +178,7 @@ export default function ResetPasswordPage() {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Invalid or Expired Link</h2>
           
           <p className="text-gray-600 mb-6">
-            This password reset link is invalid or has expired. Password reset links are only valid for 1 hour.
+            {errorMsg || "This password reset link is invalid or has expired."}
           </p>
 
           <Link href="/forgot-password">
@@ -145,6 +202,15 @@ export default function ResetPasswordPage() {
   return (
     <div className="max-w-md mx-auto mt-20 p-8 border rounded shadow bg-white">
       <h1 className="text-2xl font-bold mb-6 text-center text-red-700">Set New Password</h1>
+
+      {/* test mode warning banner */}
+      {router.query.test === 'true' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+          <p className="text-sm text-yellow-800">
+            <strong>Test Mode Active:</strong> Resetting password for {testEmail}
+          </p>
+        </div>
+      )}
 
       {!success ? (
         <>
@@ -215,10 +281,15 @@ export default function ResetPasswordPage() {
             </svg>
           </div>
           
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Password Updated!</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            {router.query.test === 'true' ? 'Test Password Updated!' : 'Password Updated!'}
+          </h2>
           
           <p className="text-gray-600 mb-6">
-            Your password has been successfully updated. You will be redirected to the login page in a moment...
+            {router.query.test === 'true' 
+              ? `Password for ${testEmail} has been updated (simulated). You will be redirected to login...`
+              : 'Your password has been successfully updated. You will be redirected to the login page in a moment...'
+            }
           </p>
 
           <Link href="/login">
