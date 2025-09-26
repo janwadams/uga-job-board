@@ -48,22 +48,28 @@ export default async function handler(
       });
     }
 
-    // update the user's password directly using their email
-    const { data, error: updateError } = await supabaseAdmin.auth.admin.updateUserByEmail(
-      email.toLowerCase(),
+    // first, we need to find the user by email to get their id
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('auth.users')
+      .select('id')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (userError || !userData) {
+      console.error('User lookup error:', userError);
+      return res.status(404).json({ 
+        error: 'User not found with that email address' 
+      });
+    }
+
+    // update the user's password using the admin api
+    const { data, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      userData.id,
       { password: newPassword }
     );
 
     if (updateError) {
       console.error('Password update error:', updateError);
-      
-      // Check if user doesn't exist
-      if (updateError.message?.includes('User not found')) {
-        return res.status(404).json({ 
-          error: 'User not found with that email address' 
-        });
-      }
-      
       return res.status(500).json({ 
         error: 'Failed to update password',
         details: updateError.message 
@@ -71,13 +77,13 @@ export default async function handler(
     }
 
     // log the password reset for audit purposes
-    console.log(`Password reset for user: ${email} - Test Mode: ${testMode || false}`);
+    console.log(`Password reset for user: ${email} (ID: ${userData.id}) - Test Mode: ${testMode || false}`);
 
     // return success response
     return res.status(200).json({ 
       success: true,
       message: 'Password updated successfully',
-      email: email,
+      userId: userData.id,
       testMode: testMode || false
     });
 
