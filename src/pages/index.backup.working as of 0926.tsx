@@ -1,4 +1,4 @@
-//src/pages/index.tsx - Updated with UGA brand colors
+//scr/pages/index.tsx - Updated to filter out expired jobs
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
@@ -171,12 +171,12 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
                   disabled
                   className="flex-1 bg-green-100 text-green-800 font-medium py-2 px-4 rounded-lg cursor-not-allowed"
                 >
-                  ✔ Applied
+                  ✓ Applied
                 </button>
               ) : (
                 <button
                   onClick={() => onApply(job.id)}
-                  className="flex-1 bg-uga-red text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
+                  className="flex-1 bg-red-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
                 >
                   Quick Apply
                 </button>
@@ -188,7 +188,7 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
           {!isStudent && (
             <button
               onClick={() => router.push('/login')}
-              className="flex-1 bg-uga-red text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
+              className="flex-1 bg-red-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
             >
               Sign in to Apply
             </button>
@@ -489,8 +489,8 @@ export default function JobBoard() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* hero section - using UGA brand colors */}
-      <header className="bg-gradient-to-r from-uga-red to-red-700 text-white">
+      {/* hero section */}
+      <header className="bg-gradient-to-r from-red-700 to-red-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-4xl font-bold mb-3">UGA Job Board</h1>
           <p className="text-xl opacity-95 mb-6">Find your next opportunity at the University of Georgia</p>
@@ -522,7 +522,7 @@ export default function JobBoard() {
                 onClick={() => {setActiveTab('all'); setCurrentPage(1);}}
                 className={`px-6 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'all'
-                    ? 'border-uga-red text-uga-red'
+                    ? 'border-red-700 text-red-700'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -536,7 +536,7 @@ export default function JobBoard() {
                 onClick={() => {setActiveTab('faculty'); setCurrentPage(1);}}
                 className={`px-6 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'faculty'
-                    ? 'border-uga-red text-uga-red'
+                    ? 'border-red-700 text-red-700'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -550,7 +550,7 @@ export default function JobBoard() {
                 onClick={() => {setActiveTab('companies'); setCurrentPage(1);}}
                 className={`px-6 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'companies'
-                    ? 'border-uga-red text-uga-red'
+                    ? 'border-red-700 text-red-700'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -568,7 +568,7 @@ export default function JobBoard() {
               onClick={() => handleQuickFilter(quickFilter === 'new' ? '' : 'new')}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 quickFilter === 'new'
-                  ? 'bg-uga-red text-white'
+                  ? 'bg-red-700 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -578,7 +578,7 @@ export default function JobBoard() {
               onClick={() => handleQuickFilter(quickFilter === 'urgent' ? '' : 'urgent')}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 quickFilter === 'urgent'
-                  ? 'bg-uga-red text-white'
+                  ? 'bg-red-700 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -588,7 +588,7 @@ export default function JobBoard() {
               onClick={() => handleQuickFilter(quickFilter === 'remote' ? '' : 'remote')}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 quickFilter === 'remote'
-                  ? 'bg-uga-red text-white'
+                  ? 'bg-red-700 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -615,14 +615,14 @@ export default function JobBoard() {
                 placeholder="Search jobs, companies, or keywords..."
                 value={searchTerm}
                 onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-uga-red focus:border-transparent"
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
               />
             </div>
             
             <select
               value={industryFilter}
               onChange={(e) => {setIndustryFilter(e.target.value); setCurrentPage(1);}}
-              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-uga-red"
+              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500"
             >
               <option value="">All Industries</option>
               {industries.map(industry => (
@@ -633,7 +633,7 @@ export default function JobBoard() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-uga-red"
+              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500"
             >
               <option value="created_at">Newest First</option>
               <option value="deadline">Deadline Soon</option>
@@ -656,7 +656,7 @@ export default function JobBoard() {
                     );
                     setCurrentPage(1);
                   }}
-                  className="mr-2 text-uga-red focus:ring-uga-red rounded"
+                  className="mr-2 text-red-700 focus:ring-red-500 rounded"
                 />
                 <span className="text-sm text-gray-600">{type}</span>
               </label>
@@ -725,7 +725,7 @@ export default function JobBoard() {
                           onClick={() => setCurrentPage(pageNum)}
                           className={`w-10 h-10 rounded-lg font-medium ${
                             currentPage === pageNum
-                              ? 'bg-uga-red text-white'
+                              ? 'bg-red-700 text-white'
                               : 'border hover:bg-gray-50'
                           }`}
                         >
@@ -758,7 +758,7 @@ export default function JobBoard() {
               {(searchTerm || jobTypeFilters.length > 0 || industryFilter || quickFilter) && (
                 <button
                   onClick={clearAllFilters}
-                  className="px-4 py-2 bg-uga-red text-white rounded-lg hover:bg-red-800"
+                  className="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800"
                 >
                   Clear All Filters
                 </button>
