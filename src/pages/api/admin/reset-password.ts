@@ -48,22 +48,34 @@ export default async function handler(
       });
     }
 
-    // update the user's password directly using their email
-    const { data, error: updateError } = await supabaseAdmin.auth.admin.updateUserByEmail(
-      email.toLowerCase(),
+    // first, list all users to find the one with matching email
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error('Error listing users:', listError);
+      return res.status(500).json({ 
+        error: 'Failed to look up user',
+        details: listError.message 
+      });
+    }
+
+    // find the user with the matching email
+    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    
+    if (!user) {
+      return res.status(404).json({ 
+        error: 'User not found with that email address' 
+      });
+    }
+
+    // update the user's password using their ID
+    const { data, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      user.id,
       { password: newPassword }
     );
 
     if (updateError) {
       console.error('Password update error:', updateError);
-      
-      // Check if user doesn't exist
-      if (updateError.message?.includes('User not found')) {
-        return res.status(404).json({ 
-          error: 'User not found with that email address' 
-        });
-      }
-      
       return res.status(500).json({ 
         error: 'Failed to update password',
         details: updateError.message 
@@ -71,12 +83,13 @@ export default async function handler(
     }
 
     // log the password reset for audit purposes
-    console.log(`Password reset for user: ${email} - Test Mode: ${testMode || false}`);
+    console.log(`Password reset for user: ${email} (ID: ${user.id}) - Test Mode: ${testMode || false}`);
 
     // return success response
     return res.status(200).json({ 
       success: true,
       message: 'Password updated successfully',
+      userId: user.id,
       email: email,
       testMode: testMode || false
     });
