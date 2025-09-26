@@ -308,9 +308,9 @@ export default function FacultyDashboard() {
     *,
     job_applications (
       id,
-      applied_at,    // ← Use correct column name
+      applied_at,
       status,
-      student_id     // ← Use correct column name
+      student_id
     ),
     job_views (
       id,
