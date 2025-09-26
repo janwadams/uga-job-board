@@ -49,18 +49,18 @@ export default async function handler(
     }
 
     // first, list all users to find the one with matching email
-    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     
-    if (listError) {
+    if (listError || !listData) {
       console.error('Error listing users:', listError);
       return res.status(500).json({ 
         error: 'Failed to look up user',
-        details: listError.message 
+        details: listError?.message 
       });
     }
 
     // find the user with the matching email
-    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    const user = listData.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
     
     if (!user) {
       return res.status(404).json({ 
