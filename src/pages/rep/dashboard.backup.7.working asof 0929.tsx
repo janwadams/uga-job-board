@@ -1,4 +1,4 @@
-//src/pages/rep/dashboard.tsx - Updated with analytics button
+//src/pages/rep/dashboard.tsx
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -389,18 +389,11 @@ export default function RepDashboard() {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-red-800">💼 Rep Dashboard</h1>
-          <div className="flex gap-3">
-            <Link href="/rep/analytics">
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm">
-                📊 View Analytics
-              </button>
-            </Link>
-            <Link href="/rep/create">
-              <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
-                + Post a New Job
-              </button>
-            </Link>
-          </div>
+          <Link href="/rep/create">
+            <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
+              + Post a New Job
+            </button>
+          </Link>
         </div>
 
         {/* metrics cards showing job statistics */}
