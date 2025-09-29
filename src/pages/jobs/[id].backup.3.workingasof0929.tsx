@@ -1,9 +1,14 @@
 // pages/jobs/[id].tsx - Enhanced version with all fields and fixed overflow
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-// use existing supabase client from the typescript file
-import { supabase } from '@/utils/supabaseClient';
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface Job {
   id: string;
@@ -50,7 +55,7 @@ export default function JobDetails() {
         if (roleData?.role === 'student') {
           setBackHref('/student/dashboard');
           
-          // check if student already applied to this job
+          // Check if already applied
           const { data: applicationData } = await supabase
             .from('job_applications')
             .select('id')
@@ -69,7 +74,7 @@ export default function JobDetails() {
         .from('jobs')
         .select('*')
         .eq('id', id)
-        .eq('status', 'active') // only show jobs that are active
+        .eq('status', 'active') // Only show active jobs
         .single();
 
       if (error) {
@@ -84,41 +89,6 @@ export default function JobDetails() {
     fetchJob();
   }, [id]);
 
-  // new feature: track when a student views this job posting
-  // this data appears in the faculty analytics dashboard
-  useEffect(() => {
-    const trackJobView = async () => {
-      // only track if we have both job id and a logged-in user
-      if (!id || !user?.id) return;
-      
-      try {
-        console.log('tracking view for job:', id);
-        
-        // record that this user viewed this job
-        const { data, error } = await supabase
-          .from('job_views')
-          .insert({
-            job_id: id as string,
-            user_id: user.id
-          });
-      
-        if (error) {
-          // if tracking fails, don't break the page - just log the error
-          console.error('error tracking job view:', error);
-        } else {
-          console.log('successfully tracked job view');
-        }
-      } catch (err) {
-        console.error('exception tracking job view:', err);
-      }
-    };
-    
-    // run tracking when both id and user are available
-    if (id && user) {
-      trackJobView();
-    }
-  }, [id, user]); // watch for changes to id or user
-
   const handleApply = async () => {
     if (!user) {
       router.push('/login?redirect=' + router.asPath);
@@ -127,7 +97,7 @@ export default function JobDetails() {
 
     setIsApplying(true);
 
-    // save application to database
+    // Track application in database
     const { error } = await supabase
       .from('job_applications')
       .insert([{
@@ -140,7 +110,7 @@ export default function JobDetails() {
       setHasApplied(true);
     }
 
-    // handle different ways to apply (website link or email)
+    // Handle different application methods
     if (job?.apply_method.startsWith('http')) {
       window.open(job.apply_method, '_blank');
     } else if (job?.apply_method.includes('@')) {
@@ -199,21 +169,21 @@ export default function JobDetails() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* back navigation button */}
+        {/* Back button */}
         <Link href={backHref}>
           <span className="text-red-700 hover:text-red-900 font-medium inline-flex items-center cursor-pointer mb-6">
             ← Back to Jobs
           </span>
         </Link>
 
-        {/* main job details card */}
+        {/* Main job card */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* header section with key info */}
+          {/* Header Section */}
           <div className="bg-gradient-to-r from-red-700 to-red-600 text-white px-8 py-6">
             <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
             <p className="text-xl opacity-95 mb-4">{job.company}</p>
             
-            {/* grid of key job information */}
+            {/* Key Info Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="opacity-75">Location</span>
@@ -236,7 +206,7 @@ export default function JobDetails() {
             </div>
           </div>
 
-          {/* deadline warning section */}
+          {/* Deadline Alert */}
           {!isExpired ? (
             <div className={`px-8 py-4 ${isDeadlineSoon ? 'bg-yellow-50 border-b-2 border-yellow-200' : 'bg-gray-50 border-b'}`}>
               <p className={`text-sm font-medium ${isDeadlineSoon ? 'text-yellow-800' : 'text-gray-600'}`}>
@@ -253,7 +223,7 @@ export default function JobDetails() {
             </div>
           )}
 
-          {/* apply button section */}
+          {/* Apply Section */}
           <div className="px-8 py-6 bg-gray-50 border-b">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
@@ -291,9 +261,9 @@ export default function JobDetails() {
             </div>
           </div>
 
-          {/* job details content sections */}
+          {/* Job Details Content */}
           <div className="px-8 py-6">
-            {/* description section */}
+            {/* Description Section */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
                 Job Description
@@ -305,7 +275,7 @@ export default function JobDetails() {
               </div>
             </section>
 
-            {/* requirements section - only show if requirements exist */}
+            {/* Requirements Section */}
             {job.requirements && job.requirements.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
@@ -322,7 +292,7 @@ export default function JobDetails() {
               </section>
             )}
 
-            {/* skills section - only show if skills exist */}
+            {/* Skills Section */}
             {job.skills && job.skills.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
@@ -341,7 +311,7 @@ export default function JobDetails() {
               </section>
             )}
 
-            {/* how to apply section */}
+            {/* Application Method Section */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
                 How to Apply
@@ -383,7 +353,7 @@ export default function JobDetails() {
               </div>
             </section>
 
-            {/* posting dates info */}
+            {/* Additional Information */}
             <section className="border-t pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                 <div>
@@ -399,7 +369,7 @@ export default function JobDetails() {
           </div>
         </div>
 
-        {/* action buttons for printing and sharing */}
+        {/* Action Buttons */}
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={() => window.print()}
@@ -418,12 +388,12 @@ export default function JobDetails() {
           </button>
           <button
             onClick={() => {
-              // bookmark feature can be implemented later
+              // You can implement a save/bookmark feature here
               alert('Bookmark feature coming soon!');
             }}
             className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
           >
-            <span>📖</span> Save Job
+            <span>🔖</span> Save Job
           </button>
         </div>
       </div>
