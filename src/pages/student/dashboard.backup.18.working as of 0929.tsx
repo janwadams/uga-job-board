@@ -1,4 +1,6 @@
-// pages/student/dashboard.tsx
+// Enhanced JobCard component for student/dashboard.tsx
+// Replace the existing JobCard component in student dashboard 
+//pages/student/dashboard.tsx
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
@@ -11,9 +13,7 @@ import {
   SparklesIcon,
   CalendarIcon,
   BuildingOfficeIcon,
-  MapPinIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
 
@@ -75,12 +75,6 @@ export default function StudentDashboard() {
   const [loadingApplications, setLoadingApplications] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [session, setSession] = useState<any>(null);
-  
-  // NEW: Filter states - just like on the main page
-  const [searchTerm, setSearchTerm] = useState('');
-  const [jobTypeFilters, setJobTypeFilters] = useState<string[]>([]);
-  const [industryFilter, setIndustryFilter] = useState('');
-  const [showFilters, setShowFilters] = useState(false); // to toggle filter visibility on mobile
 
   // Check authentication and fetch user session
   useEffect(() => {
@@ -326,10 +320,7 @@ export default function StudentDashboard() {
   const generateRecommendations = () => {
     if (!studentProfile || !allJobs.length) return;
 
-    // Filter jobs with the current filters first
-    const filteredJobsToScore = getFilteredJobs(allJobs);
-
-    const scoredJobs = filteredJobsToScore.map(job => {
+    const scoredJobs = allJobs.map(job => {
       let score = 0;
       if (studentProfile.preferred_job_types?.includes(job.job_type)) score += 3;
       if (studentProfile.preferred_industries?.includes(job.industry)) score += 3;
@@ -436,67 +427,6 @@ export default function StudentDashboard() {
       }
     } catch (error) {
       console.error('Error applying to job:', error);
-    }
-  };
-
-  // NEW: Filter function - applies search and filters to jobs
-  const getFilteredJobs = (jobsToFilter: Job[]) => {
-    return jobsToFilter.filter(job => {
-      // Search filter - check if search term matches title, company, or description
-      const matchesSearch = searchTerm === '' ||
-        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (job.location && job.location.toLowerCase().includes(searchTerm.toLowerCase()));
-
-      // Job type filter - show job only if no filter selected OR job type is in selected filters
-      const matchesJobType = jobTypeFilters.length === 0 || 
-        jobTypeFilters.includes(job.job_type);
-      
-      // Industry filter - show job only if no filter selected OR industry matches
-      const matchesIndustry = industryFilter === '' || 
-        job.industry === industryFilter;
-
-      return matchesSearch && matchesJobType && matchesIndustry;
-    });
-  };
-
-  // NEW: Clear all filters function
-  const clearAllFilters = () => {
-    setSearchTerm('');
-    setJobTypeFilters([]);
-    setIndustryFilter('');
-  };
-
-  // Get unique industries from all jobs for the dropdown
-  const uniqueIndustries = useMemo(() => {
-    const industries = new Set(allJobs.map(job => job.industry));
-    return Array.from(industries).sort();
-  }, [allJobs]);
-
-  // Apply filters to the appropriate job list based on the active tab
-  const getDisplayedJobs = () => {
-    switch (activeTab) {
-      case 'browse':
-        return getFilteredJobs(allJobs);
-      case 'recommended':
-        return getFilteredJobs(recommendedJobs);
-      case 'saved':
-        // For saved jobs, we filter the job inside each saved job object
-        return savedJobs.filter(savedJob => {
-          const job = savedJob.job;
-          const matchesSearch = searchTerm === '' ||
-            job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            job.description.toLowerCase().includes(searchTerm.toLowerCase());
-          const matchesJobType = jobTypeFilters.length === 0 || 
-            jobTypeFilters.includes(job.job_type);
-          const matchesIndustry = industryFilter === '' || 
-            job.industry === industryFilter;
-          return matchesSearch && matchesJobType && matchesIndustry;
-        });
-      default:
-        return [];
     }
   };
 
@@ -653,7 +583,7 @@ export default function StudentDashboard() {
             {/* show they already applied */}
             {hasApplied && (
               <span className="flex-1 px-4 py-2 bg-green-100 text-green-800 rounded-md text-sm font-medium text-center">
-                ✔ Applied
+                ✓ Applied
               </span>
             )}
             
@@ -791,89 +721,6 @@ export default function StudentDashboard() {
           </nav>
         </div>
 
-        {/* NEW: Filters Section - only show for Browse, Recommended, and Saved tabs */}
-        {(activeTab === 'browse' || activeTab === 'recommended' || activeTab === 'saved') && (
-          <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-            {/* Search bar always visible */}
-            <div className="flex gap-2 mb-4">
-              <div className="flex-1 relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search jobs by title, company, location..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              {/* Toggle filters button for mobile */}
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-2 md:hidden"
-              >
-                <FunnelIcon className="h-5 w-5" />
-                Filters
-              </button>
-            </div>
-
-            {/* Filters - collapsible on mobile, always shown on desktop */}
-            <div className={`${showFilters ? 'block' : 'hidden'} md:block space-y-4`}>
-              {/* Job Type Filters - the main addition you requested */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Job Type:
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {['Internship', 'Part-Time', 'Full-Time'].map(type => (
-                    <label key={type} className="flex items-center cursor-pointer hover:bg-gray-50 px-2 py-1 rounded">
-                      <input
-                        type="checkbox"
-                        checked={jobTypeFilters.includes(type)}
-                        onChange={() => {
-                          setJobTypeFilters(prev =>
-                            prev.includes(type) 
-                              ? prev.filter(t => t !== type) 
-                              : [...prev, type]
-                          );
-                        }}
-                        className="mr-2 text-blue-600 focus:ring-blue-500 rounded"
-                      />
-                      <span className="text-sm text-gray-700">{type}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Industry Filter */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Industry:
-                </label>
-                <select
-                  value={industryFilter}
-                  onChange={(e) => setIndustryFilter(e.target.value)}
-                  className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full md:w-auto"
-                >
-                  <option value="">All Industries</option>
-                  {uniqueIndustries.map(industry => (
-                    <option key={industry} value={industry}>{industry}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Clear Filters Button - shows when any filter is active */}
-              {(searchTerm || jobTypeFilters.length > 0 || industryFilter) && (
-                <button
-                  onClick={clearAllFilters}
-                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
-                >
-                  Clear All Filters
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Browse Jobs Tab */}
         {activeTab === 'browse' && (
           <div>
@@ -882,25 +729,13 @@ export default function StudentDashboard() {
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
                 <p className="mt-2 text-gray-600">Loading jobs...</p>
               </div>
-            ) : getDisplayedJobs().length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                <p className="text-gray-600 mb-4">
-                  {(searchTerm || jobTypeFilters.length > 0 || industryFilter) 
-                    ? 'No jobs match your filters. Try adjusting them.'
-                    : 'No jobs available at the moment.'}
-                </p>
-                {(searchTerm || jobTypeFilters.length > 0 || industryFilter) && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Clear Filters
-                  </button>
-                )}
+            ) : allJobs.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-600">No jobs available at the moment.</p>
               </div>
             ) : (
               <div className="grid gap-4">
-                {getDisplayedJobs().map(job => (
+                {allJobs.map(job => (
                   <JobCard key={job.id} job={job} />
                 ))}
               </div>
@@ -921,25 +756,13 @@ export default function StudentDashboard() {
                   </button>
                 </Link>
               </div>
-            ) : getDisplayedJobs().length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                <p className="text-gray-600 mb-4">
-                  {(searchTerm || jobTypeFilters.length > 0 || industryFilter) 
-                    ? 'No recommended jobs match your filters.'
-                    : 'No recommendations available yet. Try updating your profile interests.'}
-                </p>
-                {(searchTerm || jobTypeFilters.length > 0 || industryFilter) && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Clear Filters
-                  </button>
-                )}
+            ) : recommendedJobs.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-600">No recommendations available yet. Try updating your profile interests.</p>
               </div>
             ) : (
               <div className="grid gap-4">
-                {getDisplayedJobs().map(job => (
+                {recommendedJobs.map(job => (
                   <JobCard key={job.id} job={job} />
                 ))}
               </div>
@@ -961,22 +784,9 @@ export default function StudentDashboard() {
                   Browse Jobs
                 </button>
               </div>
-            ) : getDisplayedJobs().length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                <p className="text-gray-600 mb-4">
-                  No saved jobs match your filters.
-                </p>
-                <button
-                  onClick={clearAllFilters}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Clear Filters
-                </button>
-              </div>
             ) : (
               <div className="grid gap-4">
-                {/* For saved jobs, we need to handle the filtered result differently */}
-                {(getDisplayedJobs() as SavedJob[]).map(savedJob => (
+                {savedJobs.map(savedJob => (
                   <JobCard 
                     key={savedJob.id} 
                     job={savedJob.job} 
@@ -988,7 +798,7 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Applications Tab - no filters needed here */}
+        {/* Applications Tab */}
         {activeTab === 'applications' && (
           <div>
             {loadingApplications ? (
@@ -1058,7 +868,7 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Reminders/Deadlines Tab - no filters needed here */}
+        {/* Reminders/Deadlines Tab */}
         {activeTab === 'reminders' && (
           <div>
             {upcomingDeadlines.length === 0 ? (
