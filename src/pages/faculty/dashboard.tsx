@@ -302,6 +302,7 @@ export default function FacultyDashboard() {
       const userId = session.user.id;
       
       // Fetch all jobs with applications and views
+      // Using the actual column names from your database
       const { data: jobsWithData, error: jobsError } = await supabase
         .from('jobs')
         .select(`
@@ -314,7 +315,7 @@ export default function FacultyDashboard() {
           ),
           job_views (
             id,
-            viewed_at,
+            created_at,
             user_id
           )
         `)
@@ -362,12 +363,12 @@ export default function FacultyDashboard() {
         if (job.job_applications && job.job_applications.length > 0) {
           // Sort applications by when they were submitted
           const sortedApps = [...job.job_applications].sort((a, b) => 
-            new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime() // FIXED: changed from created_at to applied_at
+            new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime() // Using applied_at from job_applications
           );
           const firstApp = sortedApps[0];
           // Calculate days between job posting and first application
           const daysToApply = Math.ceil(
-            (new Date(firstApp.applied_at).getTime() - new Date(job.created_at).getTime()) // FIXED: changed from created_at to applied_at
+            (new Date(firstApp.applied_at).getTime() - new Date(job.created_at).getTime()) // Using applied_at for application date
             / (1000 * 60 * 60 * 24)
           );
           if (daysToApply > 0) {
@@ -409,7 +410,7 @@ export default function FacultyDashboard() {
       jobsWithData?.forEach(job => {
         // Count applications for each day
         job.job_applications?.forEach(app => {
-          const appDate = new Date(app.applied_at); // FIXED: changed from created_at to applied_at
+          const appDate = new Date(app.applied_at); // Using applied_at from job_applications table
           if (appDate >= startDate) {
             const dateKey = appDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
@@ -420,7 +421,7 @@ export default function FacultyDashboard() {
         
         // Count views for each day
         job.job_views?.forEach(view => {
-          const viewDate = new Date(view.viewed_at); // FIXED: changed from created_at to viewed_at
+          const viewDate = new Date(view.created_at); // Using created_at from job_views table
           if (viewDate >= startDate) {
             const dateKey = viewDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
