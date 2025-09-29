@@ -3,7 +3,9 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 // use existing supabase client from the typescript file
-import { supabase } from '@/utils/supabaseClient';
+//import { supabase } from '@/utils/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
 
 interface Job {
   id: string;
