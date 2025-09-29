@@ -59,7 +59,7 @@ export default function EditJobPosting() {
     description: '',
     requirements: '',
     deadline: '',
-    application_link: '', // Changed from apply_method to match database
+    apply_method: '', // Using apply_method to match database
   });
 
   // Skills as array for better management
@@ -126,7 +126,7 @@ export default function EditJobPosting() {
             ? data.requirements.join('\n') 
             : '',
           deadline: data.deadline || '',
-          application_link: data.application_link || data.apply_method || '', // Handle both field names
+          apply_method: data.apply_method || '', // Using apply_method
         });
 
         // Set selected skills
@@ -190,7 +190,7 @@ export default function EditJobPosting() {
     // Validation
     if (!formData.title || !formData.company || !formData.industry || 
         !formData.job_type || !formData.description || !formData.location || 
-        !formData.deadline || !formData.application_link) {
+        !formData.deadline || !formData.apply_method) {
       setError('Please fill in all required fields.');
       setIsSubmitting(false);
       return;
@@ -227,7 +227,7 @@ export default function EditJobPosting() {
         requirements: requirementsArray,
         skills: selectedSkills,
         deadline: formData.deadline,
-        application_link: formData.application_link, // Use correct field name
+        apply_method: formData.apply_method, // Use correct field name
         // Don't update created_by or status - keep original values
       })
       .eq('id', id);
@@ -544,9 +544,9 @@ export default function EditJobPosting() {
               </label>
               <input
                 type="text"
-                name="application_link"
+                name="apply_method"
                 placeholder="e.g., https://... or hr@company.com"
-                value={formData.application_link}
+                value={formData.apply_method}
                 onChange={handleChange}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 required
