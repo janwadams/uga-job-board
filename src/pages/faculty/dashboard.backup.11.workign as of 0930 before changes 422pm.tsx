@@ -1,14 +1,10 @@
 // pages/faculty/dashboard.tsx
-// Complete faculty dashboard with analytics tab and applications access included
+// Complete faculty dashboard with analytics tab included
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { 
-  UserGroupIcon,
-  ClipboardDocumentListIcon 
-} from '@heroicons/react/24/outline';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,7 +23,7 @@ interface Job {
   created_at: string;
 }
 
-// types for analytics data
+// Types for analytics data
 interface AnalyticsOverview {
   totalJobs: number;
   totalApplications: number;
@@ -56,7 +52,7 @@ interface TopJob {
   daysActive: number;
 }
 
-// job card component - shows individual job postings
+// Job card component - shows individual job postings
 const JobCard = ({ job, onRemove, onReactivate, isArchived }: { 
   job: Job, 
   onRemove?: (jobId: string) => void,
@@ -73,7 +69,7 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
 
   const isDisabled = job.status === 'removed' || job.status === 'rejected';
 
-  // calculate how many days since the job expired (for archived jobs)
+  // Calculate how many days since the job expired (for archived jobs)
   const getDaysSinceExpired = () => {
     const deadlineDate = new Date(job.deadline);
     const today = new Date();
@@ -107,7 +103,7 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
 
       <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
         {isArchived ? (
-          // buttons for archived jobs
+          // Buttons for archived jobs
           <>
             <button
               onClick={() => onReactivate && onReactivate(job.id)}
@@ -122,7 +118,7 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
             </Link>
           </>
         ) : (
-          // buttons for active jobs
+          // Buttons for active jobs
           <>
             <Link href={`/faculty/edit/${job.id}`}>
               <button
@@ -156,7 +152,7 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
 
 export default function FacultyDashboard() {
   const router = useRouter();
-  // tab management - active, archived, or analytics view
+  // Tab management - active, archived, or analytics view
   const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'analytics'>('active');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [archivedJobs, setArchivedJobs] = useState<Job[]>([]);
@@ -167,11 +163,8 @@ export default function FacultyDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [userRole, setUserRole] = useState<string | null>(null);
   
-  // new state for applications count
-  const [applicationsCount, setApplicationsCount] = useState(0);
-  
-  // analytics state - stores all the data for charts and metrics
-  const [dateRange, setDateRange] = useState('30'); // default to 30 days
+  // Analytics state - stores all the data for charts and metrics
+  const [dateRange, setDateRange] = useState('30'); // Default to 30 days
   const [analyticsOverview, setAnalyticsOverview] = useState<AnalyticsOverview>({
     totalJobs: 0,
     totalApplications: 0,
@@ -185,7 +178,7 @@ export default function FacultyDashboard() {
   const [applicationTrends, setApplicationTrends] = useState<TrendData[]>([]);
   const [topPerformingJobs, setTopPerformingJobs] = useState<TopJob[]>([]);
 
-  // check if user is logged in and has faculty role
+  // Check if user is logged in and has faculty role
   useEffect(() => {
     const checkSession = async () => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -214,32 +207,7 @@ export default function FacultyDashboard() {
     checkSession();
   }, [router]);
 
-  // function to fetch applications count for all faculty's jobs
-  const fetchApplicationsCount = async () => {
-    if (!session) return;
-    
-    try {
-      // get all jobs by this faculty member
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('id')
-        .eq('created_by', session.user.id);
-      
-      if (jobs && jobs.length > 0) {
-        // count applications for these jobs
-        const { count } = await supabase
-          .from('job_applications')
-          .select('*', { count: 'exact', head: true })
-          .in('job_id', jobs.map(j => j.id));
-        
-        setApplicationsCount(count || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching applications count:', error);
-    }
-  };
-
-  // fetch active jobs when tab changes or filter changes
+  // Fetch active jobs when tab changes or filter changes
   useEffect(() => {
     const fetchJobs = async () => {
       if (!session?.user) {
@@ -250,7 +218,7 @@ export default function FacultyDashboard() {
       const userId = session.user.id;
       setLoading(true);
 
-      // get today's date to filter out expired jobs
+      // Get today's date to filter out expired jobs
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -258,7 +226,7 @@ export default function FacultyDashboard() {
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .gte('deadline', today.toISOString()); // only get non-expired jobs
+        .gte('deadline', today.toISOString()); // Only get non-expired jobs
 
       if (statusFilter) {
         query = query.eq('status', statusFilter);
@@ -278,11 +246,10 @@ export default function FacultyDashboard() {
 
     if (session) {
       fetchJobs();
-      fetchApplicationsCount(); // fetch applications count when session is ready
     }
   }, [session, statusFilter]);
 
-  // fetch archived (expired) jobs
+  // Fetch archived (expired) jobs
   useEffect(() => {
     const fetchArchivedJobs = async () => {
       if (!session?.user) {
@@ -293,7 +260,7 @@ export default function FacultyDashboard() {
       const userId = session.user.id;
       setLoadingArchived(true);
 
-      // get today's date to filter expired jobs
+      // Get today's date to filter expired jobs
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -301,8 +268,8 @@ export default function FacultyDashboard() {
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .lt('deadline', today.toISOString()) // only get expired jobs
-        .order('deadline', { ascending: false }); // newest expired first
+        .lt('deadline', today.toISOString()) // Only get expired jobs
+        .order('deadline', { ascending: false }); // Newest expired first
 
       if (error) {
         console.error('Error fetching archived jobs:', error);
@@ -319,14 +286,14 @@ export default function FacultyDashboard() {
     }
   }, [session]);
 
-  // fetch analytics data when analytics tab is selected or date range changes
+  // Fetch analytics data when analytics tab is selected or date range changes
   useEffect(() => {
     if (activeTab === 'analytics' && session) {
       fetchAnalyticsData();
     }
   }, [activeTab, dateRange, session]);
 
-  // function to fetch all analytics data
+  // Function to fetch all analytics data
   const fetchAnalyticsData = async () => {
     if (!session?.user) return;
     
@@ -334,8 +301,8 @@ export default function FacultyDashboard() {
     try {
       const userId = session.user.id;
       
-      // fetch all jobs with applications and views
-      // using the actual column names from your database
+      // Fetch all jobs with applications and views
+      // Using the actual column names from your database
       const { data: jobsWithData, error: jobsError } = await supabase
         .from('jobs')
         .select(`
@@ -356,11 +323,11 @@ export default function FacultyDashboard() {
 
       if (jobsError) throw jobsError;
 
-      // log data to help see what we're getting (you can remove these later)
+      // Log data to help see what we're getting (you can remove these later)
       console.log('Jobs fetched:', jobsWithData?.length);
       console.log('Sample job with applications:', jobsWithData?.[0]);
 
-      // calculate overview metrics
+      // Calculate overview metrics
       const totalJobs = jobsWithData?.length || 0;
       const today = new Date();
       
@@ -388,20 +355,20 @@ export default function FacultyDashboard() {
         ? ((totalApplications / totalViews) * 100).toFixed(1)
         : '0';
 
-      // calculate average days to first application
+      // Calculate average days to first application
       let totalDaysToApply = 0;
       let jobsWithApplications = 0;
       
       jobsWithData?.forEach(job => {
         if (job.job_applications && job.job_applications.length > 0) {
-          // sort applications by when they were submitted
+          // Sort applications by when they were submitted
           const sortedApps = [...job.job_applications].sort((a, b) => 
-            new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime() // using applied_at from job_applications
+            new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime() // Using applied_at from job_applications
           );
           const firstApp = sortedApps[0];
-          // calculate days between job posting and first application
+          // Calculate days between job posting and first application
           const daysToApply = Math.ceil(
-            (new Date(firstApp.applied_at).getTime() - new Date(job.created_at).getTime()) // using applied_at for application date
+            (new Date(firstApp.applied_at).getTime() - new Date(job.created_at).getTime()) // Using applied_at for application date
             / (1000 * 60 * 60 * 24)
           );
           if (daysToApply > 0) {
@@ -426,24 +393,24 @@ export default function FacultyDashboard() {
         averageDaysToApply
       });
 
-      // prepare trend data for chart
+      // Prepare trend data for chart
       const daysAgo = parseInt(dateRange);
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysAgo);
       
       const trendMap: { [key: string]: { applications: number; views: number } } = {};
       
-      // initialize all dates with zero counts
+      // Initialize all dates with zero counts
       for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
         const dateKey = d.toISOString().split('T')[0];
         trendMap[dateKey] = { applications: 0, views: 0 };
       }
       
-      // count applications and views by date
+      // Count applications and views by date
       jobsWithData?.forEach(job => {
-        // count applications for each day
+        // Count applications for each day
         job.job_applications?.forEach(app => {
-          const appDate = new Date(app.applied_at); // using applied_at from job_applications table
+          const appDate = new Date(app.applied_at); // Using applied_at from job_applications table
           if (appDate >= startDate) {
             const dateKey = appDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
@@ -452,9 +419,9 @@ export default function FacultyDashboard() {
           }
         });
         
-        // count views for each day
+        // Count views for each day
         job.job_views?.forEach(view => {
-          const viewDate = new Date(view.created_at); // using created_at from job_views table
+          const viewDate = new Date(view.created_at); // Using created_at from job_views table
           if (viewDate >= startDate) {
             const dateKey = viewDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
@@ -472,7 +439,7 @@ export default function FacultyDashboard() {
 
       setApplicationTrends(trends);
 
-      // calculate top performing jobs
+      // Calculate top performing jobs
       const topJobs = jobsWithData?.map(job => ({
         id: job.id,
         title: job.title,
@@ -497,7 +464,7 @@ export default function FacultyDashboard() {
     }
   };
 
-  // handle removing a job (soft delete)
+  // Handle removing a job (soft delete)
   const handleRemove = async (jobId: string) => {
     if (!confirm('Are you sure you want to remove this posting? This action is permanent.')) {
       return;
@@ -519,19 +486,19 @@ export default function FacultyDashboard() {
     }
   };
 
-  // handle reactivating an expired job with a new deadline
+  // Handle reactivating an expired job with a new deadline
   const handleReactivate = async (jobId: string) => {
     const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
     if (!newDeadline) return;
 
-    // validate date format
+    // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(newDeadline)) {
       alert('Please enter date in YYYY-MM-DD format');
       return;
     }
 
-    // check if date is in the future
+    // Check if date is in the future
     const selectedDate = new Date(newDeadline);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -552,7 +519,7 @@ export default function FacultyDashboard() {
 
       if (!error) {
         alert('Job reactivated successfully!');
-        // refresh both lists
+        // Refresh both lists
         window.location.reload();
       } else {
         alert('Failed to reactivate job.');
@@ -563,7 +530,7 @@ export default function FacultyDashboard() {
     }
   };
   
-  // calculate metrics from the jobs list
+  // Calculate metrics from the jobs list
   const totalJobs = jobs.length + archivedJobs.length;
   const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
   const totalArchived = archivedJobs.length;
@@ -578,13 +545,6 @@ export default function FacultyDashboard() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-red-800">📚 Faculty Dashboard</h1>
           <div className="flex gap-4">
-            {/* new button to view all applications */}
-            <Link href="/faculty/applications">
-              <button className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors shadow-sm flex items-center gap-2">
-                <ClipboardDocumentListIcon className="h-5 w-5" />
-                View Applications
-              </button>
-            </Link>
             <Link href="/faculty/analytics">
               <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm">
                 📊 Full Analytics
@@ -598,10 +558,10 @@ export default function FacultyDashboard() {
           </div>
         </div>
 
-        {/* metrics cards - shows key statistics with new applications card */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        {/* Metrics cards - shows key statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Total Jobs</h3>
+            <h3 className="text-gray-500 font-semibold">Total Jobs Posted</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -609,7 +569,7 @@ export default function FacultyDashboard() {
             <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Pending</h3>
+            <h3 className="text-gray-500 font-semibold">Pending Review</h3>
             <p className="text-4xl font-bold text-yellow-600 mt-2">
               {jobs.filter(j => j.status === 'pending').length}
             </p>
@@ -618,25 +578,9 @@ export default function FacultyDashboard() {
             <h3 className="text-gray-500 font-semibold">Archived</h3>
             <p className="text-4xl font-bold text-gray-600 mt-2">{totalArchived}</p>
           </div>
-          
-          {/* new applications card with link */}
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 border-l-4 border-l-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-gray-500 font-semibold">Applications</h3>
-                <p className="text-4xl font-bold text-purple-600 mt-2">{applicationsCount}</p>
-                <Link href="/faculty/applications">
-                  <button className="text-sm text-purple-600 hover:text-purple-700 mt-2">
-                    View All →
-                  </button>
-                </Link>
-              </div>
-              <UserGroupIcon className="h-10 w-10 text-purple-500" />
-            </div>
-          </div>
         </div>
 
-        {/* tabs for switching between active, archived, and analytics */}
+        {/* Tabs for switching between active, archived, and analytics */}
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button 
@@ -672,9 +616,9 @@ export default function FacultyDashboard() {
           </nav>
         </div>
 
-        {/* content based on active tab */}
+        {/* Content based on active tab */}
         {activeTab === 'active' ? (
-          // active jobs section
+          // Active jobs section
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Your Active Job Postings</h2>
@@ -720,7 +664,7 @@ export default function FacultyDashboard() {
             )}
           </div>
         ) : activeTab === 'archived' ? (
-          // archived jobs section
+          // Archived jobs section
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Your Archived Jobs (Past Deadline)</h2>
@@ -750,9 +694,9 @@ export default function FacultyDashboard() {
             )}
           </div>
         ) : (
-          // analytics section - shows performance metrics
+          // Analytics section - shows performance metrics
           <div className="space-y-6">
-            {/* date range selector for analytics */}
+            {/* Date range selector for analytics */}
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-gray-800">Quick Analytics Overview</h2>
@@ -772,7 +716,7 @@ export default function FacultyDashboard() {
                 <p className="text-center text-gray-500 py-10">Loading analytics...</p>
               ) : (
                 <>
-                  {/* analytics overview cards */}
+                  {/* Analytics overview cards */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Total Applications</p>
@@ -802,7 +746,7 @@ export default function FacultyDashboard() {
                     </div>
                   </div>
 
-                  {/* simple trend chart */}
+                  {/* Simple trend chart */}
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold mb-3">Application & View Trends</h3>
                     <div className="overflow-x-auto">
@@ -844,7 +788,7 @@ export default function FacultyDashboard() {
                     </div>
                   </div>
 
-                  {/* top performing jobs table */}
+                  {/* Top performing jobs table */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">Top Performing Jobs</h3>
                     <div className="overflow-x-auto">
