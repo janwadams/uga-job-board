@@ -123,17 +123,11 @@ export default function FacultyApplications() {
       // for each job, get its applications
       const jobsWithApps = await Promise.all(
         jobs.map(async (job) => {
-          const { data: applications, error: appsError } = await supabase
-            .from('job_applications')
-            .select(`
-              *,
-              student:student_id (
-                id,
-                email
-              )
-            `)
-            .eq('job_id', job.id)
-            .order('applied_at', { ascending: false });
+        const { data: applications, error: appsError } = await supabase
+		  .from('job_applications')
+		  .select('*')
+		  .eq('job_id', job.id)
+		  .order('applied_at', { ascending: false });
 
           if (appsError) {
             console.error('Error fetching applications for job', job.id, ':', appsError);
