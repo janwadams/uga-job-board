@@ -215,29 +215,36 @@ export default function FacultyDashboard() {
   }, [router]);
 
   // function to fetch applications count for all faculty's jobs
-  const fetchApplicationsCount = async () => {
-    if (!session) return;
-    
-    try {
-      // get all jobs by this faculty member
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('id')
-        .eq('created_by', session.user.id);
-      
-      if (jobs && jobs.length > 0) {
-        // count applications for these jobs
-        const { count } = await supabase
-          .from('job_applications')
-          .select('*', { count: 'exact', head: true })
-          .in('job_id', jobs.map(j => j.id));
-        
-        setApplicationsCount(count || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching applications count:', error);
-    }
-  };
+  	const fetchApplicationsCount = async () => {
+	  if (!session) return;
+	  
+	  try {
+		// get all jobs by this faculty member
+		const { data: jobs } = await supabase
+		  .from('jobs')
+		  .select('id')
+		  .eq('created_by', session.user.id);
+		
+		if (jobs && jobs.length > 0) {
+		  // count applications for these specific jobs only
+		  const { count } = await supabase
+			.from('job_applications')
+			.select('*', { count: 'exact', head: true })
+			.in('job_id', jobs.map(j => j.id));
+		  
+		  setApplicationsCount(count || 0);
+		} else {
+		  setApplicationsCount(0);
+		}
+	  } catch (error) {
+		console.error('Error fetching applications count:', error);
+	  }
+	};
+
+
+
+
+
 
   // fetch active jobs when tab changes or filter changes
   useEffect(() => {
