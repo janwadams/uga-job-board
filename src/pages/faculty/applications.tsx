@@ -12,7 +12,7 @@ import {
   UserGroupIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  ExternalLinkIcon
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -390,7 +390,7 @@ export default function FacultyApplications() {
                                           className="text-blue-600 hover:underline flex items-center gap-1"
                                         >
                                           View Resume
-                                          <ExternalLinkIcon className="h-3 w-3" />
+                                          <ArrowTopRightOnSquareIcon className="h-3 w-3" />
                                         </a>
                                       </div>
                                     )}
