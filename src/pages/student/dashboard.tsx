@@ -21,7 +21,9 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
-import QuickApplyModal from '@/components/QuickApplyModal';
+//import QuickApplyModal from '@/components/QuickApplyModal';
+import QuickApplyModal from '../../components/QuickApplyModal';
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
