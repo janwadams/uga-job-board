@@ -12,8 +12,7 @@ import {
   UserGroupIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  ArrowTopRightOnSquareIcon,
-  ArrowLeftIcon
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -101,18 +100,17 @@ export default function FacultyApplications() {
     
     try {
       // first get all jobs posted by this faculty member
-      const { data: jobs, error: jobsError } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('created_by', session.user.id)  // using created_by field
-        .order('created_at', { ascending: false });
+		
+		const { data: jobs, error: jobsError } = await supabase
+		  .from('jobs')
+		  .select('*')
+		  .eq('created_by', session.user.id)  
+		  .order('created_at', { ascending: false });
 
       if (jobsError) {
         console.error('Error fetching jobs:', jobsError);
         return;
       }
-
-      console.log('Jobs found:', jobs?.length); // debug log
 
       if (!jobs || jobs.length === 0) {
         setJobsWithApplications([]);
@@ -136,15 +134,13 @@ export default function FacultyApplications() {
             .order('applied_at', { ascending: false });
 
           if (appsError) {
-            console.error('Error fetching applications for job', job.id, ':', appsError);
+            console.error('Error fetching applications:', appsError);
             return {
               job,
               applications: [],
               isExpanded: false
             };
           }
-
-          console.log(`Job "${job.title}" has ${applications?.length || 0} applications`); // debug log
 
           return {
             job,
@@ -194,7 +190,7 @@ export default function FacultyApplications() {
   const filterApplications = (applications: Application[]) => {
     return applications.filter(app => {
       const matchesSearch = searchTerm === '' ||
-        app.contact_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        app.contact_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (app.contact_phone && app.contact_phone.includes(searchTerm));
       
       const matchesStatus = selectedStatus === 'all' || app.status === selectedStatus;
@@ -221,11 +217,6 @@ export default function FacultyApplications() {
     0
   );
 
-  // calculate jobs with at least one application
-  const jobsWithAppsCount = jobsWithApplications.filter(
-    item => item.applications.length > 0
-  ).length;
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -240,16 +231,6 @@ export default function FacultyApplications() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* back to dashboard link */}
-        <div className="mb-4">
-          <Link href="/faculty/dashboard">
-            <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
-              <ArrowLeftIcon className="h-4 w-4" />
-              Back to Dashboard
-            </button>
-          </Link>
-        </div>
-
         {/* header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Job Applications</h1>
@@ -258,22 +239,21 @@ export default function FacultyApplications() {
           </p>
         </div>
 
-        {/* stats cards with explanations */}
+        {/* stats cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500">
             <div className="text-2xl font-bold text-gray-900">{jobsWithApplications.length}</div>
             <div className="text-sm text-gray-600">Active Jobs</div>
-            <div className="text-xs text-gray-500 mt-1">Total jobs you've posted</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
             <div className="text-2xl font-bold text-gray-900">{totalApplications}</div>
             <div className="text-sm text-gray-600">Total Applications</div>
-            <div className="text-xs text-gray-500 mt-1">All applications across all jobs</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500">
-            <div className="text-2xl font-bold text-gray-900">{jobsWithAppsCount}</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {jobsWithApplications.filter(j => j.applications.length > 0).length}
+            </div>
             <div className="text-sm text-gray-600">Jobs with Applications</div>
-            <div className="text-xs text-gray-500 mt-1">Jobs that have received applications</div>
           </div>
         </div>
 
@@ -313,14 +293,6 @@ export default function FacultyApplications() {
               </button>
             </Link>
           </div>
-        ) : totalApplications === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No applications received yet.</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Students haven't applied to your jobs yet. Check back later!
-            </p>
-          </div>
         ) : (
           <div className="space-y-4">
             {jobsWithApplications.map((jobItem) => {
@@ -352,10 +324,10 @@ export default function FacultyApplications() {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-2xl font-bold text-gray-900">
-                            {jobItem.applications.length}
+                            {filteredApps.length}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {jobItem.applications.length === 1 ? 'Application' : 'Applications'}
+                            Applications
                           </p>
                         </div>
                         {jobItem.job.deadline && (
@@ -377,9 +349,7 @@ export default function FacultyApplications() {
                     <div className="border-t">
                       {filteredApps.length === 0 ? (
                         <div className="p-8 text-center text-gray-500">
-                          {jobItem.applications.length === 0 
-                            ? "No applications yet for this job"
-                            : "No applications match your filters"}
+                          No applications match your filters
                         </div>
                       ) : (
                         <div className="divide-y">
@@ -389,17 +359,15 @@ export default function FacultyApplications() {
                                 <div className="flex-1">
                                   {/* applicant info */}
                                   <div className="mb-3">
-                                    {application.contact_email && (
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <EnvelopeIcon className="h-4 w-4 text-gray-500" />
-                                        <a 
-                                          href={`mailto:${application.contact_email}`}
-                                          className="text-blue-600 hover:underline"
-                                        >
-                                          {application.contact_email}
-                                        </a>
-                                      </div>
-                                    )}
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <EnvelopeIcon className="h-4 w-4 text-gray-500" />
+                                      <a 
+                                        href={`mailto:${application.contact_email}`}
+                                        className="text-blue-600 hover:underline"
+                                      >
+                                        {application.contact_email}
+                                      </a>
+                                    </div>
                                     
                                     {application.contact_phone && (
                                       <div className="flex items-center gap-2 mb-2">
@@ -443,25 +411,6 @@ export default function FacultyApplications() {
                                       <p className="text-sm text-gray-600">
                                         {application.cover_letter}
                                       </p>
-                                    </div>
-                                  )}
-
-                                  {/* notes if exists (old field) */}
-                                  {application.notes && (
-                                    <div className="mt-3 p-3 bg-yellow-50 rounded">
-                                      <p className="text-sm font-medium text-gray-700 mb-1">
-                                        Additional Notes:
-                                      </p>
-                                      <p className="text-sm text-gray-600">
-                                        {application.notes}
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {/* show if missing contact info */}
-                                  {!application.contact_email && !application.contact_phone && (
-                                    <div className="text-sm text-gray-500 italic">
-                                      No contact information provided (legacy application)
                                     </div>
                                   )}
                                 </div>
