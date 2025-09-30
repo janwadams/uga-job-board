@@ -1,13 +1,9 @@
-//src/pages/rep/dashboard.tsx - updated with applications button and count
+//src/pages/rep/dashboard.tsx - Updated with analytics button
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { 
-  UserGroupIcon,
-  ClipboardDocumentListIcon 
-} from '@heroicons/react/24/outline';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -163,9 +159,6 @@ export default function RepDashboard() {
   const [loadingRejected, setLoadingRejected] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [userRole, setUserRole] = useState<string | null>(null);
-  
-  // new state for applications count
-  const [applicationsCount, setApplicationsCount] = useState(0);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -194,33 +187,6 @@ export default function RepDashboard() {
     };
     checkSession();
   }, [router]);
-
-  // function to fetch applications count for this rep's jobs
-  const fetchApplicationsCount = async () => {
-    if (!session) return;
-    
-    try {
-      // get all jobs by this rep
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('id')
-        .eq('created_by', session.user.id);
-      
-      if (jobs && jobs.length > 0) {
-        // count applications for these specific jobs only
-        const { count } = await supabase
-          .from('job_applications')
-          .select('*', { count: 'exact', head: true })
-          .in('job_id', jobs.map(j => j.id));
-        
-        setApplicationsCount(count || 0);
-      } else {
-        setApplicationsCount(0);
-      }
-    } catch (error) {
-      console.error('Error fetching applications count:', error);
-    }
-  };
 
   // fetch active jobs (not expired, not rejected)
   useEffect(() => {
@@ -263,7 +229,6 @@ export default function RepDashboard() {
 
     if (session) {
       fetchJobs();
-      fetchApplicationsCount(); // fetch applications count when session is ready
     }
   }, [session, statusFilter]);
 
@@ -425,13 +390,6 @@ export default function RepDashboard() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-red-800">💼 Rep Dashboard</h1>
           <div className="flex gap-3">
-            {/* new view applications button with count */}
-            <Link href="/rep/applications">
-              <button className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors shadow-sm flex items-center gap-2">
-                <ClipboardDocumentListIcon className="h-5 w-5" />
-                View Applications ({applicationsCount})
-              </button>
-            </Link>
             <Link href="/rep/analytics">
               <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm">
                 📊 View Analytics
