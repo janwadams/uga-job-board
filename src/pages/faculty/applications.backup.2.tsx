@@ -112,7 +112,7 @@ export default function FacultyApplications() {
         return;
       }
 
-      console.log('Jobs found:', jobs?.length); // debug log to see how many jobs were found
+      console.log('Jobs found:', jobs?.length); // debug log
 
       if (!jobs || jobs.length === 0) {
         setJobsWithApplications([]);
@@ -123,11 +123,11 @@ export default function FacultyApplications() {
       // for each job, get its applications
       const jobsWithApps = await Promise.all(
         jobs.map(async (job) => {
-          const { data: applications, error: appsError } = await supabase
-            .from('job_applications')
-            .select('*')
-            .eq('job_id', job.id)
-            .order('applied_at', { ascending: false });
+        const { data: applications, error: appsError } = await supabase
+		  .from('job_applications')
+		  .select('*')
+		  .eq('job_id', job.id)
+		  .order('applied_at', { ascending: false });
 
           if (appsError) {
             console.error('Error fetching applications for job', job.id, ':', appsError);
@@ -209,33 +209,16 @@ export default function FacultyApplications() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  // calculate total applications count based on filter
-  const getFilteredTotalApplications = () => {
-    if (selectedStatus === 'all') {
-      return jobsWithApplications.reduce(
-        (sum, item) => sum + item.applications.length,
-        0
-      );
-    }
-    // if a status is selected, only count applications with that status
-    return jobsWithApplications.reduce(
-      (sum, item) => sum + item.applications.filter(app => app.status === selectedStatus).length,
-      0
-    );
-  };
+  // calculate total applications count
+  const totalApplications = jobsWithApplications.reduce(
+    (sum, item) => sum + item.applications.length,
+    0
+  );
 
-  // calculate jobs with at least one application matching the filter
-  const getFilteredJobsWithAppsCount = () => {
-    if (selectedStatus === 'all') {
-      return jobsWithApplications.filter(
-        item => item.applications.length > 0
-      ).length;
-    }
-    // if a status is selected, only count jobs that have at least one application with that status
-    return jobsWithApplications.filter(
-      item => item.applications.some(app => app.status === selectedStatus)
-    ).length;
-  };
+  // calculate jobs with at least one application
+  const jobsWithAppsCount = jobsWithApplications.filter(
+    item => item.applications.length > 0
+  ).length;
 
   if (loading) {
     return (
@@ -269,7 +252,7 @@ export default function FacultyApplications() {
           </p>
         </div>
 
-        {/* stats cards with explanations - now updates based on filter */}
+        {/* stats cards with explanations */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500">
             <div className="text-2xl font-bold text-gray-900">{jobsWithApplications.length}</div>
@@ -277,20 +260,14 @@ export default function FacultyApplications() {
             <div className="text-xs text-gray-500 mt-1">Total jobs you've posted</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
-            <div className="text-2xl font-bold text-gray-900">{getFilteredTotalApplications()}</div>
-            <div className="text-sm text-gray-600">
-              {selectedStatus === 'all' ? 'Total Applications' : `${selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)} Applications`}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {selectedStatus === 'all' ? 'All applications across all jobs' : `Applications with ${selectedStatus} status`}
-            </div>
+            <div className="text-2xl font-bold text-gray-900">{totalApplications}</div>
+            <div className="text-sm text-gray-600">Total Applications</div>
+            <div className="text-xs text-gray-500 mt-1">All applications across all jobs</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500">
-            <div className="text-2xl font-bold text-gray-900">{getFilteredJobsWithAppsCount()}</div>
+            <div className="text-2xl font-bold text-gray-900">{jobsWithAppsCount}</div>
             <div className="text-sm text-gray-600">Jobs with Applications</div>
-            <div className="text-xs text-gray-500 mt-1">
-              {selectedStatus === 'all' ? 'Jobs that have received applications' : `Jobs with ${selectedStatus} applications`}
-            </div>
+            <div className="text-xs text-gray-500 mt-1">Jobs that have received applications</div>
           </div>
         </div>
 
@@ -330,7 +307,7 @@ export default function FacultyApplications() {
               </button>
             </Link>
           </div>
-        ) : getFilteredTotalApplications() === 0 && selectedStatus === 'all' ? (
+        ) : totalApplications === 0 ? (
           <div className="bg-white rounded-lg shadow-sm p-8 text-center">
             <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No applications received yet.</p>
@@ -341,18 +318,7 @@ export default function FacultyApplications() {
         ) : (
           <div className="space-y-4">
             {jobsWithApplications.map((jobItem) => {
-              // filter applications first if status is selected
-              let displayedApplications = jobItem.applications;
-              if (selectedStatus !== 'all') {
-                displayedApplications = jobItem.applications.filter(app => app.status === selectedStatus);
-              }
-              
-              // only show jobs that have applications matching the filter
-              if (selectedStatus !== 'all' && displayedApplications.length === 0) {
-                return null; // don't show this job if no applications match the status filter
-              }
-              
-              const filteredApps = filterApplications(displayedApplications);
+              const filteredApps = filterApplications(jobItem.applications);
               
               return (
                 <div key={jobItem.job.id} className="bg-white rounded-lg shadow-sm">
@@ -380,13 +346,10 @@ export default function FacultyApplications() {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-2xl font-bold text-gray-900">
-                            {selectedStatus === 'all' 
-                              ? jobItem.applications.length 
-                              : displayedApplications.length}
+                            {jobItem.applications.length}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {displayedApplications.length === 1 ? 'Application' : 'Applications'}
-                            {selectedStatus !== 'all' && ` (${selectedStatus})`}
+                            {jobItem.applications.length === 1 ? 'Application' : 'Applications'}
                           </p>
                         </div>
                         {jobItem.job.deadline && (
@@ -520,7 +483,7 @@ export default function FacultyApplications() {
                   )}
                 </div>
               );
-            }).filter(Boolean)} {/* filter out null entries for jobs that don't match the status filter */}
+            })}
           </div>
         )}
       </div>
