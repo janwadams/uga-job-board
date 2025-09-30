@@ -1,4 +1,5 @@
 // components/QuickApplyModal.tsx
+//for applying to job 
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
