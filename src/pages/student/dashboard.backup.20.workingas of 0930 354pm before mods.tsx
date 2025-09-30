@@ -1,4 +1,4 @@
-// pages/student/dashboard.tsx - enhanced version with better layout and quick apply modal
+// pages/student/dashboard.tsx - Enhanced version with better layout
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
@@ -21,7 +21,6 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
-import QuickApplyModal from '@/components/QuickApplyModal';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -67,7 +66,7 @@ interface StudentProfile {
   preferred_industries: string[];
 }
 
-// changed tabs - merged browse and recommended into "for you"
+// Changed tabs - merged browse and recommended into "For You"
 type DashboardTab = 'for-you' | 'saved' | 'applications' | 'deadlines';
 type ViewMode = 'cards' | 'list' | 'split';
 
@@ -84,7 +83,7 @@ export default function StudentDashboard() {
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [session, setSession] = useState<any>(null);
   
-  // filter states
+  // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [jobTypeFilters, setJobTypeFilters] = useState<string[]>([]);
   const [industryFilter, setIndustryFilter] = useState('');
@@ -92,22 +91,9 @@ export default function StudentDashboard() {
   const [showFilters, setShowFilters] = useState(true); // sidebar visibility
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null); // for split view
-  const [showOnlyRecommended, setShowOnlyRecommended] = useState(false); // toggle in for you tab
+  const [showOnlyRecommended, setShowOnlyRecommended] = useState(false); // toggle in For You tab
 
-  // state for the quick apply modal
-  const [quickApplyModal, setQuickApplyModal] = useState<{
-    isOpen: boolean;
-    jobId: string;
-    jobTitle: string;
-    companyName: string;
-  }>({
-    isOpen: false,
-    jobId: '',
-    jobTitle: '',
-    companyName: ''
-  });
-
-  // check authentication and fetch user session
+  // Check authentication and fetch user session
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
@@ -117,7 +103,7 @@ export default function StudentDashboard() {
         return;
       }
 
-      // check if user is a student
+      // Check if user is a student
       const { data: userData } = await supabase
         .from('user_roles')
         .select('role')
@@ -135,7 +121,7 @@ export default function StudentDashboard() {
     checkAuth();
   }, [router]);
 
-  // fetch all data when session is available
+  // Fetch all data when session is available
   useEffect(() => {
     if (session) {
       fetchApplications();
@@ -146,14 +132,14 @@ export default function StudentDashboard() {
     }
   }, [session]);
 
-  // generate recommendations when profile and jobs are loaded
+  // Generate recommendations when profile and jobs are loaded
   useEffect(() => {
     if (studentProfile && allJobs.length > 0) {
       generateRecommendations();
     }
   }, [studentProfile, allJobs]);
 
-  // auto-select first job in split view
+  // Auto-select first job in split view
   useEffect(() => {
     if (viewMode === 'split' && getDisplayedJobs().length > 0 && !selectedJob) {
       setSelectedJob(getDisplayedJobs()[0] as Job);
@@ -361,13 +347,13 @@ export default function StudentDashboard() {
     const scoredJobs = allJobs.map(job => {
       let score = 0;
       
-      // higher weight for job type match
+      // Higher weight for job type match
       if (studentProfile.preferred_job_types?.includes(job.job_type)) score += 5;
       
-      // high weight for industry match
+      // High weight for industry match
       if (studentProfile.preferred_industries?.includes(job.industry)) score += 4;
       
-      // skills matching gets highest weight
+      // Skills matching gets highest weight
       if (job.skills && studentProfile.skills) {
         const matchingSkills = job.skills.filter(skill => 
           studentProfile.skills.some(s => s.toLowerCase() === skill.toLowerCase())
@@ -375,7 +361,7 @@ export default function StudentDashboard() {
         score += matchingSkills.length * 3;
       }
       
-      // interest matching
+      // Interest matching
       if (studentProfile.interests) {
         const jobText = `${job.title} ${job.description} ${job.industry}`.toLowerCase();
         studentProfile.interests.forEach(interest => {
@@ -462,32 +448,18 @@ export default function StudentDashboard() {
     }
   };
 
-  // enhanced apply to job function that can handle quick apply data
-  const applyToJob = async (jobId: string, applicationData?: any) => {
+  const applyToJob = async (jobId: string) => {
     if (!session) return;
 
     try {
-      // build the insert data with optional application details
-      const insertData = {
-        student_id: session.user.id, 
-        job_id: jobId, 
-        applied_at: new Date().toISOString(), 
-        status: 'applied',
-        ...(applicationData || {}) // spread the form data if provided
-      };
-
       const { error } = await supabase
         .from('job_applications')
-        .insert(insertData);
+        .insert({ student_id: session.user.id, job_id: jobId, applied_at: new Date().toISOString(), status: 'applied' });
 
       if (!error) {
         fetchApplications();
         setSavedJobs(prev => prev.filter(sj => sj.job.id !== jobId));
         alert('Application submitted successfully!');
-        // close the modal if it was open
-        setQuickApplyModal({ isOpen: false, jobId: '', jobTitle: '', companyName: '' });
-      } else {
-        throw error;
       }
     } catch (error) {
       console.error('Error applying to job:', error);
@@ -495,35 +467,25 @@ export default function StudentDashboard() {
     }
   };
 
-  // function to open the quick apply modal
-  const openQuickApplyModal = (job: Job) => {
-    setQuickApplyModal({
-      isOpen: true,
-      jobId: job.id,
-      jobTitle: job.title,
-      companyName: job.company
-    });
-  };
-
-  // filter function - applies all filters
+  // Filter function - applies all filters
   const getFilteredJobs = (jobsToFilter: Job[]) => {
     return jobsToFilter.filter(job => {
-      // search filter
+      // Search filter
       const matchesSearch = searchTerm === '' ||
         job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
         job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (job.location && job.location.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // job type filter
+      // Job type filter
       const matchesJobType = jobTypeFilters.length === 0 || 
         jobTypeFilters.includes(job.job_type);
       
-      // industry filter
+      // Industry filter
       const matchesIndustry = industryFilter === '' || 
         job.industry === industryFilter;
 
-      // location filter
+      // Location filter
       const matchesLocation = locationFilter === 'all' ||
         (locationFilter === 'remote' && job.location?.toLowerCase().includes('remote')) ||
         (locationFilter === 'on-site' && !job.location?.toLowerCase().includes('remote'));
@@ -532,7 +494,7 @@ export default function StudentDashboard() {
     });
   };
 
-  // clear all filters
+  // Clear all filters
   const clearAllFilters = () => {
     setSearchTerm('');
     setJobTypeFilters([]);
@@ -540,21 +502,21 @@ export default function StudentDashboard() {
     setLocationFilter('all');
   };
 
-  // get unique industries
+  // Get unique industries
   const uniqueIndustries = useMemo(() => {
     const industries = new Set(allJobs.map(job => job.industry));
     return Array.from(industries).sort();
   }, [allJobs]);
 
-  // get displayed jobs based on tab and filters
+  // Get displayed jobs based on tab and filters
   const getDisplayedJobs = () => {
     switch (activeTab) {
       case 'for-you':
-        // show recommended first if they exist and toggle is on
+        // Show recommended first if they exist and toggle is on
         if (showOnlyRecommended) {
           return getFilteredJobs(recommendedJobs);
         }
-        // otherwise show all jobs with recommended ones marked
+        // Otherwise show all jobs with recommended ones marked
         return getFilteredJobs(allJobs);
       case 'saved':
         return savedJobs.filter(savedJob => {
@@ -577,29 +539,29 @@ export default function StudentDashboard() {
     }
   };
 
-  // calculate match percentage for a job
+  // Calculate match percentage for a job
   const getMatchPercentage = (job: Job) => {
     const recommended = recommendedJobs.find(rj => rj.id === job.id);
     if (!recommended) return 0;
     
-    // get the job with matchscore
+    // Get the job with matchScore
     const jobWithScore = recommended as Job & { matchScore?: number };
     if (!jobWithScore.matchScore) return 0;
     
-    // convert score to percentage (max score would be around 20-30)
+    // Convert score to percentage (max score would be around 20-30)
     return Math.min(Math.round((jobWithScore.matchScore / 20) * 100), 100);
   };
 
-  // check if job is recommended
+  // Check if job is recommended
   const isRecommended = (jobId: string) => recommendedJobs.some(rj => rj.id === jobId);
 
-  // helper functions
+  // Helper functions
   const getStatusColor = (status: string) => ({'applied': 'bg-blue-100 text-blue-800', 'viewed': 'bg-yellow-100 text-yellow-800', 'interview': 'bg-purple-100 text-purple-800', 'hired': 'bg-green-100 text-green-800', 'rejected': 'bg-red-100 text-red-800'}[status] || 'bg-gray-100 text-gray-800');
   const getStatusText = (status: string) => ({'applied': 'Applied', 'viewed': 'Viewed by Employer', 'interview': 'Interview Scheduled', 'hired': 'Hired!', 'rejected': 'Not Selected'}[status] || status);
   const getDaysUntilDeadline = (deadline: string) => Math.ceil((new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
   const isJobSaved = (jobId: string) => savedJobs.some(sj => sj.job.id === jobId);
 
-  // get new jobs (last 48 hours)
+  // Get new jobs (last 48 hours)
   const newJobsCount = useMemo(() => {
     return allJobs.filter(job => {
       const hours = (new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60);
@@ -607,7 +569,7 @@ export default function StudentDashboard() {
     }).length;
   }, [allJobs]);
 
-  // list view component - more compact than cards
+  // List view component - more compact than cards
   const JobListItem = ({ job, isSelected = false }: { job: Job; isSelected?: boolean }) => {
     const isSaved = isJobSaved(job.id);
     const hasApplied = applications.some(app => app.job.id === job.id);
@@ -686,7 +648,7 @@ export default function StudentDashboard() {
     );
   };
 
-  // enhanced card component
+  // Enhanced card component
   const JobCard = ({ job, savedJobId = null }: { job: Job; savedJobId?: string | null }) => {
     const isSaved = isJobSaved(job.id);
     const savedJob = savedJobs.find(sj => sj.job.id === job.id);
@@ -704,7 +666,7 @@ export default function StudentDashboard() {
         }`}></div>
         
         <div className="p-6">
-          {/* match score badge if high match */}
+          {/* Match score badge if high match */}
           {matchPercent > 60 && (
             <div className="mb-3 flex items-center gap-2 text-sm">
               <SparklesIcon className="h-4 w-4 text-green-600" />
@@ -816,8 +778,9 @@ export default function StudentDashboard() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // open the quick apply modal instead of instant apply
-                  openQuickApplyModal(job);
+                  if (confirm(`Quick apply to ${job.title} at ${job.company}?`)) {
+                    applyToJob(job.id);
+                  }
                 }}
                 className="flex-1 px-4 py-2 bg-uga-red text-white rounded-md hover:bg-red-800 transition-colors text-sm font-medium"
               >
@@ -859,7 +822,7 @@ export default function StudentDashboard() {
     );
   };
 
-  // job detail panel for split view
+  // Job detail panel for split view
   const JobDetailPanel = ({ job }: { job: Job }) => {
     const isSaved = isJobSaved(job.id);
     const hasApplied = applications.some(app => app.job.id === job.id);
@@ -870,7 +833,7 @@ export default function StudentDashboard() {
     return (
       <div className="bg-white h-full overflow-y-auto">
         <div className="p-6">
-          {/* match score if high */}
+          {/* Match score if high */}
           {matchPercent > 60 && (
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center gap-2">
@@ -916,11 +879,11 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* action buttons */}
+          {/* Action buttons */}
           <div className="flex gap-3 mb-6">
             {!hasApplied && !isExpired ? (
               <button
-                onClick={() => openQuickApplyModal(job)}
+                onClick={() => applyToJob(job.id)}
                 className="flex-1 px-4 py-2 bg-uga-red text-white rounded-lg hover:bg-red-800 font-medium"
               >
                 Apply Now
@@ -1010,17 +973,17 @@ export default function StudentDashboard() {
     );
   };
 
-  // main render starts here
+  // MAIN RENDER STARTS HERE
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* header with title */}
+        {/* Header with title */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
           <p className="text-gray-600 mt-2">Find your perfect opportunity</p>
         </div>
 
-        {/* overview stats cards */}
+        {/* NEW: Overview Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500">
             <div className="text-2xl font-bold text-gray-900">{applications.length}</div>
@@ -1040,7 +1003,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* urgent deadlines alert - only if deadlines exist */}
+        {/* Urgent Deadlines Alert - only if deadlines exist */}
         {upcomingDeadlines.filter(job => getDaysUntilDeadline(job.deadline) <= 2).length > 0 && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -1065,7 +1028,7 @@ export default function StudentDashboard() {
           </div>
         )}
         
-        {/* improved tab navigation - better flow */}
+        {/* IMPROVED Tab Navigation - better flow */}
         <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex space-x-8">
             <button
@@ -1130,9 +1093,9 @@ export default function StudentDashboard() {
           </nav>
         </div>
 
-        {/* main content area with sidebar filters */}
+        {/* Main content area with sidebar filters */}
         <div className="flex gap-6">
-          {/* improved: sidebar filters - persistent and better organized */}
+          {/* IMPROVED: Sidebar Filters - persistent and better organized */}
           {(activeTab === 'for-you' || activeTab === 'saved') && showFilters && (
             <div className="w-64 bg-white p-4 rounded-lg shadow-sm h-fit sticky top-4">
               <div className="flex justify-between items-center mb-4">
@@ -1145,7 +1108,7 @@ export default function StudentDashboard() {
                 </button>
               </div>
 
-              {/* search */}
+              {/* Search */}
               <div className="mb-4">
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -1159,7 +1122,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* for you tab specific toggle */}
+              {/* For You tab specific toggle */}
               {activeTab === 'for-you' && recommendedJobs.length > 0 && (
                 <div className="mb-4 pb-4 border-b">
                   <label className="flex items-center cursor-pointer">
@@ -1174,7 +1137,7 @@ export default function StudentDashboard() {
                 </div>
               )}
 
-              {/* job type */}
+              {/* Job Type */}
               <div className="mb-4">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Job Type
@@ -1200,7 +1163,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
 
-              {/* location type */}
+              {/* Location Type */}
               <div className="mb-4">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Location
@@ -1216,7 +1179,7 @@ export default function StudentDashboard() {
                 </select>
               </div>
 
-              {/* industry */}
+              {/* Industry */}
               <div className="mb-4">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Industry
@@ -1233,7 +1196,7 @@ export default function StudentDashboard() {
                 </select>
               </div>
 
-              {/* clear filters */}
+              {/* Clear Filters */}
               {(searchTerm || jobTypeFilters.length > 0 || industryFilter || locationFilter !== 'all') && (
                 <button
                   onClick={clearAllFilters}
@@ -1245,7 +1208,7 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {/* toggle filter button for mobile when hidden */}
+          {/* Toggle filter button for mobile when hidden */}
           {(activeTab === 'for-you' || activeTab === 'saved') && !showFilters && (
             <button
               onClick={() => setShowFilters(true)}
@@ -1256,9 +1219,9 @@ export default function StudentDashboard() {
             </button>
           )}
 
-          {/* main content */}
+          {/* Main content */}
           <div className="flex-1">
-            {/* view mode toggle for for you and saved tabs */}
+            {/* View mode toggle for For You and Saved tabs */}
             {(activeTab === 'for-you' || activeTab === 'saved') && (
               <div className="flex justify-between items-center mb-4">
                 <div className="text-sm text-gray-600">
@@ -1293,7 +1256,9 @@ export default function StudentDashboard() {
               </div>
             )}
 
-            {/* for you tab */}
+    
+
+            {/* For You Tab */}
             {activeTab === 'for-you' && (
               <div>
                 {loadingJobs ? (
@@ -1318,7 +1283,7 @@ export default function StudentDashboard() {
                     )}
                   </div>
                 ) : viewMode === 'split' ? (
-                  // split view layout
+                  // Split view layout
                   <div className="flex gap-4 h-[calc(100vh-300px)]">
                     <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-y-auto">
                       {getDisplayedJobs().map((job) => (
@@ -1340,14 +1305,14 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                 ) : viewMode === 'list' ? (
-                  // list view
+                  // List view
                   <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                     {getDisplayedJobs().map((job) => (
                       <JobListItem key={job.id} job={job as Job} />
                     ))}
                   </div>
                 ) : (
-                  // card view (default)
+                  // Card view (default)
                   <div className="grid gap-4 md:grid-cols-2">
                     {getDisplayedJobs().map((job) => (
                       <JobCard key={job.id} job={job as Job} />
@@ -1357,7 +1322,7 @@ export default function StudentDashboard() {
               </div>
             )}
 
-            {/* saved jobs tab */}
+            {/* Saved Jobs Tab */}
             {activeTab === 'saved' && (
               <div>
                 {savedJobs.length === 0 ? (
@@ -1384,7 +1349,7 @@ export default function StudentDashboard() {
                     </button>
                   </div>
                 ) : viewMode === 'split' ? (
-                  // split view for saved jobs
+                  // Split view for saved jobs
                   <div className="flex gap-4 h-[calc(100vh-300px)]">
                     <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-y-auto">
                       {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
@@ -1406,14 +1371,14 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                 ) : viewMode === 'list' ? (
-                  // list view for saved jobs
+                  // List view for saved jobs
                   <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                     {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
                       <JobListItem key={savedJob.id} job={savedJob.job} />
                     ))}
                   </div>
                 ) : (
-                  // card view for saved jobs
+                  // Card view for saved jobs
                   <div className="grid gap-4 md:grid-cols-2">
                     {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
                       <JobCard 
@@ -1427,7 +1392,7 @@ export default function StudentDashboard() {
               </div>
             )}
 
-            {/* applications tab - with visual pipeline */}
+            {/* Applications Tab - with visual pipeline */}
             {activeTab === 'applications' && (
               <div>
                 {loadingApplications ? (
@@ -1441,7 +1406,7 @@ export default function StudentDashboard() {
                     <button
                       onClick={() => setActiveTab('for-you')}
                       className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
+					>
                       Browse Jobs
                     </button>
                   </div>
@@ -1449,7 +1414,7 @@ export default function StudentDashboard() {
                   <div className="grid gap-4">
                     {applications.map((application) => (
                       <div key={application.id} className="bg-white rounded-lg shadow p-6">
-                        {/* visual pipeline status */}
+                        {/* NEW: Visual Pipeline Status */}
                         <div className="mb-4">
                           <div className="flex items-center justify-between text-xs mb-2">
                             <span className={application.status === 'applied' ? 'font-semibold text-blue-600' : 'text-gray-400'}>Applied</span>
@@ -1520,7 +1485,7 @@ export default function StudentDashboard() {
               </div>
             )}
 
-            {/* deadlines tab with calendar view */}
+            {/* Deadlines Tab with Calendar View */}
             {activeTab === 'deadlines' && (
               <div>
                 {upcomingDeadlines.length === 0 ? (
@@ -1533,17 +1498,17 @@ export default function StudentDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* mini calendar widget */}
+                    {/* Mini Calendar Widget */}
                     <div className="bg-white rounded-lg shadow p-4">
                       <h3 className="font-semibold text-gray-900 mb-4">Deadline Calendar</h3>
                       <div className="grid grid-cols-7 gap-1 text-center">
-                        {/* day headers */}
+                        {/* Day headers */}
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                           <div key={day} className="text-xs font-medium text-gray-500 py-2">
                             {day}
                           </div>
                         ))}
-                        {/* calendar days - simplified for the next 7 days */}
+                        {/* Calendar days - simplified for the next 7 days */}
                         {[...Array(7)].map((_, index) => {
                           const date = new Date();
                           date.setDate(date.getDate() + index);
@@ -1572,7 +1537,7 @@ export default function StudentDashboard() {
                       </div>
                     </div>
 
-                    {/* deadline list */}
+                    {/* Deadline List */}
                     <div className="bg-white rounded-lg shadow p-4">
                       <h3 className="font-semibold text-gray-900 mb-4">Upcoming Deadlines</h3>
                       <div className="space-y-3">
@@ -1617,7 +1582,7 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                     
-                    {/* reminder tip */}
+                    {/* Reminder Tip */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <p className="text-sm text-blue-800">
                         <strong>Pro Tip:</strong> Set reminders for saved jobs to get notified 24 hours before deadlines. 
@@ -1631,16 +1596,6 @@ export default function StudentDashboard() {
           </div>
         </div>
       </div>
-
-      {/* quick apply modal - this is the new popup form */}
-      <QuickApplyModal
-        isOpen={quickApplyModal.isOpen}
-        onClose={() => setQuickApplyModal({ isOpen: false, jobId: '', jobTitle: '', companyName: '' })}
-        onSubmit={(data) => applyToJob(quickApplyModal.jobId, data)}
-        jobTitle={quickApplyModal.jobTitle}
-        companyName={quickApplyModal.companyName}
-        userEmail={session?.user?.email || ''}
-      />
     </div>
   );
 }
