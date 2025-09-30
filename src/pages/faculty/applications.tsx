@@ -100,11 +100,12 @@ export default function FacultyApplications() {
     
     try {
       // first get all jobs posted by this faculty member
-      const { data: jobs, error: jobsError } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('posted_by', session.user.id)
-        .order('created_at', { ascending: false });
+		
+		const { data: jobs, error: jobsError } = await supabase
+		  .from('jobs')
+		  .select('*')
+		  .eq('created_by', session.user.id)  
+		  .order('created_at', { ascending: false });
 
       if (jobsError) {
         console.error('Error fetching jobs:', jobsError);
