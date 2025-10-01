@@ -1,4 +1,4 @@
-// src/pages/admin/analytics.tsx - comprehensive platform metrics dashboard with optimized loading
+// src/pages/admin/analytics.tsx - comprehensive platform metrics dashboard
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -106,101 +106,78 @@ export default function AdminAnalyticsDashboard() {
       const daysAgo = parseInt(dateRange);
       const startDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
-      // run all count queries at the same time instead of one by one
-      // this is much faster because all queries run in parallel
-      const [
-        jobsThisMonthResult,
-        jobsLastMonthResult,
-        applicationsThisMonthResult,
-        applicationsLastMonthResult,
-        totalPostingsResult,
-        activePostingsResult,
-        totalUsersResult,
-        newUsersMonthResult,
-        userRolesResult,
-        mostViewedJobsResult,
-        topCompaniesDataResult,
-        allJobsInRangeResult,
-        allApplicationsInRangeResult
-      ] = await Promise.all([
-        // jobs posted this month
-        supabase.from('jobs')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startOfMonth.toISOString()),
-        
-        // jobs posted last month
-        supabase.from('jobs')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startOfLastMonth.toISOString())
-          .lt('created_at', startOfMonth.toISOString()),
-        
-        // applications this month
-        supabase.from('job_applications')
-          .select('*', { count: 'exact', head: true })
-          .gte('applied_at', startOfMonth.toISOString()),
-        
-        // applications last month
-        supabase.from('job_applications')
-          .select('*', { count: 'exact', head: true })
-          .gte('applied_at', startOfLastMonth.toISOString())
-          .lt('applied_at', startOfMonth.toISOString()),
-        
-        // total postings
-        supabase.from('jobs')
-          .select('*', { count: 'exact', head: true }),
-        
-        // active postings
-        supabase.from('jobs')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'active'),
-        
-        // total users
-        supabase.from('user_roles')
-          .select('*', { count: 'exact', head: true }),
-        
-        // new users this month
-        supabase.from('user_roles')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startOfMonth.toISOString()),
-        
-        // all user roles for breakdown
-        supabase.from('user_roles')
-          .select('role'),
-        
-        // most viewed jobs (getting recent active jobs)
-        supabase.from('jobs')
-          .select('id, title, company, created_at')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(10),
-        
-        // companies data for top companies
-        supabase.from('jobs')
-          .select('company')
-          .eq('status', 'active'),
-        
-        // get all jobs in date range for time series (fetch once, process in memory)
-        supabase.from('jobs')
-          .select('created_at')
-          .gte('created_at', startDate.toISOString()),
-        
-        // get all applications in date range for time series
-        supabase.from('job_applications')
-          .select('applied_at')
-          .gte('applied_at', startDate.toISOString())
-      ]);
+      // fetch jobs posted this month
+      const { count: jobsThisMonth } = await supabase
+        .from('jobs')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startOfMonth.toISOString());
 
-      // extract counts from results
-      const jobsThisMonth = jobsThisMonthResult.count || 0;
-      const jobsLastMonth = jobsLastMonthResult.count || 0;
-      const applicationsThisMonth = applicationsThisMonthResult.count || 0;
-      const applicationsLastMonth = applicationsLastMonthResult.count || 0;
-      const totalPostings = totalPostingsResult.count || 0;
-      const activePostings = activePostingsResult.count || 0;
-      const totalUsers = totalUsersResult.count || 0;
-      const newUsersMonth = newUsersMonthResult.count || 0;
+      // fetch jobs posted last month
+      const { count: jobsLastMonth } = await supabase
+        .from('jobs')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startOfLastMonth.toISOString())
+        .lt('created_at', startOfMonth.toISOString());
 
-      // process user roles breakdown
+      // fetch applications submitted this month
+      const { count: applicationsThisMonth } = await supabase
+        .from('job_applications')
+        .select('*', { count: 'exact', head: true })
+        .gte('applied_at', startOfMonth.toISOString());
+
+      // fetch applications submitted last month
+      const { count: applicationsLastMonth } = await supabase
+        .from('job_applications')
+        .select('*', { count: 'exact', head: true })
+        .gte('applied_at', startOfLastMonth.toISOString())
+        .lt('applied_at', startOfMonth.toISOString());
+
+      // fetch total and active postings
+      const { count: totalPostings } = await supabase
+        .from('jobs')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: activePostings } = await supabase
+        .from('jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'active');
+
+      // fetch most viewed jobs (you'll need a job_analytics table for this)
+      // for now, we'll fetch recent jobs as a placeholder
+      const { data: mostViewedJobs } = await supabase
+        .from('jobs')
+        .select(`
+          id,
+          title,
+          company,
+          created_at,
+          job_applications(count)
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // transform most viewed jobs data
+      const transformedMostViewed = mostViewedJobs?.map(job => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        views: Math.floor(Math.random() * 1000) + 100, // placeholder - replace with real data
+        apply_clicks: Math.floor(Math.random() * 100) + 10, // placeholder
+        applications: job.job_applications?.[0]?.count || 0,
+        created_at: job.created_at
+      })) || [];
+
+      // fetch user engagement metrics
+      const { count: totalUsers } = await supabase
+        .from('user_roles')
+        .select('*', { count: 'exact', head: true });
+
+      // fetch users by role
+      const { data: userRoles } = await supabase
+        .from('user_roles')
+        .select('role');
+
       const userByRole = {
         student: 0,
         faculty: 0,
@@ -209,61 +186,60 @@ export default function AdminAnalyticsDashboard() {
         admin: 0
       };
 
-      userRolesResult.data?.forEach(user => {
+      userRoles?.forEach(user => {
         if (user.role in userByRole) {
           userByRole[user.role as keyof typeof userByRole]++;
         }
       });
 
+      // fetch new users this month
+      const { count: newUsersMonth } = await supabase
+        .from('user_roles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startOfMonth.toISOString());
+
       // calculate growth percentages
-      const jobsGrowth = jobsLastMonth ? 
-        ((jobsThisMonth - jobsLastMonth) / jobsLastMonth * 100) : 100;
+      const jobsGrowth = jobsLastMonth ? ((jobsThisMonth! - jobsLastMonth) / jobsLastMonth * 100) : 100;
       const applicationsGrowth = applicationsLastMonth ? 
-        ((applicationsThisMonth - applicationsLastMonth) / applicationsLastMonth * 100) : 100;
+        ((applicationsThisMonth! - applicationsLastMonth) / applicationsLastMonth * 100) : 100;
 
-      // process time series data in memory instead of making 60+ queries
-      // this groups the already-fetched data by day
+      // create time series data for the selected date range
       const timeSeriesData: TimeSeriesData[] = [];
-      const allJobs = allJobsInRangeResult.data || [];
-      const allApplications = allApplicationsInRangeResult.data || [];
-
       for (let i = daysAgo - 1; i >= 0; i--) {
         const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
         
-        // count items for this specific day from our already-fetched data
-        const dailyJobs = allJobs.filter(job => 
-          job.created_at.startsWith(dateStr)
-        ).length;
-        
-        const dailyApplications = allApplications.filter(app => 
-          app.applied_at.startsWith(dateStr)
-        ).length;
+        // fetch data for this date (simplified - in production you'd batch these)
+        const { count: dailyJobs } = await supabase
+          .from('jobs')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', dateStr)
+          .lt('created_at', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString());
+
+        const { count: dailyApplications } = await supabase
+          .from('job_applications')
+          .select('*', { count: 'exact', head: true })
+          .gte('applied_at', dateStr)
+          .lt('applied_at', new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString());
 
         timeSeriesData.push({
           date: dateStr,
-          total_postings: dailyJobs,
-          active_postings: dailyJobs,
-          views: Math.floor(Math.random() * 500) + 50, // placeholder until view tracking is implemented
+          total_postings: dailyJobs || 0,
+          active_postings: dailyJobs || 0,
+          views: Math.floor(Math.random() * 500) + 50, // placeholder
           apply_clicks: Math.floor(Math.random() * 50) + 5, // placeholder
-          applications: dailyApplications
+          applications: dailyApplications || 0
         });
       }
 
-      // transform most viewed jobs data
-      const transformedMostViewed = mostViewedJobsResult.data?.map(job => ({
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        views: Math.floor(Math.random() * 1000) + 100, // placeholder - replace when view tracking is added
-        apply_clicks: Math.floor(Math.random() * 100) + 10, // placeholder
-        applications: Math.floor(Math.random() * 20), // placeholder - would need join with applications table
-        created_at: job.created_at
-      })) || [];
+      // fetch top companies by job postings
+      const { data: topCompaniesData } = await supabase
+        .from('jobs')
+        .select('company')
+        .eq('status', 'active');
 
-      // process top companies from already-fetched data
       const companyMap = new Map<string, number>();
-      topCompaniesDataResult.data?.forEach(job => {
+      topCompaniesData?.forEach(job => {
         companyMap.set(job.company, (companyMap.get(job.company) || 0) + 1);
       });
 
@@ -277,25 +253,25 @@ export default function AdminAnalyticsDashboard() {
         .sort((a, b) => b.job_count - a.job_count)
         .slice(0, 5);
 
-      // set all metrics at once
+      // set all metrics
       setMetrics({
-        jobs_posted_month: jobsThisMonth,
-        applications_submitted_month: applicationsThisMonth,
-        total_postings: totalPostings,
-        active_postings: activePostings,
-        jobs_posted_last_month: jobsLastMonth,
-        applications_submitted_last_month: applicationsLastMonth,
+        jobs_posted_month: jobsThisMonth || 0,
+        applications_submitted_month: applicationsThisMonth || 0,
+        total_postings: totalPostings || 0,
+        active_postings: activePostings || 0,
+        jobs_posted_last_month: jobsLastMonth || 0,
+        applications_submitted_last_month: applicationsLastMonth || 0,
         jobs_growth_percentage: jobsGrowth,
         applications_growth_percentage: applicationsGrowth,
         time_series: timeSeriesData,
         top_companies: topCompanies,
         most_viewed_jobs: transformedMostViewed,
         user_engagement: {
-          total_users: totalUsers,
-          active_users_today: Math.floor(totalUsers * 0.3), // placeholder - would need login tracking
-          active_users_week: Math.floor(totalUsers * 0.6), // placeholder
-          active_users_month: Math.floor(totalUsers * 0.8), // placeholder
-          new_users_month: newUsersMonth,
+          total_users: totalUsers || 0,
+          active_users_today: Math.floor((totalUsers || 0) * 0.3), // placeholder
+          active_users_week: Math.floor((totalUsers || 0) * 0.6), // placeholder
+          active_users_month: Math.floor((totalUsers || 0) * 0.8), // placeholder
+          new_users_month: newUsersMonth || 0,
           user_by_role: userByRole
         }
       });
@@ -311,32 +287,32 @@ export default function AdminAnalyticsDashboard() {
   const handleExportCSV = () => {
     if (!metrics) return;
 
-    // prepare csv content for export
+    // prepare csv content
     let csvContent = 'Platform Metrics Report\n';
     csvContent += `Generated: ${new Date().toLocaleDateString()}\n\n`;
     
-    // summary metrics section
+    // summary metrics
     csvContent += 'Summary Metrics\n';
     csvContent += `Jobs Posted This Month,${metrics.jobs_posted_month}\n`;
     csvContent += `Applications Submitted This Month,${metrics.applications_submitted_month}\n`;
     csvContent += `Total Postings,${metrics.total_postings}\n`;
     csvContent += `Active Postings,${metrics.active_postings}\n\n`;
     
-    // time series data section
+    // time series data
     csvContent += 'Daily Metrics\n';
     csvContent += 'Date,Jobs Posted,Applications,Views,Apply Clicks\n';
     metrics.time_series.forEach(row => {
       csvContent += `${row.date},${row.total_postings},${row.applications},${row.views},${row.apply_clicks}\n`;
     });
     
-    // top companies section
+    // top companies
     csvContent += '\nTop Companies\n';
     csvContent += 'Company,Jobs Posted,Views,Apply Clicks\n';
     metrics.top_companies.forEach(company => {
       csvContent += `${company.company},${company.job_count},${company.views},${company.apply_clicks}\n`;
     });
 
-    // create and download the csv file
+    // create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -349,7 +325,6 @@ export default function AdminAnalyticsDashboard() {
     document.body.removeChild(link);
   };
 
-  // show loading spinner while fetching data
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
@@ -359,7 +334,6 @@ export default function AdminAnalyticsDashboard() {
     </div>
   );
 
-  // show error if something went wrong
   if (error) return (
     <div className="p-4 text-red-600">Error: {error}</div>
   );
@@ -407,7 +381,7 @@ export default function AdminAnalyticsDashboard() {
           <div className="space-y-8">
             {/* key metrics cards - main focus metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* jobs posted this month card */}
+              {/* jobs posted this month */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
                   <div>
@@ -430,7 +404,7 @@ export default function AdminAnalyticsDashboard() {
                 </div>
               </div>
 
-              {/* applications submitted this month card */}
+              {/* applications submitted this month */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
                   <div>
@@ -453,7 +427,7 @@ export default function AdminAnalyticsDashboard() {
                 </div>
               </div>
 
-              {/* active postings card */}
+              {/* active postings */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
                   <div>
@@ -469,7 +443,7 @@ export default function AdminAnalyticsDashboard() {
                 </div>
               </div>
 
-              {/* total users card */}
+              {/* total users */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
                   <div>
@@ -486,7 +460,7 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
-            {/* user engagement trends section */}
+            {/* user engagement trends */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">User Engagement Trends</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -547,7 +521,7 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
-            {/* most viewed jobs table */}
+            {/* most viewed jobs */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">Most Viewed Jobs</h2>
               <div className="overflow-x-auto">
@@ -586,7 +560,7 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
-            {/* daily activity trends table */}
+            {/* time series chart - daily activity */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">Daily Activity Trends</h2>
               <div className="overflow-x-auto">
@@ -601,7 +575,6 @@ export default function AdminAnalyticsDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* only show last 7 days for readability */}
                     {metrics.time_series.slice(-7).map((item) => (
                       <tr key={item.date} className="text-center">
                         <td className="border px-4 py-2">{item.date}</td>
@@ -616,7 +589,7 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
             
-            {/* top companies by engagement table */}
+            {/* top companies by engagement */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">Top Companies by Engagement</h2>
               <div className="overflow-x-auto">
