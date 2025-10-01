@@ -8,7 +8,7 @@ import {
   BriefcaseIcon,
   DocumentTextIcon,
   EyeIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   CalendarIcon,
   UserGroupIcon,
   ChartBarIcon,
