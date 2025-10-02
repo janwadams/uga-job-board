@@ -1,51 +1,34 @@
-// api/jobs/track-event.ts - tracks when users view or interact with job postings
-
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
-// create admin client to bypass row-level security
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // only accept post requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // get the data from the request
-  // now also accepting userId to track which user performed the action
-  const { jobId, eventType, userId } = req.body;
+  const { jobId, eventType } = req.body;
 
-  // make sure we have the required fields
   if (!jobId || !eventType) {
     return res.status(400).json({ error: 'Job ID and event type are required.' });
   }
 
   try {
-    // insert the tracking event into the database
-    // now includes user_id if provided (can be null for anonymous users)
     const { data, error } = await supabaseAdmin
       .from('job_analytics')
-      .insert([{ 
-        job_id: jobId, 
-        event_type: eventType,
-        user_id: userId || null // track which user did this action (if logged in)
-      }]);
+      .insert([{ job_id: jobId, event_type: eventType }]);
 
-    // check if the insert failed
     if (error) {
       console.error('Error inserting event:', error);
       return res.status(500).json({ error: 'Failed to insert event.' });
     }
 
-    // success - return confirmation
     return res.status(200).json({ message: 'Event tracked successfully.', data });
-    
   } catch (error) {
-    // catch any unexpected errors
     console.error('Server error:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
   }

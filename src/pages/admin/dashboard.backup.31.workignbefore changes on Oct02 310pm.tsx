@@ -329,33 +329,11 @@ export default function AdminDashboard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-red-800">Admin Dashboard</h1>
         <div className="flex space-x-4">
-          {/* existing analytics button */}
           <Link href="/admin/analytics">
             <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
               View Analytics
             </button>
           </Link>
-          
-          {/* new buttons for the three governance features */}
-          <Link href="/admin/content-review">
-            <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-              Content Review
-            </button>
-          </Link>
-          
-          <Link href="/admin/archive-reports">
-            <button className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-              Archive Reports
-            </button>
-          </Link>
-          
-          <Link href="/admin/platform-effectiveness">
-            <button className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
-              Platform Health
-            </button>
-          </Link>
-          
-          {/* existing create admin button that only shows on users tab */}
           {activeTab === 'users' && (
             <button
               onClick={() => setShowCreateAdmin(true)}
