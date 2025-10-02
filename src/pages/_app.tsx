@@ -1,4 +1,5 @@
 //pages/_app.tsx
+// added import '../styles/mobile-fixes.css'; on 10/02
 
 import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { SessionContextProvider, Session } from '@supabase/auth-helpers-react';
@@ -6,6 +7,7 @@ import { AppProps } from 'next/app';
 import { useState } from 'react';
 import Navbar from 'components/Navbar';
 import 'styles/globals.css';
+import '../styles/mobile-fixes.css';
 
 function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
   // Your existing Supabase client setup is preserved
