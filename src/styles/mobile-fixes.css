@@ -1,48 +1,78 @@
-/* mobile-specific fixes for better visual appearance; /src/styles/mobile-fixes.css */
+/* comprehensive mobile fixes for all roles and pages ; mobile-fixes.css*/
 
-/* global mobile improvements */
-@media (max-width: 640px) {
-  /* fix body padding and prevent horizontal scroll */
-  body {
-    padding: 0;
-    margin: 0;
+/* general mobile fixes */
+@media (max-width: 768px) {
+  /* prevent horizontal scroll on all pages */
+  html, body {
     overflow-x: hidden;
+    max-width: 100vw;
+    margin: 0;
+    padding: 0;
   }
 
-  /* fix header/navigation on mobile */
-  nav, header {
-    padding: 0.75rem 1rem;
+  /* fix all containers to prevent overflow */
+  div, section, main, header, nav {
+    max-width: 100vw;
   }
 
-  /* fix UGA header logo and nav buttons */
-  .bg-uga-red {
+  /* fix main container padding */
+  .max-w-7xl {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* === navigation fixes === */
+  header {
+    min-height: 60px;
+  }
+
+  /* === admin dashboard specific === */
+  /* fix admin button row that was overflowing */
+  .flex.space-x-4 {
     flex-wrap: wrap;
-    padding: 0.5rem;
-  }
-
-  /* make buttons stack properly on mobile */
-  nav button, 
-  nav a {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    white-space: nowrap;
-  }
-
-  /* fix sign up/login buttons in header */
-  nav .flex {
     gap: 0.5rem;
   }
 
-  /* content review dashboard fixes */
-  .grid.grid-cols-4 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
+  /* make admin navigation buttons stack properly */
+  .flex.space-x-4 > a > button,
+  .flex.space-x-4 > button {
+    min-width: 100px;
+    font-size: 0.75rem;
+    padding: 0.5rem;
   }
 
-  /* stats cards on mobile */
-  .bg-white.rounded-lg.shadow {
-    margin: 0.5rem;
-    padding: 1rem;
+  /* fix admin tables */
+  .overflow-x-auto {
+    max-width: calc(100vw - 1.5rem);
+  }
+
+  table {
+    font-size: 0.75rem;
+  }
+
+  th, td {
+    padding: 0.375rem;
+    font-size: 0.75rem;
+  }
+
+  /* hide less important table columns on mobile */
+  @media (max-width: 640px) {
+    th:nth-child(n+5),
+    td:nth-child(n+5) {
+      display: none;
+    }
+  }
+
+  /* === content review page fixes === */
+  /* fix stat cards grid */
+  .grid.grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  /* fix individual stat cards */
+  .bg-white.rounded-lg.shadow.p-6 {
+    padding: 0.75rem;
   }
 
   /* fix tab navigation */
@@ -57,144 +87,203 @@
     display: none;
   }
 
-  nav.-mb-px button {
+  nav.-mb-px > button {
     flex-shrink: 0;
+    white-space: nowrap;
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
   }
 
-  /* fix job cards on mobile */
-  .p-6 {
-    padding: 1rem;
+  /* === student dashboard fixes === */
+  /* fix job cards */
+  .border.bg-white.rounded-lg {
+    margin: 0.25rem;
   }
 
-  /* fix issue flags/badges */
+  /* fix filter sidebar on mobile */
+  .w-64 {
+    width: 100%;
+  }
+
+  /* stack job type badges */
   .flex.flex-wrap.gap-2 {
-    gap: 0.5rem;
+    gap: 0.25rem;
   }
 
-  .px-2.py-1.rounded {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
+  /* === faculty/rep dashboard fixes === */
+  /* fix form inputs */
+  input, textarea, select {
+    font-size: 16px; /* prevents zoom on ios */
+    max-width: 100%;
   }
 
-  /* fix action buttons */
-  .flex.gap-2 {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .px-3.py-1 {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    min-width: 4rem;
-  }
-
-  /* fix tables on admin dashboard */
-  table {
-    font-size: 0.75rem;
-  }
-
-  th, td {
-    padding: 0.5rem 0.25rem;
-  }
-
-  /* hide less important columns on mobile */
-  th:nth-child(n+4),
-  td:nth-child(n+4) {
-    display: none;
-  }
-
-  /* main container padding */
-  .max-w-7xl {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-  }
-
-  /* fix back to admin button position */
-  .bg-gray-500.text-white {
-    position: relative;
-    margin-top: 0.5rem;
-    width: auto;
-  }
-
-  /* fix stat cards text size */
-  .text-2xl {
-    font-size: 1.5rem;
-  }
-
-  .text-sm {
-    font-size: 0.875rem;
-  }
-
-  /* fix admin dashboard button row */
-  .flex.space-x-4 {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .flex.space-x-4 > * {
-    flex: 1 1 calc(50% - 0.25rem);
-    min-width: 120px;
-    font-size: 0.75rem;
-    padding: 0.5rem;
-  }
-
-  /* fix job listing cards */
-  .border.p-4.rounded {
-    padding: 0.75rem;
-    margin: 0.5rem 0;
-  }
-
-  /* ensure modals fit screen */
+  /* fix modal positioning */
   .fixed.inset-0 {
     padding: 1rem;
   }
 
-  .max-w-2xl {
+  .max-w-2xl, .max-w-md, .max-w-lg {
     max-width: calc(100vw - 2rem);
+    margin: 1rem;
   }
 
-  /* fix text truncation */
-  .truncate, .line-clamp-1 {
+  /* === job posting pages === */
+  /* fix job detail pages */
+  .prose {
     max-width: 100%;
   }
-}
 
-/* additional mobile improvements for specific pages */
-@media (max-width: 480px) {
-  /* even smaller screens */
+  /* fix action buttons */
+  .flex.gap-2 > button,
+  .flex.gap-2 > a {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  /* === landing page fixes === */
+  /* fix hero section stats */
+  .grid.grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .grid.grid-cols-3 > div {
+    padding: 0.5rem;
+  }
+
+  /* fix job filter buttons */
+  .px-4.py-1\\.5 {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  /* === text size adjustments === */
+  .text-4xl {
+    font-size: 1.75rem;
+  }
+
   .text-3xl {
     font-size: 1.5rem;
+  }
+
+  .text-2xl {
+    font-size: 1.25rem;
   }
 
   .text-xl {
     font-size: 1.125rem;
   }
 
+  /* fix stat numbers */
+  .text-3xl.font-bold {
+    font-size: 1.5rem;
+  }
+
+  /* === button improvements === */
+  button {
+    min-height: 44px; /* ios touch target size */
+    touch-action: manipulation; /* prevent double-tap zoom */
+  }
+
+  /* make small buttons bigger on mobile */
+  .px-3.py-1 {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  /* === card layouts === */
+  /* stack cards on mobile */
+  .grid-cols-1.md\\:grid-cols-2.xl\\:grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* fix card padding */
+  .p-6 {
+    padding: 1rem;
+  }
+
+  .p-4 {
+    padding: 0.75rem;
+  }
+}
+
+/* very small screens (phones in portrait) */
+@media (max-width: 480px) {
+  /* stack everything vertically */
+  .flex:not(.flex-col) {
+    flex-wrap: wrap;
+  }
+
+  /* full width buttons on very small screens */
+  button:not(.w-auto) {
+    width: 100%;
+  }
+
+  /* hide "back to admin" button text, show arrow only */
+  .bg-gray-500.text-white span {
+    display: none;
+  }
+
+  .bg-gray-500.text-white::after {
+    content: "←";
+    font-size: 1.25rem;
+  }
+
+  /* further reduce text sizes */
   .text-lg {
     font-size: 1rem;
   }
 
-  /* stack all grid items on very small screens */
-  .grid {
+  .text-base {
+    font-size: 0.875rem;
+  }
+
+  .text-sm {
+    font-size: 0.75rem;
+  }
+
+  /* single column for all grids */
+  [class*="grid-cols-"] {
     grid-template-columns: 1fr !important;
   }
 
-  /* make all buttons full width on very small screens */
-  button {
-    width: 100%;
+  /* fix admin navigation buttons */
+  .flex.space-x-4 > a,
+  .flex.space-x-4 > button {
+    flex: 1 1 calc(50% - 0.25rem);
   }
 
-  /* fix navigation header */
-  .flex.justify-between {
-    flex-direction: column;
-    gap: 0.75rem;
+  /* hide table actions on very small screens */
+  th:last-child,
+  td:last-child {
+    min-width: 100px;
   }
+}
 
-  /* hide "back to admin" text, show arrow only */
-  .bg-gray-500.text-white {
-    padding: 0.5rem;
-  }
+/* fix for specific issue badges */
+.px-2.py-1.rounded {
+  white-space: nowrap;
+  font-size: 0.625rem;
+}
+
+/* ensure modals are scrollable */
+.overflow-y-auto {
+  max-height: calc(100vh - 4rem);
+}
+
+/* fix dropdown menus on mobile */
+.absolute.right-0 {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* prevent zoom on form inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  font-size: 16px !important;
 }
