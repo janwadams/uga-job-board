@@ -9,28 +9,28 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// search icon svg for the uga global links
+// Search Icon SVG for the UGA global links
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
 );
 
-// mobile menu hamburger icon
+// mobile menu icon
 const MenuIcon = () => (
     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
     </svg>
 );
 
-// close x icon for mobile menu
+// close icon for mobile menu
 const CloseIcon = () => (
     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
 );
 
-// main navbar component that appears on all pages
+// --- Unified Navbar Component ---
 export default function Navbar() {
   const [session, setSession] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<{ first_name: string, role: string } | null>(null);
@@ -89,7 +89,7 @@ export default function Navbar() {
     <header className="w-full bg-uga-red text-uga-white shadow-md">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
-          {/* logo section - smaller on mobile, bigger on desktop */}
+          {/* logo section - responsive sizing */}
           <Link href="/">
             <div className="flex items-center space-x-2 sm:space-x-4 cursor-pointer group">
               <img 
@@ -97,20 +97,20 @@ export default function Navbar() {
                 alt="UGA Logo" 
                 className="h-8 sm:h-12 w-auto"
               />
-              {/* hide full university name on small screens */}
+              {/* hide text on very small screens */}
               <span className="hidden sm:block text-lg md:text-2xl font-oswald font-bold text-uga-white transition-colors tracking-wide">
                 UNIVERSITY OF GEORGIA
               </span>
-              {/* show short version on mobile */}
+              {/* short version for mobile */}
               <span className="sm:hidden text-lg font-oswald font-bold text-uga-white">
                 UGA
               </span>
             </div>
           </Link>
 
-          {/* desktop navigation - hidden on tablets and phones */}
+          {/* desktop navigation - hidden on mobile */}
           <div className="hidden md:flex items-center space-x-6">
-            {/* main app navigation links */}
+            {/* app-specific links */}
             <div className="flex items-center space-x-6 font-merriweather-sans">
                  {session ? (
                   <>
@@ -146,10 +146,10 @@ export default function Navbar() {
                 )}
             </div>
 
-            {/* vertical divider line */}
+            {/* separator */}
             <div className="h-6 w-px bg-white bg-opacity-30"></div>
 
-            {/* uga external links */}
+            {/* uga global links */}
             <div className="flex items-center space-x-5 text-sm font-merriweather-sans">
                 <a href="https://www.uga.edu" target="_blank" rel="noopener noreferrer" className="hover:text-gray-200">UGA</a>
                 <a href="https://give.uga.edu/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-200">Give</a>
@@ -162,29 +162,27 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* mobile menu hamburger button - visible on tablets and phones */}
+          {/* mobile menu button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-md hover:bg-red-700 transition-colors text-white bg-red-600"
-            aria-label="Toggle menu"
+            className="md:hidden p-2 rounded-md hover:bg-red-700 transition-colors"
           >
             {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
           </button>
         </div>
 
-        {/* mobile dropdown menu - shows when hamburger is clicked */}
+        {/* mobile menu dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden pb-4 bg-uga-red">
+          <div className="md:hidden pb-4">
             <div className="flex flex-col space-y-3 pt-4 border-t border-red-700">
               {session ? (
                 <>
-                  {/* logged in user mobile menu */}
-                  <span className="text-sm text-white opacity-90 px-3">Welcome, {userProfile?.first_name || 'User'}</span>
+                  <span className="text-sm opacity-90">Welcome, {userProfile?.first_name || 'User'}</span>
                   {router.pathname === "/" && userProfile && (
                     <Link href={getDashboardLink()}>
                       <span 
                         onClick={() => setMobileMenuOpen(false)}
-                        className="block mx-3 px-3 py-2 text-sm font-semibold bg-white text-uga-red rounded-md text-center"
+                        className="block px-3 py-2 text-sm font-semibold bg-white text-uga-red rounded-md text-center"
                       >
                         My Dashboard
                       </span>
@@ -192,18 +190,17 @@ export default function Navbar() {
                   )}
                   <button
                     onClick={handleSignOut}
-                    className="mx-3 px-3 py-2 text-sm font-semibold bg-red-700 text-white rounded-md text-left"
+                    className="px-3 py-2 text-sm font-semibold bg-red-700 rounded-md text-left"
                   >
                     Sign Out
                   </button>
                 </>
               ) : (
                 <>
-                  {/* not logged in mobile menu with login and signup options */}
                   <Link href="/login">
                     <span 
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block mx-3 px-3 py-2 text-white bg-red-700 hover:bg-red-800 rounded-md"
+                      className="block px-3 py-2 text-sm hover:bg-red-700 rounded-md"
                     >
                       Login
                     </span>
@@ -211,7 +208,7 @@ export default function Navbar() {
                   <Link href="/signup-student">
                     <span 
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block mx-3 px-3 py-2 text-white bg-red-700 hover:bg-red-800 rounded-md"
+                      className="block px-3 py-2 text-sm hover:bg-red-700 rounded-md"
                     >
                       Student Sign Up
                     </span>
@@ -219,7 +216,7 @@ export default function Navbar() {
                   <Link href="/signup">
                     <span 
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block mx-3 px-3 py-2 font-semibold bg-white text-uga-red rounded-md text-center"
+                      className="block px-3 py-2 text-sm font-semibold bg-white text-uga-red rounded-md text-center"
                     >
                       Company Sign Up
                     </span>
@@ -227,15 +224,15 @@ export default function Navbar() {
                 </>
               )}
               
-              {/* uga external links for mobile */}
+              {/* mobile uga links */}
               <div className="border-t border-red-700 pt-3 mt-3">
-                <div className="grid grid-cols-3 gap-2 text-xs px-3">
-                  <a href="https://www.uga.edu" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">UGA</a>
-                  <a href="https://give.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Give</a>
-                  <a href="https://calendar.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Calendar</a>
-                  <a href="https://news.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">News</a>
-                  <a href="https://my.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">MyUGA</a>
-                  <a href="https://www.uga.edu/search.php" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Search</a>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <a href="https://www.uga.edu" target="_blank" rel="noopener noreferrer" className="text-center py-2">UGA</a>
+                  <a href="https://give.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2">Give</a>
+                  <a href="https://calendar.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2">Calendar</a>
+                  <a href="https://news.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2">News</a>
+                  <a href="https://my.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2">MyUGA</a>
+                  <a href="https://www.uga.edu/search.php" target="_blank" rel="noopener noreferrer" className="text-center py-2">Search</a>
                 </div>
               </div>
             </div>
