@@ -162,15 +162,23 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* mobile menu hamburger button - visible on tablets and phones */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-md hover:bg-red-700 transition-colors text-white bg-red-600"
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
-          </button>
-        </div>
+   
+		
+		{/* mobile menu hamburger button - make it stand out */}
+		<button
+		  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+		  className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100"
+		  aria-label="Toggle menu"
+		>
+		  <div className="flex items-center gap-2">
+			{mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+			<span className="text-sm font-medium">Menu</span>
+		  </div>
+		</button>
+		
+		
+		
+		
 
         {/* mobile dropdown menu - shows when hamburger is clicked */}
         {mobileMenuOpen && (
