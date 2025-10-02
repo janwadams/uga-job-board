@@ -209,28 +209,16 @@ export default function StudentDashboard() {
   const fetchAllJobs = async () => {
     setLoadingJobs(true);
     try {
-      // get current date to filter out expired jobs
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('status', 'active')
-        .gte('deadline', today.toISOString()) // only get jobs with deadline today or in the future
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching jobs:', error);
       } else {
-        // additional client-side filter to double-check no expired jobs slip through
-        const nonExpiredJobs = (data || []).filter(job => {
-          if (!job.deadline) return true; // if no deadline, show it
-          const deadlineDate = new Date(job.deadline);
-          const now = new Date();
-          return deadlineDate >= now; // only show if deadline is in the future
-        });
-        setAllJobs(nonExpiredJobs);
+        setAllJobs(data || []);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -261,20 +249,10 @@ export default function StudentDashboard() {
       if (error) {
         console.error('Error fetching saved jobs:', error);
       } else if (data) {
-        // filter out expired saved jobs too
         const transformedSavedJobs: SavedJob[] = data
         .map((item: any) => {
             const jobData = Array.isArray(item.jobs) ? item.jobs[0] : item.jobs;
             if (!jobData) return null;
-            
-            // check if job is expired
-            if (jobData.deadline) {
-              const deadlineDate = new Date(jobData.deadline);
-              const now = new Date();
-              if (deadlineDate < now) {
-                return null; // skip expired jobs
-              }
-            }
             
             const savedJob: SavedJob = {
                 id: item.id,
@@ -370,7 +348,7 @@ export default function StudentDashboard() {
         const deadline = new Date(job.deadline);
         const now = new Date();
         const daysUntil = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-        return daysUntil >= 0 && daysUntil <= 7; // only upcoming, not expired
+        return daysUntil >= 0 && daysUntil <= 7;
       }).sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
 
       setUpcomingDeadlines(upcomingJobs);
@@ -639,9 +617,6 @@ export default function StudentDashboard() {
     const isExpired = daysUntil !== null && daysUntil < 0;
     const matchPercent = getMatchPercentage(job);
 
-    // don't show expired jobs
-    if (isExpired) return null;
-
     return (
       <div 
         className={`border-b hover:bg-gray-50 p-4 cursor-pointer transition-all ${
@@ -678,10 +653,12 @@ export default function StudentDashboard() {
           <div className="flex items-center gap-3">
             {job.deadline && (
               <span className={`text-sm font-medium ${
+                isExpired ? 'text-red-600' :
                 daysUntil !== null && daysUntil <= 3 ? 'text-orange-600' :
                 'text-gray-600'
               }`}>
-                {daysUntil === 0 ? 'Due today' :
+                {isExpired ? 'Expired' :
+                 daysUntil === 0 ? 'Due today' :
                  `${daysUntil}d left`}
               </span>
             )}
@@ -719,9 +696,6 @@ export default function StudentDashboard() {
     const isExpired = daysUntil !== null && daysUntil < 0;
     const hasApplied = applications.some(app => app.job.id === job.id);
     const matchPercent = getMatchPercentage(job);
-
-    // don't render expired jobs at all
-    if (isExpired) return null;
 
     return (
       <div className="bg-white rounded-lg shadow hover:shadow-lg transition-all duration-200 overflow-hidden">
@@ -802,11 +776,13 @@ export default function StudentDashboard() {
             
             {job.deadline && (
               <span className={`flex items-center gap-1 font-medium ${
+                isExpired ? 'text-red-600' :
                 daysUntil !== null && daysUntil <= 3 ? 'text-orange-600' :
                 'text-gray-600'
               }`}>
                 <CalendarIcon className="h-4 w-4" />
-                {daysUntil === 0 ? 'Due today' :
+                {isExpired ? 'Expired' :
+                 daysUntil === 0 ? 'Due today' :
                  daysUntil === 1 ? 'Due tomorrow' :
                  `${daysUntil} days left`}
               </span>
@@ -838,7 +814,7 @@ export default function StudentDashboard() {
               </button>
             </Link>
             
-            {!hasApplied && (
+            {!isExpired && !hasApplied && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -857,7 +833,13 @@ export default function StudentDashboard() {
               </span>
             )}
             
-            {savedJob && job.deadline && (
+            {isExpired && (
+              <span className="flex-1 px-4 py-2 bg-gray-100 text-gray-500 rounded-md text-sm font-medium text-center">
+                Expired
+              </span>
+            )}
+            
+            {savedJob && job.deadline && !isExpired && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -886,9 +868,6 @@ export default function StudentDashboard() {
     const daysUntil = job.deadline ? getDaysUntilDeadline(job.deadline) : null;
     const isExpired = daysUntil !== null && daysUntil < 0;
     const matchPercent = getMatchPercentage(job);
-
-    // don't show expired jobs
-    if (isExpired) return null;
 
     return (
       <div className="bg-white h-full overflow-y-auto">
@@ -941,16 +920,20 @@ export default function StudentDashboard() {
 
           {/* action buttons */}
           <div className="flex gap-3 mb-6">
-            {!hasApplied ? (
+            {!hasApplied && !isExpired ? (
               <button
                 onClick={() => openQuickApplyModal(job)}
                 className="flex-1 px-4 py-2 bg-uga-red text-white rounded-lg hover:bg-red-800 font-medium"
               >
                 Apply Now
               </button>
-            ) : (
+            ) : hasApplied ? (
               <span className="flex-1 px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium text-center">
                 ✔ Applied
+              </span>
+            ) : (
+              <span className="flex-1 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg font-medium text-center">
+                Expired
               </span>
             )}
             
@@ -1009,6 +992,7 @@ export default function StudentDashboard() {
               <div>
                 <h3 className="font-semibold text-gray-900 mb-2">Application Deadline</h3>
                 <p className={`text-sm font-medium ${
+                  isExpired ? 'text-red-600' :
                   daysUntil !== null && daysUntil <= 3 ? 'text-orange-600' :
                   'text-gray-600'
                 }`}>
@@ -1018,7 +1002,7 @@ export default function StudentDashboard() {
                     month: 'long', 
                     day: 'numeric' 
                   })}
-                  {daysUntil !== null && ` (${daysUntil} days left)`}
+                  {!isExpired && daysUntil !== null && ` (${daysUntil} days left)`}
                 </p>
               </div>
             )}
@@ -1433,9 +1417,7 @@ export default function StudentDashboard() {
                 ) : (
 				
 				
-						
-				
-				
+			
                   // card view for saved jobs
                   <div className="grid gap-4 md:grid-cols-2">
                     {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
@@ -1667,3 +1649,4 @@ export default function StudentDashboard() {
     </div>
   );
 }
+				
