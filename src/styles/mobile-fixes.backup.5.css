@@ -110,45 +110,7 @@
     gap: 0.5rem;
   }
 
-  /* === faculty dashboard fixes === */
-  /* fix faculty dashboard button row */
-  .max-w-7xl .flex.gap-4 {
-    flex-wrap: wrap;
-  }
-  
-  /* stack faculty dashboard buttons on mobile */
-  .max-w-7xl .flex.gap-4 > a,
-  .max-w-7xl .flex.gap-4 > button {
-    flex: 1 1 100%;
-    width: 100%;
-  }
-  
-  /* fix faculty metrics grid to 2 columns */
-  .grid.md\:grid-cols-5 {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 0.75rem;
-  }
-  
-  /* make the applications card span full width */
-  .grid.md\:grid-cols-5 > div:last-child {
-    grid-column: 1 / -1;
-  }
-  
-  /* fix faculty dashboard title and buttons container */
-  .flex.justify-between.items-center.mb-8 {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-  }
-  
-  /* ensure faculty buttons are full width and properly styled */
-  .bg-purple-600,
-  .bg-blue-600,
-  .bg-red-700 {
-    width: 100%;
-    text-align: center;
-    justify-content: center;
-  }
+  /* === admin dashboard specific === */
   /* fix admin button row that was overflowing */
   .flex.space-x-4 {
     flex-wrap: wrap;
@@ -183,63 +145,6 @@
   th, td {
     padding: 0.375rem;
     font-size: 0.75rem;
-  }
-
-  /* === faculty dashboard specific === */
-  /* fix faculty dashboard header layout */
-  .bg-gray-50 .flex.justify-between.items-center.mb-8 {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-  }
-  
-  /* stack faculty dashboard action buttons vertically */
-  .bg-gray-50 .flex.gap-4 {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  /* make faculty buttons full width on mobile */
-  .bg-gray-50 .flex.gap-4 > a {
-    width: 100%;
-  }
-  
-  .bg-gray-50 .flex.gap-4 button {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  /* fix faculty metrics grid - change from 5 cols to 2 cols */
-  .grid.md\:grid-cols-5 {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 0.75rem;
-  }
-  
-  /* make the applications card (last one) span full width */
-  .grid.md\:grid-cols-5 > div:last-child {
-    grid-column: 1 / -1;
-  }
-  
-  /* shorten button text on mobile for faculty */
-  @media (max-width: 480px) {
-    .bg-purple-600.text-white span {
-      display: none;
-    }
-    .bg-purple-600.text-white::after {
-      content: "Applications";
-    }
-    .bg-blue-600.text-white span {
-      display: none;
-    }
-    .bg-blue-600.text-white::after {
-      content: "Analytics";
-    }
-    .bg-red-700.text-white span {
-      display: none;
-    }
-    .bg-red-700.text-white::after {
-      content: "+ New Job";
-    }
   }
 
   /* === content review page fixes === */
@@ -599,5 +504,37 @@ select {
   input::placeholder {
     color: #9ca3af;
     opacity: 1;
+  }
+}
+
+
+
+
+/* AGGRESSIVE FIX for password toggle positioning on mobile */
+@media (max-width: 768px) {
+  /* target the password containers specifically */
+  div[style*="position: relative"] > button.password-toggle-btn,
+  div[style*="position: relative"] > button[aria-label*="password"] {
+    position: absolute !important;
+    right: 8px !important;
+    left: unset !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 99999 !important;
+  }
+  
+  /* override ALL other button positioning for password toggles */
+  .password-toggle-btn {
+    right: 8px !important;
+    left: unset !important;
+    position: absolute !important;
+    transform: translateY(-50%) !important;
+  }
+}
+
+/* Also fix the problematic line 280 */
+@media (max-width: 768px) {
+  .relative button[type="button"]:not(.password-toggle-btn) {
+    right: 0.5rem;
   }
 }
