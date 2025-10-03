@@ -503,3 +503,20 @@ select {
     right: 0.5rem;
   }
 }
+
+/* Fix password toggle button positioning on mobile */
+@media (max-width: 768px) {
+  /* Ensure password toggle buttons stay on the right */
+  div[style*="position: relative"] > button[aria-label*="password visibility"] {
+    right: 8px !important;
+    left: auto !important;
+    transform: translateY(-50%) !important;
+  }
+  
+  /* Ensure password inputs have proper padding */
+  input[type="password"],
+  input[type="text"][name="password"],
+  input[type="text"][name="confirmPassword"] {
+    padding-right: 45px !important;
+  }
+}

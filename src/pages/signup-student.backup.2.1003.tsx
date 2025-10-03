@@ -1,7 +1,7 @@
-//company rep sign up form
-//pages/signup.tsx
+//pages/signup-student.tsx
 
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 
 // eye icon for showing password
@@ -19,65 +19,67 @@ const EyeOffIcon = () => (
   </svg>
 );
 
-export default function Signup() {
+export default function StudentSignupPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    companyName: '',
   });
   
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
-
-  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
+  
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage('');
     setError('');
-
+    setMessage('');
+    
+    // --- Front-end Validation ---
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
-
+    if (!formData.email.toLowerCase().endsWith('.edu')) {
+      setError('A valid .edu email address is required.');
+      return;
+    }
+    
     setLoading(true);
-
+    
     try {
-      const response = await fetch('/api/auth/register-rep', {
+      const response = await fetch('/api/auth/register-student', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email: formData.email, 
-          password: formData.password, 
-          company_name: formData.companyName,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
         }),
       });
-
+      
       const data = await response.json();
-
+      
       if (response.ok) {
-        setMessage(data.message);
+        setMessage(data.message + ' Redirecting to login...');
+        setTimeout(() => {
+          router.push('/login');
+        }, 2000);
       } else {
-        setError(data.error);
+        setError(data.error || 'An unknown error occurred.');
       }
     } catch (err) {
-      console.error('Signup error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -87,57 +89,24 @@ export default function Signup() {
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center text-red-700">Company Rep Signup</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center text-red-700">UGA Student Sign Up</h1>
         <form onSubmit={handleSignup} className="space-y-4">
           <div className="flex gap-4">
-              <input
-                name="firstName"
-                type="text"
-                placeholder="First Name"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-                className="w-full border p-2 rounded"
-              />
-              <input
-                name="lastName"
-                type="text"
-                placeholder="Last Name"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-                className="w-full border p-2 rounded"
-              />
+            <input name="firstName" type="text" placeholder="First Name" value={formData.firstName} onChange={handleChange} required className="w-full border p-2 rounded" />
+            <input name="lastName" type="text" placeholder="Last Name" value={formData.lastName} onChange={handleChange} required className="w-full border p-2 rounded" />
           </div>
-          <input
-            name="companyName"
-            type="text"
-            placeholder="Company Name"
-            value={formData.companyName}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          />
-          <input
-            name="email"
-            type="email"
-            placeholder="Company Email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="w-full border p-2 rounded"
-          />
+          <input name="email" type="email" placeholder="UGA Email Address (e.g., test@uga.edu)" value={formData.email} onChange={handleChange} required className="w-full border p-2 rounded" />
           
           {/* Password Field with Toggle */}
           <div style={{ position: 'relative', width: '100%' }}>
-            <input
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded"
+            <input 
+              name="password" 
+              type={showPassword ? 'text' : 'password'} 
+              placeholder="Password" 
+              value={formData.password} 
+              onChange={handleChange} 
+              required 
+              className="w-full border p-2 rounded" 
               style={{ paddingRight: '45px' }}
             />
             <button 
@@ -165,14 +134,14 @@ export default function Signup() {
           
           {/* Confirm Password Field with Toggle */}
           <div style={{ position: 'relative', width: '100%' }}>
-            <input
-              name="confirmPassword"
-              type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded"
+            <input 
+              name="confirmPassword" 
+              type={showConfirmPassword ? 'text' : 'password'} 
+              placeholder="Confirm Password" 
+              value={formData.confirmPassword} 
+              onChange={handleChange} 
+              required 
+              className="w-full border p-2 rounded" 
               style={{ paddingRight: '45px' }}
             />
             <button 
@@ -197,18 +166,15 @@ export default function Signup() {
               {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
             </button>
           </div>
-          
-          <button
-            className="w-full bg-red-800 hover:bg-red-900 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-gray-400"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Submitting...' : 'Request Account'}
+
+          {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+          {message && <p className="text-green-600 text-sm text-center">{message}</p>}
+
+          <button type="submit" disabled={loading} className="w-full bg-red-700 hover:bg-red-800 text-white font-semibold py-2 px-4 rounded disabled:bg-gray-400">
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
-        {message && <p className="text-green-500 text-center mt-4">{message}</p>}
-        {error && <p className="text-red-500 text-center mt-4">{error}</p>}
-         <p className="text-center text-sm text-gray-600 mt-4">
+        <p className="text-center text-sm text-gray-600 mt-4">
           Already have an account?{' '}
           <Link href="/login">
             <span className="text-red-700 hover:underline cursor-pointer">Log In</span>
