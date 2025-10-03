@@ -121,7 +121,6 @@ export default function LoginPage() {
           />
           <button
             type="button"
-            className="password-toggle-btn"
             onClick={() => setShowPassword(!showPassword)}
             style={{
               position: 'absolute',
