@@ -134,7 +134,7 @@ export default function LoginPage() {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
 			  zIndex: 10
             }}
             aria-label="Toggle password visibility"
