@@ -138,14 +138,14 @@ export default function Signup() {
               onChange={handleChange}
               required
               className="w-full border p-2 rounded"
-              style={{ paddingRight: '50px !important' }}
+              style={{ paddingRight: '45px' }}
             />
             <button 
               type="button" 
               onClick={() => setShowPassword(!showPassword)} 
               style={{
                 position: 'absolute',
-                right: '8px !important',
+                right: '8px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'none',
@@ -155,9 +155,7 @@ export default function Signup() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                zIndex: 100,
-                width: '35px',
-                height: '35px'
+                zIndex: 10
               }}
               aria-label="Toggle password visibility"
             >
@@ -175,14 +173,14 @@ export default function Signup() {
               onChange={handleChange}
               required
               className="w-full border p-2 rounded"
-              style={{ paddingRight: '50px !important' }}
+              style={{ paddingRight: '45px' }}
             />
             <button 
               type="button" 
               onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
               style={{
                 position: 'absolute',
-                right: '8px !important',
+                right: '8px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 background: 'none',
@@ -192,9 +190,7 @@ export default function Signup() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                zIndex: 100,
-                width: '35px',
-                height: '35px'
+                zIndex: 10
               }}
               aria-label="Toggle confirm password visibility"
             >
