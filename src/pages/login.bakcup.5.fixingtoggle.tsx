@@ -110,19 +110,33 @@ export default function LoginPage() {
         />
 
         {/* password input container with toggle button */}
-        <div className="relative w-full">
+        <div style={{ position: 'relative', width: '100%' }}>
           <input
             type={showPassword ? 'text' : 'password'}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full border p-2 pr-10 rounded"
+            className="w-full border p-2 rounded"
+            style={{ paddingRight: '45px' }}  // make room for the eye icon on the right
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2 top-1/2 -translate-y-1/2"
+            style={{
+              position: 'absolute',
+              right: '8px',  // position from the right edge
+              top: '50%',  // center vertically
+              transform: 'translateY(-50%)',  // center vertically
+              background: 'none',
+              border: 'none',
+              padding: '4px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+			  zIndex: 10
+            }}
             aria-label="Toggle password visibility"
           >
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
