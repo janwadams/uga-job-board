@@ -483,3 +483,23 @@ select {
     margin: 0 !important;
   }
 }
+
+
+/* fix password field toggle icon overlap on mobile */
+@media (max-width: 768px) {
+  /* add padding to password inputs to make room for toggle icon */
+  input[type="password"] {
+    padding-right: 3rem !important;
+  }
+  
+  /* ensure placeholder text is visible */
+  input::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+  
+  /* fix toggle button positioning */
+  .relative button[type="button"] {
+    right: 0.5rem;
+  }
+}
