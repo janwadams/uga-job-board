@@ -117,7 +117,7 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
             className="w-full border p-2 rounded"
-            style={{ paddingRight: '10px' }}  // add extra padding for the toggle button
+            style={{ paddingRight: '60px' }}  // add extra padding for the toggle button
           />
           <button
             type="button"
