@@ -29,17 +29,27 @@ const SearchIcon = () => (
 
 
 // mobile menu hamburger icon - using plain text
+//const MenuIcon = () => (
+  //  <div style={{ 
+    //    fontSize: '14px', 
+      ///  fontWeight: 'bold', 
+        //color: '#BA0C2F',
+        //lineHeight: '1',
+        //fontFamily: 'monospace'
+    //}}>
+     //   ≡
+    //</div>
+//);
+
+// mobile menu hamburger icon - using keyboard characters
 const MenuIcon = () => (
-    <div style={{ 
-        fontSize: '14px', 
-        fontWeight: 'bold', 
-        color: '#BA0C2F',
-        lineHeight: '1',
-        fontFamily: 'monospace'
-    }}>
-        ≡
+    <div className="flex flex-col items-center justify-center w-6 h-6">
+        <span style={{ color: '#000', fontSize: '20px', fontWeight: 'bold', lineHeight: '1' }}>|||</span>
     </div>
 );
+
+
+
 
 
 // close x icon for mobile menu
