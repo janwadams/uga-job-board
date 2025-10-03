@@ -481,16 +481,26 @@ select {
   }
 }
 
+
+
 /* fix password field toggle icon positioning on mobile */
 @media (max-width: 768px) {
-  /* force password toggle buttons to stay on the right side */
-  div[style*="position: relative"] > button[aria-label*="password visibility"] {
+  /* force password toggle buttons to stay on the right side with maximum specificity */
+  div[style*="position: relative"] > button[type="button"][aria-label*="password visibility"] {
     position: absolute !important;
     right: 8px !important;
-    left: auto !important;
+    left: unset !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
-    z-index: 10 !important;
+    z-index: 999 !important;
+  }
+  
+  /* override any conflicting button styles for password toggles */
+  .relative > button[type="button"],
+  div > button[onclick*="Password"] {
+    right: 8px !important;
+    left: unset !important;
+    transform: translateY(-50%) !important;
   }
   
   /* make sure password inputs have enough padding for the icon */
