@@ -16,14 +16,19 @@ const SearchIcon = () => (
     </svg>
 );
 
+
 // mobile menu hamburger icon - three lines
 const MenuIcon = () => (
     <div className="w-6 h-6 flex flex-col justify-center gap-1">
-        <div className="w-full h-0.5 bg-uga-red"></div>
-        <div className="w-full h-0.5 bg-uga-red"></div>
-        <div className="w-full h-0.5 bg-uga-red"></div>
+        <div className="w-full h-0.5 bg-black"></div>
+        <div className="w-full h-0.5 bg-black"></div>
+        <div className="w-full h-0.5 bg-black"></div>
     </div>
 );
+
+
+
+
 
 // close x icon for mobile menu
 const CloseIcon = () => (
