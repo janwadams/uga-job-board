@@ -116,14 +116,14 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full border p-2 rounded pr-12"
-            // removed the inline style to use tailwind class pr-12 instead
+            className="w-full border p-2 rounded"
+            style={{ paddingRight: '60px' }}  // add extra padding for the toggle button
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            // removed the inline style, using tailwind positioning
+            className="absolute inset-y-0 right-0 px-3 flex items-center"
+            style={{ right: '5px' }}  // position the button with some spacing from edge
             aria-label="Toggle password visibility"
           >
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
