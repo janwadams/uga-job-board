@@ -438,6 +438,9 @@ select {
   font-size: 0.625rem;
 }
 
+
+
+
 /* fix student dashboard jobs not showing on mobile */
 @media (max-width: 768px) {
   /* ensure main content is visible */
@@ -462,8 +465,8 @@ select {
     max-width: 100vw;
   }
 
-  /* fix any transform that might push content off screen - but not password buttons */
-  [class*="translate"]:not(button[aria-label*="password visibility"]) {
+  /* fix any transform that might push content off screen */
+  [class*="translate"] {
     transform: none !important;
   }
 
@@ -481,28 +484,39 @@ select {
   }
 }
 
-/* fix password field toggle icon positioning on mobile */
+
+/* fix password field toggle icon overlap on mobile */
 @media (max-width: 768px) {
-  /* force password toggle buttons to stay on the right side */
-  div[style*="position: relative"] > button[aria-label*="password visibility"] {
-    position: absolute !important;
-    right: 8px !important;
-    left: auto !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    z-index: 10 !important;
-  }
-  
-  /* make sure password inputs have enough padding for the icon */
-  input[type="password"],
-  input[type="text"][name="password"],
-  input[type="text"][name="confirmPassword"] {
-    padding-right: 45px !important;
+  /* add padding to password inputs to make room for toggle icon */
+  input[type="password"] {
+    padding-right: 3rem !important;
   }
   
   /* ensure placeholder text is visible */
   input::placeholder {
     color: #9ca3af;
     opacity: 1;
+  }
+  
+  /* fix toggle button positioning */
+  .relative button[type="button"] {
+    right: 0.5rem;
+  }
+}
+
+/* Fix password toggle button positioning on mobile */
+@media (max-width: 768px) {
+  /* Ensure password toggle buttons stay on the right */
+  div[style*="position: relative"] > button[aria-label*="password visibility"] {
+    right: 8px !important;
+    left: auto !important;
+    transform: translateY(-50%) !important;
+  }
+  
+  /* Ensure password inputs have proper padding */
+  input[type="password"],
+  input[type="text"][name="password"],
+  input[type="text"][name="confirmPassword"] {
+    padding-right: 45px !important;
   }
 }
