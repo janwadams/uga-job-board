@@ -41,13 +41,10 @@ const SearchIcon = () => (
     //</div>
 //);
 
-// mobile menu hamburger icon - using keyboard characters
+// mobile menu hamburger icon - using text
 const MenuIcon = () => (
-    <div className="flex flex-col items-center justify-center w-6 h-6">
-        <span style={{ color: '#000', fontSize: '20px', fontWeight: 'bold', lineHeight: '1' }}>|||</span>
-    </div>
+    <span style={{ color: '#BA0C2F', fontSize: '12px', fontWeight: 'bold' }}>MENU</span>
 );
-
 
 
 
