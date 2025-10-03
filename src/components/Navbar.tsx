@@ -83,10 +83,7 @@ export default function Navbar() {
 
   return (
     <header className="w-full bg-uga-red text-uga-white shadow-md">
-	
-	<div className="bg-yellow-500 text-black text-center py-2">TEST DEPLOYMENT v3</div>
-	<nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-	
+      <div className="bg-yellow-500 text-black text-center py-2">TEST DEPLOYMENT v3</div>
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* logo section - smaller on mobile, bigger on desktop */}
