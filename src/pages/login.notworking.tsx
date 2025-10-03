@@ -21,10 +21,9 @@ const EyeIcon = () => (
 // eye off icon for hiding password
 const EyeOffIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M8 12a4 4 0 004 4m0 0l6-6m-6 6l-6-6" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a3 3 0 10-4.243 4.243m5.428-2.256a3 3 0 004.243-4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
   </svg>
 );
-
 
 export default function LoginPage() {
   const router = useRouter();
@@ -110,33 +109,19 @@ export default function LoginPage() {
         />
 
         {/* password input container with toggle button */}
-        <div style={{ position: 'relative', width: '100%' }}>
+        <div className="relative w-full">
           <input
             type={showPassword ? 'text' : 'password'}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full border p-2 rounded"
-            style={{ paddingRight: '45px' }}  // make room for the eye icon on the right
+            className="w-full border p-2 pr-12 rounded" // Increased right padding to pr-12
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            style={{
-              position: 'absolute',
-              right: '8px',  // position from the right edge
-              top: '50%',  // center vertically
-              transform: 'translateY(-50%)',  // center vertically
-              background: 'none',
-              border: 'none',
-              padding: '4px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-			  zIndex: 10
-            }}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center" // Changed positioning
             aria-label="Toggle password visibility"
           >
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
