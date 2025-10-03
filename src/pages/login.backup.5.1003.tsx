@@ -125,7 +125,6 @@ export default function LoginPage() {
             style={{
               position: 'absolute',
               right: '8px',  // position from the right edge
-              left: 'auto',  // explicitly unset left positioning
               top: '50%',  // center vertically
               transform: 'translateY(-50%)',  // center vertically
               background: 'none',
@@ -135,7 +134,7 @@ export default function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 999  // much higher z-index to ensure it stays on top
+              zIndex: 10
             }}
             aria-label="Toggle password visibility"
           >
