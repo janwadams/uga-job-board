@@ -1,4 +1,5 @@
 //components/Navbar.tsx
+//testing
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -16,14 +17,36 @@ const SearchIcon = () => (
     </svg>
 );
 
-// mobile menu hamburger icon - using simple text that will definitely show
+// mobile menu hamburger icon
+//const MenuIcon = () => (
+  //  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    //    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    //</svg>
+//);
+
+// mobile menu hamburger icon - three lines
+//const MenuIcon = () => (
+  //  <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    //    <rect x="4" y="6" width="16" height="2" />
+      //  <rect x="4" y="11" width="16" height="2" />
+        //<rect x="4" y="16" width="16" height="2" />
+    //</svg>
+//);
+
+// mobile menu hamburger icon - three lines using divs instead of svg
 const MenuIcon = () => (
-    <span className="text-uga-red text-2xl font-bold" style={{ lineHeight: '1' }}>☰</span>
+    <div className="flex flex-col gap-1">
+        <span className="block w-5 h-0.5 bg-uga-red"></span>
+        <span className="block w-5 h-0.5 bg-uga-red"></span>
+        <span className="block w-5 h-0.5 bg-uga-red"></span>
+    </div>
 );
 
 // close x icon for mobile menu
 const CloseIcon = () => (
-    <span className="text-uga-red text-2xl font-bold" style={{ lineHeight: '1' }}>✕</span>
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
 );
 
 // main navbar component that appears on all pages
@@ -158,14 +181,16 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* mobile menu hamburger button - make it stand out with better visibility */}
+          {/* mobile menu hamburger button - make it stand out */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100 flex items-center gap-2"
+            className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100"
             aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
-            <span className="text-sm font-medium">Menu</span>
+            <div className="flex items-center gap-2">
+              {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+              <span className="text-sm font-medium">Menu</span>
+            </div>
           </button>
         </div>
 

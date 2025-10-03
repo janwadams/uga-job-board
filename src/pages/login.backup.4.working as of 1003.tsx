@@ -1,5 +1,3 @@
-//src/pages/login.tsx
-
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
@@ -10,7 +8,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// eye icon for showing password
+// --- SVG Icon Components ---
 const EyeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -18,7 +16,6 @@ const EyeIcon = () => (
   </svg>
 );
 
-// eye off icon for hiding password
 const EyeOffIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M8 12a4 4 0 004 4m0 0l6-6m-6 6l-6-6" />
@@ -33,7 +30,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // controls password visibility
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +55,7 @@ export default function LoginPage() {
       return;
     }
 
-    // fetch user role from 'user_roles' table
+    // Fetch user role from 'user_roles' table
     const { data: userData, error: userError } = await supabase
       .from('user_roles')
       .select('role')
@@ -73,7 +70,7 @@ export default function LoginPage() {
 
     const role = userData.role;
 
-    // route user by role
+    // Route user by role
     switch (role) {
       case 'student':
         router.push('/student/dashboard');
@@ -116,14 +113,12 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full border p-2 rounded"
-            style={{ paddingRight: '50px' }}  // add extra padding for the toggle button
+            className="w-full border p-2 rounded pr-10"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute inset-y-0 right-0 px-3 flex items-center"
-            style={{ right: '5px' }}  // position the button with some spacing from edge
             aria-label="Toggle password visibility"
           >
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
@@ -141,7 +136,7 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {/* forgot password link */}
+      {/* forgot password link - new addition */}
       <div className="mt-4 text-center">
         <Link href="/forgot-password">
           <span className="text-sm text-red-600 hover:text-red-800 hover:underline cursor-pointer">
