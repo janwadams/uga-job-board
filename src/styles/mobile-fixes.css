@@ -506,3 +506,35 @@ select {
     opacity: 1;
   }
 }
+
+
+
+
+/* AGGRESSIVE FIX for password toggle positioning on mobile */
+@media (max-width: 768px) {
+  /* target the password containers specifically */
+  div[style*="position: relative"] > button.password-toggle-btn,
+  div[style*="position: relative"] > button[aria-label*="password"] {
+    position: absolute !important;
+    right: 8px !important;
+    left: unset !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 99999 !important;
+  }
+  
+  /* override ALL other button positioning for password toggles */
+  .password-toggle-btn {
+    right: 8px !important;
+    left: unset !important;
+    position: absolute !important;
+    transform: translateY(-50%) !important;
+  }
+}
+
+/* Also fix the problematic line 280 */
+@media (max-width: 768px) {
+  .relative button[type="button"]:not(.password-toggle-btn) {
+    right: 0.5rem;
+  }
+}
