@@ -25,12 +25,21 @@ const SearchIcon = () => (
 //);
 
 // mobile menu hamburger icon - three lines
+//const MenuIcon = () => (
+  //  <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    //    <rect x="4" y="6" width="16" height="2" />
+      //  <rect x="4" y="11" width="16" height="2" />
+        //<rect x="4" y="16" width="16" height="2" />
+    //</svg>
+//);
+
+// mobile menu hamburger icon - three lines using divs instead of svg
 const MenuIcon = () => (
-    <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <rect x="4" y="6" width="16" height="2" />
-        <rect x="4" y="11" width="16" height="2" />
-        <rect x="4" y="16" width="16" height="2" />
-    </svg>
+    <div className="flex flex-col gap-1">
+        <span className="block w-5 h-0.5 bg-uga-red"></span>
+        <span className="block w-5 h-0.5 bg-uga-red"></span>
+        <span className="block w-5 h-0.5 bg-uga-red"></span>
+    </div>
 );
 
 // close x icon for mobile menu
