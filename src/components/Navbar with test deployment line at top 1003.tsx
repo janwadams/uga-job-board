@@ -16,20 +16,14 @@ const SearchIcon = () => (
     </svg>
 );
 
-// mobile menu hamburger icon - three lines
+// mobile menu hamburger icon - using simple text that will definitely show
 const MenuIcon = () => (
-    <div className="w-6 h-6 flex flex-col justify-center gap-1">
-        <div className="w-full h-0.5 bg-uga-red"></div>
-        <div className="w-full h-0.5 bg-uga-red"></div>
-        <div className="w-full h-0.5 bg-uga-red"></div>
-    </div>
+    <span className="text-uga-red text-2xl font-bold" style={{ lineHeight: '1' }}>☰</span>
 );
 
 // close x icon for mobile menu
 const CloseIcon = () => (
-    <div className="w-6 h-6 flex items-center justify-center">
-        <span className="text-uga-red text-2xl font-bold leading-none">×</span>
-    </div>
+    <span className="text-uga-red text-2xl font-bold" style={{ lineHeight: '1' }}>✕</span>
 );
 
 // main navbar component that appears on all pages
@@ -89,6 +83,7 @@ export default function Navbar() {
 
   return (
     <header className="w-full bg-uga-red text-uga-white shadow-md">
+      <div className="bg-yellow-500 text-black text-center py-2">TEST DEPLOYMENT v3</div>
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* logo section - smaller on mobile, bigger on desktop */}
@@ -167,4 +162,84 @@ export default function Navbar() {
           {/* mobile menu hamburger button - make it stand out with better visibility */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100 flex items-center gap-2
+            className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100 flex items-center gap-2"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+            <span className="text-sm font-medium">Menu</span>
+          </button>
+        </div>
+
+        {/* mobile dropdown menu - shows when hamburger is clicked */}
+        {mobileMenuOpen && (
+          <div className="md:hidden pb-4 bg-uga-red">
+            <div className="flex flex-col space-y-3 pt-4 border-t border-red-700">
+              {session ? (
+                <>
+                  {/* logged in user mobile menu */}
+                  <span className="text-sm text-white opacity-90 px-3">Welcome, {userProfile?.first_name || 'User'}</span>
+                  {router.pathname === "/" && userProfile && (
+                    <Link href={getDashboardLink()}>
+                      <span 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block mx-3 px-3 py-2 text-sm font-semibold bg-white text-uga-red rounded-md text-center"
+                      >
+                        My Dashboard
+                      </span>
+                    </Link>
+                  )}
+                  <button
+                    onClick={handleSignOut}
+                    className="mx-3 px-3 py-2 text-sm font-semibold bg-red-700 text-white rounded-md text-left"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* not logged in mobile menu with login and signup options */}
+                  <Link href="/login">
+                    <span 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block mx-3 px-3 py-2 text-white bg-red-700 hover:bg-red-800 rounded-md"
+                    >
+                      Login
+                    </span>
+                  </Link>
+                  <Link href="/signup-student">
+                    <span 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block mx-3 px-3 py-2 text-white bg-red-700 hover:bg-red-800 rounded-md"
+                    >
+                      Student Sign Up
+                    </span>
+                  </Link>
+                  <Link href="/signup">
+                    <span 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block mx-3 px-3 py-2 font-semibold bg-white text-uga-red rounded-md text-center"
+                    >
+                      Company Sign Up
+                    </span>
+                  </Link>
+                </>
+              )}
+              
+              {/* uga external links for mobile */}
+              <div className="border-t border-red-700 pt-3 mt-3">
+                <div className="grid grid-cols-3 gap-2 text-xs px-3">
+                  <a href="https://www.uga.edu" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">UGA</a>
+                  <a href="https://give.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Give</a>
+                  <a href="https://calendar.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Calendar</a>
+                  <a href="https://news.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">News</a>
+                  <a href="https://my.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">MyUGA</a>
+                  <a href="https://www.uga.edu/search.php" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Search</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </nav>
+    </header>
+  );
+}
