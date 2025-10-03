@@ -18,16 +18,28 @@ const SearchIcon = () => (
 
 
 // mobile menu hamburger icon - three lines
+//const MenuIcon = () => (
+  //  <div className="w-6 h-6 flex flex-col justify-center gap-1">
+    ///    <div className="w-full h-0.5 bg-black"></div>
+       /// <div className="w-full h-0.5 bg-black"></div>
+        //<div className="w-full h-0.5 bg-black"></div>
+   // </div>
+//);
+
+
+
+// mobile menu hamburger icon - using plain text
 const MenuIcon = () => (
-    <div className="w-6 h-6 flex flex-col justify-center gap-1">
-        <div className="w-full h-0.5 bg-black"></div>
-        <div className="w-full h-0.5 bg-black"></div>
-        <div className="w-full h-0.5 bg-black"></div>
+    <div style={{ 
+        fontSize: '14px', 
+        fontWeight: 'bold', 
+        color: '#BA0C2F',
+        lineHeight: '1',
+        fontFamily: 'monospace'
+    }}>
+        ≡
     </div>
 );
-
-
-
 
 
 // close x icon for mobile menu
