@@ -16,18 +16,14 @@ const SearchIcon = () => (
     </svg>
 );
 
-{/* mobile menu hamburger button - debug version */}
-<button
-  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-  className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100"
-  aria-label="Toggle menu"
->
-  <div className="flex items-center gap-2">
-    <span style={{ color: 'black', fontSize: '16px', fontWeight: 'bold' }}>MENU</span>
-  </div>
-</button>
-
-
+// mobile menu hamburger icon - three black lines
+const MenuIcon = () => (
+    <div className="w-6 h-6 flex flex-col justify-center gap-1">
+        <div className="w-full h-0.5 bg-black"></div>
+        <div className="w-full h-0.5 bg-black"></div>
+        <div className="w-full h-0.5 bg-black"></div>
+    </div>
+);
 
 // close x icon for mobile menu
 const CloseIcon = () => (
@@ -168,7 +164,7 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* mobile menu hamburger button - make it stand out with better visibility */}
+          {/* mobile menu hamburger button - white button with three black lines */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100 flex items-center gap-2"
