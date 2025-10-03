@@ -124,9 +124,11 @@ export default function LoginPage() {
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             style={{
-              position: 'absolute',
-              right: '8px',  // position from the right edge
-              top: '50%',  // center vertically
+              //position: 'absolute',
+              //right: '8px',  // position from the right edge
+              position: 'absolute !important' as any,
+              right: '8px !important' as any,
+			  top: '50%',  // center vertically
               transform: 'translateY(-50%)',  // center vertically
               background: 'none',
               border: 'none',
