@@ -173,16 +173,13 @@
     padding: 0.5rem;
   }
 
-  /* fix admin tables - allow horizontal scrolling instead of hiding columns */
+  /* fix admin tables */
   .overflow-x-auto {
     max-width: calc(100vw - 1.5rem);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   table {
     font-size: 0.75rem;
-    min-width: 800px; /* ensure table is wide enough to show all columns */
   }
 
   th, td {
@@ -227,7 +224,7 @@
   
   /* shorten button text on mobile for faculty dashboard only */
   @media (max-width: 480px) {
-    /* only target buttons within faculty dashboard context */
+    /* Only target buttons within faculty dashboard context */
     .bg-gray-50 .flex.gap-4 .bg-purple-600.text-white span {
       display: none;
     }
@@ -564,6 +561,12 @@
   .flex.gap-2 > * {
     width: 100%;
   }
+
+  /* hide less important columns on mobile */
+  th:nth-child(n+4),
+  td:nth-child(n+4) {
+    display: none;
+  }
 }
 
 /* very small screens (phones in portrait) */
@@ -626,7 +629,7 @@
     flex: 1 1 calc(50% - 0.25rem);
   }
 
-  /* keep table action buttons visible on small screens */
+  /* hide table actions on very small screens */
   th:last-child,
   td:last-child {
     min-width: 100px;
