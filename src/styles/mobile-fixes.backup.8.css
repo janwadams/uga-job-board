@@ -222,25 +222,24 @@
     grid-column: 1 / -1;
   }
   
-  /* shorten button text on mobile for faculty dashboard only */
+  /* shorten button text on mobile for faculty */
   @media (max-width: 480px) {
-    /* Only target buttons within faculty dashboard context */
-    .bg-gray-50 .flex.gap-4 .bg-purple-600.text-white span {
+    .bg-purple-600.text-white span {
       display: none;
     }
-    .bg-gray-50 .flex.gap-4 .bg-purple-600.text-white::after {
+    .bg-purple-600.text-white::after {
       content: "Applications";
     }
-    .bg-gray-50 .flex.gap-4 .bg-blue-600.text-white span {
+    .bg-blue-600.text-white span {
       display: none;
     }
-    .bg-gray-50 .flex.gap-4 .bg-blue-600.text-white::after {
+    .bg-blue-600.text-white::after {
       content: "Analytics";
     }
-    .bg-gray-50 .flex.gap-4 .bg-red-700.text-white span {
+    .bg-red-700.text-white span {
       display: none;
     }
-    .bg-gray-50 .flex.gap-4 .bg-red-700.text-white::after {
+    .bg-red-700.text-white::after {
       content: "+ New Job";
     }
   }
