@@ -1,5 +1,5 @@
 // /pages/rep/analytics.tsx
-// analytics dashboard for company representatives to track job posting engagement (link clicks instead of applications)
+// analytics dashboard for company representatives to track their job posting performance
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -13,21 +13,21 @@ const supabase = createClient(
 
 interface AnalyticsOverview {
   totalJobs: number;
-  totalLinkClicks: number; // changed from totalApplications
-  averageClicksPerJob: string; // changed from averageApplicationsPerJob
+  totalApplications: number;
+  averageApplicationsPerJob: string;
   totalViews: number;
-  engagementRate: string; // changed from conversionRate
+  conversionRate: string;
   activeJobs: number;
   pendingJobs: number;
   rejectedJobs: number;
   approvalRate: string;
-  averageDaysToClick: string; // changed from averageDaysToApply
+  averageDaysToApply: string;
   averageTimeToApproval: string;
 }
 
 interface TrendData {
   date: string;
-  clicks: number; // changed from applications
+  applications: number;
   views: number;
   postings: number;
 }
@@ -36,16 +36,16 @@ interface JobTypeData {
   name: string;
   value: number;
   percentage: string;
-  clicks: number; // changed from applications
+  applications: number;
 }
 
 interface TopJob {
   id: string;
   title: string;
   company: string;
-  clicks: number; // changed from applications
+  applications: number;
   views: number;
-  engagementRate: string; // changed from conversionRate
+  conversionRate: string;
   status: string;
   daysActive: number;
   deadline: string;
@@ -54,8 +54,8 @@ interface TopJob {
 interface SkillDemand {
   skill: string;
   count: number;
-  clicks: number; // changed from applications
-  avgClicksPerJob: string; // changed from avgApplicationsPerJob
+  applications: number;
+  avgApplicationsPerJob: string;
 }
 
 interface StatusBreakdown {
@@ -65,8 +65,8 @@ interface StatusBreakdown {
   color: string;
 }
 
-interface EngagementMetric { // changed from ApplicationStatus
-  metric: string;
+interface ApplicationStatus {
+  status: string;
   count: number;
   percentage: string;
 }
@@ -87,24 +87,24 @@ export default function RepAnalytics() {
   
   const [overview, setOverview] = useState<AnalyticsOverview>({
     totalJobs: 0,
-    totalLinkClicks: 0,
-    averageClicksPerJob: '0',
+    totalApplications: 0,
+    averageApplicationsPerJob: '0',
     totalViews: 0,
-    engagementRate: '0',
+    conversionRate: '0',
     activeJobs: 0,
     pendingJobs: 0,
     rejectedJobs: 0,
     approvalRate: '0',
-    averageDaysToClick: '0',
+    averageDaysToApply: '0',
     averageTimeToApproval: '0'
   });
 
-  const [clickTrends, setClickTrends] = useState<TrendData[]>([]);
+  const [applicationTrends, setApplicationTrends] = useState<TrendData[]>([]);
   const [jobTypeDistribution, setJobTypeDistribution] = useState<JobTypeData[]>([]);
   const [topPerformingJobs, setTopPerformingJobs] = useState<TopJob[]>([]);
   const [skillsDemand, setSkillsDemand] = useState<SkillDemand[]>([]);
   const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown[]>([]);
-  const [engagementMetrics, setEngagementMetrics] = useState<EngagementMetric[]>([]);
+  const [applicationStatuses, setApplicationStatuses] = useState<ApplicationStatus[]>([]);
   const [competitorComparison, setCompetitorComparison] = useState<CompetitorComparison[]>([]);
 
   useEffect(() => {
@@ -125,6 +125,7 @@ export default function RepAnalytics() {
       return;
     }
 
+    // check if user is a rep
     const { data: userData } = await supabase
       .from('user_roles')
       .select('role, company_name')
@@ -147,15 +148,16 @@ export default function RepAnalytics() {
     try {
       const userId = session.user.id;
       
-      // fetch all jobs by this rep with link clicks and views
+      // fetch all jobs by this rep with applications and views
       const { data: jobs, error: jobsError } = await supabase
         .from('jobs')
         .select(`
           *,
-          job_link_clicks (
+          job_applications (
             id,
-            clicked_at,
-            user_id
+            applied_at,
+            status,
+            student_id
           ),
           job_views (
             id,
@@ -171,6 +173,7 @@ export default function RepAnalytics() {
       const totalJobs = jobs?.length || 0;
       const today = new Date();
       
+      // count jobs by status
       const activeJobs = jobs?.filter(job => 
         job.status === 'active' && new Date(job.deadline) > today
       ).length || 0;
@@ -183,8 +186,9 @@ export default function RepAnalytics() {
         job.status === 'rejected'
       ).length || 0;
 
+      // calculate approval rate (what percentage of submitted jobs got approved)
       const submittedJobs = jobs?.filter(job => 
-        job.status !== 'pending'
+        job.status !== 'pending' // jobs that have been reviewed
       ).length || 0;
       
       const approvedJobs = jobs?.filter(job => 
@@ -195,53 +199,55 @@ export default function RepAnalytics() {
         ? ((approvedJobs / submittedJobs) * 100).toFixed(1)
         : '0';
 
-      const totalLinkClicks = jobs?.reduce((sum, job) => 
-        sum + (job.job_link_clicks?.length || 0), 0
+      const totalApplications = jobs?.reduce((sum, job) => 
+        sum + (job.job_applications?.length || 0), 0
       ) || 0;
       
       const totalViews = jobs?.reduce((sum, job) => 
         sum + (job.job_views?.length || 0), 0
       ) || 0;
 
-      const averageClicksPerJob = totalJobs > 0 
-        ? (totalLinkClicks / totalJobs).toFixed(1) 
+      const averageApplicationsPerJob = totalJobs > 0 
+        ? (totalApplications / totalJobs).toFixed(1) 
         : '0';
 
-      const engagementRate = totalViews > 0 
-        ? ((totalLinkClicks / totalViews) * 100).toFixed(1)
+      const conversionRate = totalViews > 0 
+        ? ((totalApplications / totalViews) * 100).toFixed(1)
         : '0';
 
-      // calculate average days to first click
-      let totalDaysToClick = 0;
-      let jobsWithClicks = 0;
+      // calculate average days to first application
+      let totalDaysToApply = 0;
+      let jobsWithApplications = 0;
       
       jobs?.forEach(job => {
-        if (job.job_link_clicks && job.job_link_clicks.length > 0) {
-          const sortedClicks = [...job.job_link_clicks].sort((a, b) => 
-            new Date(a.clicked_at).getTime() - new Date(b.clicked_at).getTime()
+        if (job.job_applications && job.job_applications.length > 0) {
+          const sortedApps = [...job.job_applications].sort((a, b) => 
+            new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime()
           );
-          const firstClick = sortedClicks[0];
-          const daysToClick = Math.ceil(
-            (new Date(firstClick.clicked_at).getTime() - new Date(job.created_at).getTime())
+          const firstApp = sortedApps[0];
+          const daysToApply = Math.ceil(
+            (new Date(firstApp.applied_at).getTime() - new Date(job.created_at).getTime())
             / (1000 * 60 * 60 * 24)
           );
-          if (daysToClick > 0) {
-            totalDaysToClick += daysToClick;
-            jobsWithClicks++;
+          if (daysToApply > 0) {
+            totalDaysToApply += daysToApply;
+            jobsWithApplications++;
           }
         }
       });
 
-      const averageDaysToClick = jobsWithClicks > 0
-        ? (totalDaysToClick / jobsWithClicks).toFixed(1)
+      const averageDaysToApply = jobsWithApplications > 0
+        ? (totalDaysToApply / jobsWithApplications).toFixed(1)
         : '0';
 
-      // average time to approval (placeholder)
+      // calculate average time to approval (for approved jobs)
       let totalDaysToApproval = 0;
       let approvedJobCount = 0;
       
       jobs?.forEach(job => {
         if (job.status === 'active') {
+          // estimate approval time (we don't have exact approval timestamp)
+          // for now, use a placeholder
           approvedJobCount++;
           totalDaysToApproval += 2; // placeholder: assume 2 days average
         }
@@ -249,35 +255,38 @@ export default function RepAnalytics() {
       
       const averageTimeToApproval = approvedJobCount > 0
         ? (totalDaysToApproval / approvedJobCount).toFixed(1)
-        : '2';
+        : '2'; // default estimate
 
       setOverview({
         totalJobs,
-        totalLinkClicks,
-        averageClicksPerJob,
+        totalApplications,
+        averageApplicationsPerJob,
         totalViews,
-        engagementRate,
+        conversionRate,
         activeJobs,
         pendingJobs,
         rejectedJobs,
         approvalRate,
-        averageDaysToClick,
+        averageDaysToApply,
         averageTimeToApproval
       });
 
-      // prepare click trends
+      // prepare application trends
       const daysAgo = parseInt(dateRange);
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysAgo);
       
-      const trendMap: { [key: string]: { clicks: number; views: number; postings: number } } = {};
+      const trendMap: { [key: string]: { applications: number; views: number; postings: number } } = {};
       
+      // initialize all dates
       for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
         const dateKey = d.toISOString().split('T')[0];
-        trendMap[dateKey] = { clicks: 0, views: 0, postings: 0 };
+        trendMap[dateKey] = { applications: 0, views: 0, postings: 0 };
       }
       
+      // count applications, views, and new postings by date
       jobs?.forEach(job => {
+        // count new postings
         const postDate = new Date(job.created_at);
         if (postDate >= startDate) {
           const postDateKey = postDate.toISOString().split('T')[0];
@@ -286,16 +295,18 @@ export default function RepAnalytics() {
           }
         }
         
-        job.job_link_clicks?.forEach(click => {
-          const clickDate = new Date(click.clicked_at);
-          if (clickDate >= startDate) {
-            const dateKey = clickDate.toISOString().split('T')[0];
+        // count applications
+        job.job_applications?.forEach(app => {
+          const appDate = new Date(app.applied_at);
+          if (appDate >= startDate) {
+            const dateKey = appDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
-              trendMap[dateKey].clicks++;
+              trendMap[dateKey].applications++;
             }
           }
         });
         
+        // count views
         job.job_views?.forEach(view => {
           const viewDate = new Date(view.created_at);
           if (viewDate >= startDate) {
@@ -309,28 +320,28 @@ export default function RepAnalytics() {
 
       const trends = Object.entries(trendMap).map(([date, data]) => ({
         date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        clicks: data.clicks,
+        applications: data.applications,
         views: data.views,
         postings: data.postings
       }));
 
-      setClickTrends(trends);
+      setApplicationTrends(trends);
 
-      // job type distribution with clicks
-      const typeData: { [key: string]: { count: number; clicks: number } } = {};
+      // job type distribution with applications
+      const typeData: { [key: string]: { count: number; applications: number } } = {};
       jobs?.forEach(job => {
         if (!typeData[job.job_type]) {
-          typeData[job.job_type] = { count: 0, clicks: 0 };
+          typeData[job.job_type] = { count: 0, applications: 0 };
         }
         typeData[job.job_type].count++;
-        typeData[job.job_type].clicks += job.job_link_clicks?.length || 0;
+        typeData[job.job_type].applications += job.job_applications?.length || 0;
       });
       
       const jobTypes = Object.entries(typeData).map(([type, data]) => ({
         name: type,
         value: data.count,
         percentage: totalJobs > 0 ? ((data.count / totalJobs) * 100).toFixed(1) : '0',
-        clicks: data.clicks
+        applications: data.applications
       }));
 
       setJobTypeDistribution(jobTypes);
@@ -340,30 +351,30 @@ export default function RepAnalytics() {
         id: job.id,
         title: job.title,
         company: job.company,
-        clicks: job.job_link_clicks?.length || 0,
+        applications: job.job_applications?.length || 0,
         views: job.job_views?.length || 0,
-        engagementRate: (job.job_views?.length || 0) > 0 
-          ? ((job.job_link_clicks?.length || 0) / (job.job_views?.length || 0) * 100).toFixed(1)
+        conversionRate: (job.job_views?.length || 0) > 0 
+          ? ((job.job_applications?.length || 0) / (job.job_views?.length || 0) * 100).toFixed(1)
           : '0',
         status: job.status,
         daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)),
         deadline: job.deadline
       }))
-      .filter(job => job.status === 'active')
-      .sort((a, b) => b.clicks - a.clicks)
+      .filter(job => job.status === 'active') // only show active jobs in top performers
+      .sort((a, b) => b.applications - a.applications)
       .slice(0, 5) || [];
 
       setTopPerformingJobs(topJobs);
 
       // skills performance analysis
-      const skillData: { [key: string]: { count: number; clicks: number } } = {};
+      const skillData: { [key: string]: { count: number; applications: number } } = {};
       jobs?.forEach(job => {
         job.skills?.forEach((skill: string) => {
           if (!skillData[skill]) {
-            skillData[skill] = { count: 0, clicks: 0 };
+            skillData[skill] = { count: 0, applications: 0 };
           }
           skillData[skill].count++;
-          skillData[skill].clicks += job.job_link_clicks?.length || 0;
+          skillData[skill].applications += job.job_applications?.length || 0;
         });
       });
       
@@ -371,10 +382,10 @@ export default function RepAnalytics() {
         .map(([skill, data]) => ({
           skill,
           count: data.count,
-          clicks: data.clicks,
-          avgClicksPerJob: data.count > 0 ? (data.clicks / data.count).toFixed(1) : '0'
+          applications: data.applications,
+          avgApplicationsPerJob: data.count > 0 ? (data.applications / data.count).toFixed(1) : '0'
         }))
-        .sort((a, b) => b.clicks - a.clicks)
+        .sort((a, b) => b.applications - a.applications)
         .slice(0, 10);
 
       setSkillsDemand(skills);
@@ -399,55 +410,54 @@ export default function RepAnalytics() {
 
       setStatusBreakdown(statuses);
 
-      // engagement metrics
-      const metrics: EngagementMetric[] = [
-        {
-          metric: 'High Engagement',
-          count: jobs?.filter(j => (j.job_link_clicks?.length || 0) > 10).length || 0,
-          percentage: totalJobs > 0 
-            ? ((jobs?.filter(j => (j.job_link_clicks?.length || 0) > 10).length || 0) / totalJobs * 100).toFixed(1)
-            : '0'
-        },
-        {
-          metric: 'Medium Engagement',
-          count: jobs?.filter(j => (j.job_link_clicks?.length || 0) >= 5 && (j.job_link_clicks?.length || 0) <= 10).length || 0,
-          percentage: totalJobs > 0
-            ? ((jobs?.filter(j => (j.job_link_clicks?.length || 0) >= 5 && (j.job_link_clicks?.length || 0) <= 10).length || 0) / totalJobs * 100).toFixed(1)
-            : '0'
-        },
-        {
-          metric: 'Low Engagement',
-          count: jobs?.filter(j => (j.job_link_clicks?.length || 0) > 0 && (j.job_link_clicks?.length || 0) < 5).length || 0,
-          percentage: totalJobs > 0
-            ? ((jobs?.filter(j => (j.job_link_clicks?.length || 0) > 0 && (j.job_link_clicks?.length || 0) < 5).length || 0) / totalJobs * 100).toFixed(1)
-            : '0'
-        }
-      ];
+      // application status distribution
+      const appStatusCount: { [key: string]: number } = { 
+        applied: 0, 
+        viewed: 0, 
+        interview: 0, 
+        hired: 0, 
+        rejected: 0 
+      };
+      
+      jobs?.forEach(job => {
+        job.job_applications?.forEach(app => {
+          const status = app.status || 'applied';
+          if (appStatusCount.hasOwnProperty(status)) {
+            appStatusCount[status]++;
+          }
+        });
+      });
 
-      setEngagementMetrics(metrics);
+      const appStatuses = Object.entries(appStatusCount).map(([status, count]) => ({
+        status: status.charAt(0).toUpperCase() + status.slice(1),
+        count,
+        percentage: totalApplications > 0 ? ((count / totalApplications) * 100).toFixed(1) : '0'
+      }));
+
+      setApplicationStatuses(appStatuses);
 
       // competitor comparison (simulated industry averages)
       const comparison: CompetitorComparison[] = [
         {
-          metric: 'Clicks per Job',
-          yourValue: averageClicksPerJob,
-          industryAvg: '6.5',
-          performance: parseFloat(averageClicksPerJob) > 6.5 ? 'above' : 
-                      parseFloat(averageClicksPerJob) < 6.5 ? 'below' : 'equal'
+          metric: 'Applications per Job',
+          yourValue: averageApplicationsPerJob,
+          industryAvg: '8.5',
+          performance: parseFloat(averageApplicationsPerJob) > 8.5 ? 'above' : 
+                      parseFloat(averageApplicationsPerJob) < 8.5 ? 'below' : 'equal'
         },
         {
-          metric: 'View to Click Rate',
-          yourValue: `${engagementRate}%`,
-          industryAvg: '10%',
-          performance: parseFloat(engagementRate) > 10 ? 'above' : 
-                      parseFloat(engagementRate) < 10 ? 'below' : 'equal'
+          metric: 'View to Apply Rate',
+          yourValue: `${conversionRate}%`,
+          industryAvg: '15%',
+          performance: parseFloat(conversionRate) > 15 ? 'above' : 
+                      parseFloat(conversionRate) < 15 ? 'below' : 'equal'
         },
         {
-          metric: 'Days to First Click',
-          yourValue: averageDaysToClick,
-          industryAvg: '2.5',
-          performance: parseFloat(averageDaysToClick) < 2.5 ? 'above' : 
-                      parseFloat(averageDaysToClick) > 2.5 ? 'below' : 'equal'
+          metric: 'Days to First Apply',
+          yourValue: averageDaysToApply,
+          industryAvg: '3.5',
+          performance: parseFloat(averageDaysToApply) < 3.5 ? 'above' : 
+                      parseFloat(averageDaysToApply) > 3.5 ? 'below' : 'equal'
         },
         {
           metric: 'Approval Rate',
@@ -508,13 +518,13 @@ export default function RepAnalytics() {
           </div>
         </div>
 
-        {/* key metrics overview - updated labels */}
+        {/* key metrics overview - rep specific */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Total Link Clicks</h3>
-            <p className="text-4xl font-bold text-gray-800 mt-2">{overview.totalLinkClicks}</p>
+            <h3 className="text-gray-500 font-semibold text-sm">Total Applications</h3>
+            <p className="text-4xl font-bold text-gray-800 mt-2">{overview.totalApplications}</p>
             <p className="text-sm text-gray-600 mt-1">
-              Avg: {overview.averageClicksPerJob} per job
+              Avg: {overview.averageApplicationsPerJob} per job
             </p>
           </div>
 
@@ -522,7 +532,7 @@ export default function RepAnalytics() {
             <h3 className="text-gray-500 font-semibold text-sm">Total Views</h3>
             <p className="text-4xl font-bold text-blue-600 mt-2">{overview.totalViews}</p>
             <p className="text-sm text-gray-600 mt-1">
-              Engagement: {overview.engagementRate}%
+              Conversion: {overview.conversionRate}%
             </p>
           </div>
 
@@ -543,7 +553,7 @@ export default function RepAnalytics() {
           </div>
         </div>
 
-        {/* job status breakdown */}
+        {/* job status breakdown - important for reps */}
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
           <h2 className="text-xl font-bold text-gray-800 mb-4">📋 Job Status Overview</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -571,26 +581,26 @@ export default function RepAnalytics() {
           </div>
         </div>
 
-        {/* engagement trends - updated labels */}
+        {/* application and posting trends */}
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">📈 Engagement Trends</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">📈 Activity Trends</h2>
           <div className="overflow-x-auto">
             <div className="min-w-[600px] h-64 flex items-end justify-between gap-2">
-              {clickTrends.map((day, index) => (
+              {applicationTrends.map((day, index) => (
                 <div key={index} className="flex-1 flex flex-col items-center">
                   <div className="w-full flex gap-0.5 items-end h-48">
                     <div 
                       className="flex-1 bg-red-600 rounded-t"
                       style={{ 
-                        height: `${day.clicks > 0 ? (day.clicks / Math.max(...clickTrends.map(d => Math.max(d.clicks, d.views, d.postings))) * 100) : 0}%`,
-                        minHeight: day.clicks > 0 ? '4px' : '0'
+                        height: `${day.applications > 0 ? (day.applications / Math.max(...applicationTrends.map(d => Math.max(d.applications, d.views, d.postings))) * 100) : 0}%`,
+                        minHeight: day.applications > 0 ? '4px' : '0'
                       }}
-                      title={`${day.clicks} clicks`}
+                      title={`${day.applications} applications`}
                     />
                     <div 
                       className="flex-1 bg-blue-600 rounded-t"
                       style={{ 
-                        height: `${day.views > 0 ? (day.views / Math.max(...clickTrends.map(d => Math.max(d.clicks, d.views, d.postings))) * 100) : 0}%`,
+                        height: `${day.views > 0 ? (day.views / Math.max(...applicationTrends.map(d => Math.max(d.applications, d.views, d.postings))) * 100) : 0}%`,
                         minHeight: day.views > 0 ? '4px' : '0'
                       }}
                       title={`${day.views} views`}
@@ -598,7 +608,7 @@ export default function RepAnalytics() {
                     <div 
                       className="flex-1 bg-green-600 rounded-t"
                       style={{ 
-                        height: `${day.postings > 0 ? (day.postings / Math.max(...clickTrends.map(d => Math.max(d.clicks, d.views, d.postings))) * 100) : 0}%`,
+                        height: `${day.postings > 0 ? (day.postings / Math.max(...applicationTrends.map(d => Math.max(d.applications, d.views, d.postings))) * 100) : 0}%`,
                         minHeight: day.postings > 0 ? '4px' : '0'
                       }}
                       title={`${day.postings} new postings`}
@@ -611,7 +621,7 @@ export default function RepAnalytics() {
             <div className="flex items-center gap-4 mt-4 justify-center">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-red-600 rounded"></div>
-                <span className="text-sm text-gray-600">Link Clicks</span>
+                <span className="text-sm text-gray-600">Applications</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-blue-600 rounded"></div>
@@ -625,10 +635,112 @@ export default function RepAnalytics() {
           </div>
         </div>
 
-        {/* The rest of the component continues with the same pattern... */}
-        {/* I'll continue with the key sections */}
+        {/* competitor comparison - unique to rep */}
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">📊 Industry Comparison</h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Metric</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Your Performance</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Industry Average</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {competitorComparison.map((item, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.metric}</td>
+                    <td className="px-4 py-3 text-sm text-center font-semibold">
+                      {item.yourValue}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-center text-gray-600">
+                      {item.industryAvg}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        item.performance === 'above' 
+                          ? 'bg-green-100 text-green-800'
+                          : item.performance === 'below'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {item.performance === 'above' ? '↑ Above' : 
+                         item.performance === 'below' ? '↓ Below' : 
+                         '= Equal'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-        {/* top performing jobs - updated labels */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* job type performance */}
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Job Type Performance</h2>
+            {jobTypeDistribution.length > 0 ? (
+              <div className="space-y-3">
+                {jobTypeDistribution.map((type, index) => (
+                  <div key={index}>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">{type.name}</span>
+                      <span className="text-sm text-gray-500">
+                        {type.value} jobs • {type.applications} applications
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          type.name === 'Full-Time' ? 'bg-green-600' :
+                          type.name === 'Part-Time' ? 'bg-blue-600' :
+                          'bg-purple-600'
+                        }`}
+                        style={{ width: `${type.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No job type data available</p>
+            )}
+          </div>
+
+          {/* application status distribution */}
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Application Pipeline</h2>
+            {applicationStatuses.length > 0 ? (
+              <div className="space-y-3">
+                {applicationStatuses.map((status, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        status.status === 'Hired' ? 'bg-green-600' :
+                        status.status === 'Interview' ? 'bg-blue-600' :
+                        status.status === 'Rejected' ? 'bg-red-600' :
+                        status.status === 'Viewed' ? 'bg-yellow-600' :
+                        'bg-gray-600'
+                      }`} />
+                      <span className="text-sm font-medium text-gray-700">{status.status}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">{status.count}</span>
+                      <span className="text-xs text-gray-400">({status.percentage}%)</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No application data available</p>
+            )}
+          </div>
+        </div>
+
+        {/* top performing jobs */}
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
           <h2 className="text-xl font-bold text-gray-800 mb-4">🏆 Your Top Performing Jobs</h2>
           {topPerformingJobs.length > 0 ? (
@@ -637,9 +749,9 @@ export default function RepAnalytics() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
-                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Link Clicks</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Applications</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Views</th>
-                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Engagement</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Conversion</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Days Active</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Deadline</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -650,12 +762,12 @@ export default function RepAnalytics() {
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{job.title}</td>
                       <td className="px-4 py-3 text-sm text-center">
-                        <span className="font-semibold text-green-600">{job.clicks}</span>
+                        <span className="font-semibold text-green-600">{job.applications}</span>
                       </td>
                       <td className="px-4 py-3 text-sm text-center">{job.views}</td>
                       <td className="px-4 py-3 text-sm text-center">
                         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {job.engagementRate}%
+                          {job.conversionRate}%
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-center">{job.daysActive}</td>
@@ -677,11 +789,48 @@ export default function RepAnalytics() {
           )}
         </div>
 
-        {/* helpful tips - updated */}
+        {/* skills performance analysis */}
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">🎯 Skills Performance Analysis</h2>
+          {skillsDemand.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Skill</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Jobs Posted</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Total Applications</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Avg per Job</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {skillsDemand.map((item, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.skill}</td>
+                      <td className="px-4 py-3 text-sm text-center">{item.count}</td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <span className="font-semibold text-green-600">{item.applications}</span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-center">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                          {item.avgApplicationsPerJob}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500">No skills data available</p>
+          )}
+        </div>
+
+        {/* helpful tips for reps */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-blue-900 mb-2">💡 Performance Tips</h3>
           <ul className="space-y-2 text-sm text-blue-800">
-            <li>• Jobs with clear application links receive {overview.engagementRate}% more clicks</li>
+            <li>• Jobs with detailed descriptions receive {overview.conversionRate}% more applications</li>
             <li>• Include salary ranges to increase visibility by up to 30%</li>
             <li>• Jobs posted on Monday-Wednesday get the most views</li>
             <li>• Your approval rate is {overview.approvalRate}% - {
