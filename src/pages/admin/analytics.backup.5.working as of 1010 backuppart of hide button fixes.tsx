@@ -1,4 +1,4 @@
-// src/pages/admin/analytics.tsx - updated to track link clicks instead of applications
+// src/pages/admin/analytics.tsx - comprehensive platform metrics dashboard with optimized loading
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -26,14 +26,14 @@ interface TimeSeriesData {
   total_postings: number;
   active_postings: number;
   views: number;
-  link_clicks: number; // changed from apply_clicks
-  // removed: applications field
+  apply_clicks: number;
+  applications: number;
 }
 
 interface TopCompany {
   company: string;
   views: number;
-  link_clicks: number; // changed from apply_clicks
+  apply_clicks: number;
   job_count: number;
 }
 
@@ -42,8 +42,8 @@ interface MostViewedJob {
   title: string;
   company: string;
   views: number;
-  link_clicks: number; // changed from apply_clicks
-  engagement_rate: number; // changed from applications
+  apply_clicks: number;
+  applications: number;
   created_at: string;
 }
 
@@ -65,15 +65,15 @@ interface UserEngagement {
 interface MetricsData {
   // current month metrics
   jobs_posted_month: number;
-  link_clicks_month: number; // changed from applications_submitted_month
+  applications_submitted_month: number;
   total_postings: number;
   active_postings: number;
   
   // comparison with last month
   jobs_posted_last_month: number;
-  link_clicks_last_month: number; // changed from applications_submitted_last_month
+  applications_submitted_last_month: number;
   jobs_growth_percentage: number;
-  clicks_growth_percentage: number; // changed from applications_growth_percentage
+  applications_growth_percentage: number;
   
   // top content
   time_series: TimeSeriesData[];
@@ -106,12 +106,13 @@ export default function AdminAnalyticsDashboard() {
       const daysAgo = parseInt(dateRange);
       const startDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
-      // run all count queries at the same time
+      // run all count queries at the same time instead of one by one
+      // this is much faster because all queries run in parallel
       const [
         jobsThisMonthResult,
         jobsLastMonthResult,
-        clicksThisMonthResult, // changed from applications
-        clicksLastMonthResult, // changed from applications
+        applicationsThisMonthResult,
+        applicationsLastMonthResult,
         totalPostingsResult,
         activePostingsResult,
         totalUsersResult,
@@ -120,7 +121,7 @@ export default function AdminAnalyticsDashboard() {
         mostViewedJobsResult,
         topCompaniesDataResult,
         allJobsInRangeResult,
-        allClicksInRangeResult // changed from applications
+        allApplicationsInRangeResult
       ] = await Promise.all([
         // jobs posted this month
         supabase.from('jobs')
@@ -133,16 +134,16 @@ export default function AdminAnalyticsDashboard() {
           .gte('created_at', startOfLastMonth.toISOString())
           .lt('created_at', startOfMonth.toISOString()),
         
-        // link clicks this month
-        supabase.from('job_link_clicks')
+        // applications this month
+        supabase.from('job_applications')
           .select('*', { count: 'exact', head: true })
-          .gte('clicked_at', startOfMonth.toISOString()),
+          .gte('applied_at', startOfMonth.toISOString()),
         
-        // link clicks last month
-        supabase.from('job_link_clicks')
+        // applications last month
+        supabase.from('job_applications')
           .select('*', { count: 'exact', head: true })
-          .gte('clicked_at', startOfLastMonth.toISOString())
-          .lt('clicked_at', startOfMonth.toISOString()),
+          .gte('applied_at', startOfLastMonth.toISOString())
+          .lt('applied_at', startOfMonth.toISOString()),
         
         // total postings
         supabase.from('jobs')
@@ -178,22 +179,22 @@ export default function AdminAnalyticsDashboard() {
           .select('company')
           .eq('status', 'active'),
         
-        // get all jobs in date range for time series
+        // get all jobs in date range for time series (fetch once, process in memory)
         supabase.from('jobs')
           .select('created_at')
           .gte('created_at', startDate.toISOString()),
         
-        // get all link clicks in date range for time series
-        supabase.from('job_link_clicks')
-          .select('clicked_at')
-          .gte('clicked_at', startDate.toISOString())
+        // get all applications in date range for time series
+        supabase.from('job_applications')
+          .select('applied_at')
+          .gte('applied_at', startDate.toISOString())
       ]);
 
       // extract counts from results
       const jobsThisMonth = jobsThisMonthResult.count || 0;
       const jobsLastMonth = jobsLastMonthResult.count || 0;
-      const clicksThisMonth = clicksThisMonthResult.count || 0;
-      const clicksLastMonth = clicksLastMonthResult.count || 0;
+      const applicationsThisMonth = applicationsThisMonthResult.count || 0;
+      const applicationsLastMonth = applicationsLastMonthResult.count || 0;
       const totalPostings = totalPostingsResult.count || 0;
       const activePostings = activePostingsResult.count || 0;
       const totalUsers = totalUsersResult.count || 0;
@@ -217,25 +218,26 @@ export default function AdminAnalyticsDashboard() {
       // calculate growth percentages
       const jobsGrowth = jobsLastMonth ? 
         ((jobsThisMonth - jobsLastMonth) / jobsLastMonth * 100) : 100;
-      const clicksGrowth = clicksLastMonth ? 
-        ((clicksThisMonth - clicksLastMonth) / clicksLastMonth * 100) : 100;
+      const applicationsGrowth = applicationsLastMonth ? 
+        ((applicationsThisMonth - applicationsLastMonth) / applicationsLastMonth * 100) : 100;
 
-      // process time series data in memory
+      // process time series data in memory instead of making 60+ queries
+      // this groups the already-fetched data by day
       const timeSeriesData: TimeSeriesData[] = [];
       const allJobs = allJobsInRangeResult.data || [];
-      const allClicks = allClicksInRangeResult.data || [];
+      const allApplications = allApplicationsInRangeResult.data || [];
 
       for (let i = daysAgo - 1; i >= 0; i--) {
         const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
         
-        // count items for this specific day
+        // count items for this specific day from our already-fetched data
         const dailyJobs = allJobs.filter(job => 
           job.created_at.startsWith(dateStr)
         ).length;
         
-        const dailyClicks = allClicks.filter(click => 
-          click.clicked_at.startsWith(dateStr)
+        const dailyApplications = allApplications.filter(app => 
+          app.applied_at.startsWith(dateStr)
         ).length;
 
         timeSeriesData.push({
@@ -243,7 +245,8 @@ export default function AdminAnalyticsDashboard() {
           total_postings: dailyJobs,
           active_postings: dailyJobs,
           views: Math.floor(Math.random() * 500) + 50, // placeholder until view tracking is implemented
-          link_clicks: dailyClicks
+          apply_clicks: Math.floor(Math.random() * 50) + 5, // placeholder
+          applications: dailyApplications
         });
       }
 
@@ -252,13 +255,13 @@ export default function AdminAnalyticsDashboard() {
         id: job.id,
         title: job.title,
         company: job.company,
-        views: Math.floor(Math.random() * 1000) + 100, // placeholder
-        link_clicks: Math.floor(Math.random() * 100) + 10, // placeholder - would need join with clicks table
-        engagement_rate: Math.floor(Math.random() * 30), // engagement percentage
+        views: Math.floor(Math.random() * 1000) + 100, // placeholder - replace when view tracking is added
+        apply_clicks: Math.floor(Math.random() * 100) + 10, // placeholder
+        applications: Math.floor(Math.random() * 20), // placeholder - would need join with applications table
         created_at: job.created_at
       })) || [];
 
-      // process top companies
+      // process top companies from already-fetched data
       const companyMap = new Map<string, number>();
       topCompaniesDataResult.data?.forEach(job => {
         companyMap.set(job.company, (companyMap.get(job.company) || 0) + 1);
@@ -269,7 +272,7 @@ export default function AdminAnalyticsDashboard() {
           company,
           job_count: count,
           views: Math.floor(Math.random() * 1000) + 100, // placeholder
-          link_clicks: Math.floor(Math.random() * 100) + 10 // placeholder
+          apply_clicks: Math.floor(Math.random() * 100) + 10 // placeholder
         }))
         .sort((a, b) => b.job_count - a.job_count)
         .slice(0, 5);
@@ -277,19 +280,19 @@ export default function AdminAnalyticsDashboard() {
       // set all metrics at once
       setMetrics({
         jobs_posted_month: jobsThisMonth,
-        link_clicks_month: clicksThisMonth,
+        applications_submitted_month: applicationsThisMonth,
         total_postings: totalPostings,
         active_postings: activePostings,
         jobs_posted_last_month: jobsLastMonth,
-        link_clicks_last_month: clicksLastMonth,
+        applications_submitted_last_month: applicationsLastMonth,
         jobs_growth_percentage: jobsGrowth,
-        clicks_growth_percentage: clicksGrowth,
+        applications_growth_percentage: applicationsGrowth,
         time_series: timeSeriesData,
         top_companies: topCompanies,
         most_viewed_jobs: transformedMostViewed,
         user_engagement: {
           total_users: totalUsers,
-          active_users_today: Math.floor(totalUsers * 0.3), // placeholder
+          active_users_today: Math.floor(totalUsers * 0.3), // placeholder - would need login tracking
           active_users_week: Math.floor(totalUsers * 0.6), // placeholder
           active_users_month: Math.floor(totalUsers * 0.8), // placeholder
           new_users_month: newUsersMonth,
@@ -315,22 +318,22 @@ export default function AdminAnalyticsDashboard() {
     // summary metrics section
     csvContent += 'Summary Metrics\n';
     csvContent += `Jobs Posted This Month,${metrics.jobs_posted_month}\n`;
-    csvContent += `Link Clicks This Month,${metrics.link_clicks_month}\n`;
+    csvContent += `Applications Submitted This Month,${metrics.applications_submitted_month}\n`;
     csvContent += `Total Postings,${metrics.total_postings}\n`;
     csvContent += `Active Postings,${metrics.active_postings}\n\n`;
     
     // time series data section
     csvContent += 'Daily Metrics\n';
-    csvContent += 'Date,Jobs Posted,Link Clicks,Views\n';
+    csvContent += 'Date,Jobs Posted,Applications,Views,Apply Clicks\n';
     metrics.time_series.forEach(row => {
-      csvContent += `${row.date},${row.total_postings},${row.link_clicks},${row.views}\n`;
+      csvContent += `${row.date},${row.total_postings},${row.applications},${row.views},${row.apply_clicks}\n`;
     });
     
     // top companies section
     csvContent += '\nTop Companies\n';
-    csvContent += 'Company,Jobs Posted,Views,Link Clicks\n';
+    csvContent += 'Company,Jobs Posted,Views,Apply Clicks\n';
     metrics.top_companies.forEach(company => {
-      csvContent += `${company.company},${company.job_count},${company.views},${company.link_clicks}\n`;
+      csvContent += `${company.company},${company.job_count},${company.views},${company.apply_clicks}\n`;
     });
 
     // create and download the csv file
@@ -402,7 +405,7 @@ export default function AdminAnalyticsDashboard() {
 
         {metrics && (
           <div className="space-y-8">
-            {/* key metrics cards - updated labels */}
+            {/* key metrics cards - main focus metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* jobs posted this month card */}
               <div className="bg-white p-6 rounded-lg shadow">
@@ -427,23 +430,23 @@ export default function AdminAnalyticsDashboard() {
                 </div>
               </div>
 
-              {/* link clicks this month card - updated */}
+              {/* applications submitted this month card */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Link Clicks This Month</p>
+                    <p className="text-sm text-gray-600">Applications This Month</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">
-                      {metrics.link_clicks_month}
+                      {metrics.applications_submitted_month}
                     </p>
                     <p className={`text-sm mt-2 flex items-center ${
-                      metrics.clicks_growth_percentage >= 0 ? 'text-green-600' : 'text-red-600'
+                      metrics.applications_growth_percentage >= 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {metrics.clicks_growth_percentage >= 0 ? (
+                      {metrics.applications_growth_percentage >= 0 ? (
                         <ArrowUpIcon className="h-4 w-4 mr-1" />
                       ) : (
                         <ArrowDownIcon className="h-4 w-4 mr-1" />
                       )}
-                      {Math.abs(metrics.clicks_growth_percentage).toFixed(1)}% vs last month
+                      {Math.abs(metrics.applications_growth_percentage).toFixed(1)}% vs last month
                     </p>
                   </div>
                   <DocumentTextIcon className="h-10 w-10 text-green-500" />
@@ -544,9 +547,9 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
-            {/* most engaged jobs table - updated */}
+            {/* most viewed jobs table */}
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold text-gray-700 mb-4">Most Engaged Jobs</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-4">Most Viewed Jobs</h2>
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto border-collapse">
                   <thead>
@@ -554,8 +557,9 @@ export default function AdminAnalyticsDashboard() {
                       <th className="border-b px-4 py-2 text-left">Job Title</th>
                       <th className="border-b px-4 py-2 text-left">Company</th>
                       <th className="border-b px-4 py-2 text-center">Views</th>
-                      <th className="border-b px-4 py-2 text-center">Link Clicks</th>
-                      <th className="border-b px-4 py-2 text-center">Engagement Rate</th>
+                      <th className="border-b px-4 py-2 text-center">Apply Clicks</th>
+                      <th className="border-b px-4 py-2 text-center">Applications</th>
+                      <th className="border-b px-4 py-2 text-center">Conversion</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -570,9 +574,10 @@ export default function AdminAnalyticsDashboard() {
                         </td>
                         <td className="border-b px-4 py-2">{job.company}</td>
                         <td className="border-b px-4 py-2 text-center">{job.views}</td>
-                        <td className="border-b px-4 py-2 text-center">{job.link_clicks}</td>
+                        <td className="border-b px-4 py-2 text-center">{job.apply_clicks}</td>
+                        <td className="border-b px-4 py-2 text-center">{job.applications}</td>
                         <td className="border-b px-4 py-2 text-center">
-                          {job.views > 0 ? `${((job.link_clicks / job.views) * 100).toFixed(1)}%` : '0%'}
+                          {job.views > 0 ? `${((job.applications / job.views) * 100).toFixed(1)}%` : '0%'}
                         </td>
                       </tr>
                     ))}
@@ -581,7 +586,7 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
-            {/* daily activity trends table - updated */}
+            {/* daily activity trends table */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">Daily Activity Trends</h2>
               <div className="overflow-x-auto">
@@ -590,8 +595,9 @@ export default function AdminAnalyticsDashboard() {
                     <tr className="bg-gray-100 text-gray-700">
                       <th className="border px-4 py-2">Date</th>
                       <th className="border px-4 py-2">Jobs Posted</th>
-                      <th className="border px-4 py-2">Link Clicks</th>
+                      <th className="border px-4 py-2">Applications</th>
                       <th className="border px-4 py-2">Views</th>
+                      <th className="border px-4 py-2">Apply Clicks</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -600,8 +606,9 @@ export default function AdminAnalyticsDashboard() {
                       <tr key={item.date} className="text-center">
                         <td className="border px-4 py-2">{item.date}</td>
                         <td className="border px-4 py-2">{item.total_postings}</td>
-                        <td className="border px-4 py-2">{item.link_clicks}</td>
+                        <td className="border px-4 py-2">{item.applications}</td>
                         <td className="border px-4 py-2">{item.views}</td>
+                        <td className="border px-4 py-2">{item.apply_clicks}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -609,7 +616,7 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
             
-            {/* top companies by engagement table - updated */}
+            {/* top companies by engagement table */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">Top Companies by Engagement</h2>
               <div className="overflow-x-auto">
@@ -619,7 +626,7 @@ export default function AdminAnalyticsDashboard() {
                       <th className="border px-4 py-2">Company</th>
                       <th className="border px-4 py-2">Active Jobs</th>
                       <th className="border px-4 py-2">Total Views</th>
-                      <th className="border px-4 py-2">Link Clicks</th>
+                      <th className="border px-4 py-2">Apply Clicks</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -628,7 +635,7 @@ export default function AdminAnalyticsDashboard() {
                         <td className="border px-4 py-2 font-medium">{item.company}</td>
                         <td className="border px-4 py-2">{item.job_count}</td>
                         <td className="border px-4 py-2">{item.views}</td>
-                        <td className="border px-4 py-2">{item.link_clicks}</td>
+                        <td className="border px-4 py-2">{item.apply_clicks}</td>
                       </tr>
                     ))}
                   </tbody>

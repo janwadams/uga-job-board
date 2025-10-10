@@ -1,4 +1,4 @@
-// src/pages/admin/platform-effectiveness.tsx - updated for link click tracking
+// src/pages/admin/platform-effectiveness.tsx - advanced platform health metrics
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -23,10 +23,10 @@ const supabase = createClient(
 interface ConversionFunnel {
   total_views: number;
   unique_viewers: number;
-  link_clicks: number; // changed from apply_clicks
-  unique_clickers: number; // changed from quick_applies
+  apply_clicks: number;
+  quick_applies: number;
   view_to_click_rate: number;
-  click_engagement_rate: number; // changed from click_to_apply_rate
+  click_to_apply_rate: number;
   overall_conversion: number;
 }
 
@@ -42,7 +42,8 @@ interface JobPerformance {
   company: string;
   views: number;
   clicks: number;
-  engagement_rate: number; // changed from applications
+  applications: number;
+  conversion_rate: number;
   effectiveness_score: number;
 }
 
@@ -52,7 +53,7 @@ interface PlatformHealth {
   metrics: {
     user_activity: number;
     job_freshness: number;
-    click_rate: number; // changed from application_rate
+    application_rate: number;
     engagement_rate: number;
   };
 }
@@ -129,19 +130,19 @@ export default function PlatformEffectiveness() {
 
     // count different event types
     const views = analytics?.filter(a => a.event_type === 'view') || [];
-    const clicks = analytics?.filter(a => a.event_type === 'click_apply' || a.event_type === 'link_click') || [];
+    const clicks = analytics?.filter(a => a.event_type === 'click_apply') || [];
+    const applies = analytics?.filter(a => a.event_type === 'quick_apply') || [];
     
     const uniqueViewers = new Set(views.map(v => v.user_id)).size;
-    const uniqueClickers = new Set(clicks.map(c => c.user_id)).size;
 
     const funnel: ConversionFunnel = {
       total_views: views.length,
       unique_viewers: uniqueViewers,
-      link_clicks: clicks.length,
-      unique_clickers: uniqueClickers,
+      apply_clicks: clicks.length,
+      quick_applies: applies.length,
       view_to_click_rate: views.length > 0 ? (clicks.length / views.length * 100) : 0,
-      click_engagement_rate: uniqueViewers > 0 ? (uniqueClickers / uniqueViewers * 100) : 0,
-      overall_conversion: views.length > 0 ? (clicks.length / views.length * 100) : 0
+      click_to_apply_rate: clicks.length > 0 ? (applies.length / clicks.length * 100) : 0,
+      overall_conversion: views.length > 0 ? (applies.length / views.length * 100) : 0
     };
 
     setConversionFunnel(funnel);
@@ -165,7 +166,7 @@ export default function PlatformEffectiveness() {
       const hour = new Date(record.created_at).getHours();
       if (record.event_type === 'view') {
         hourlyData[hour].views++;
-      } else if (record.event_type === 'click_apply' || record.event_type === 'link_click') {
+      } else if (record.event_type === 'click_apply' || record.event_type === 'quick_apply') {
         hourlyData[hour].clicks++;
       }
     });
@@ -180,10 +181,15 @@ export default function PlatformEffectiveness() {
   };
 
   const fetchTopPerformingJobs = async (startDate: Date) => {
-    // get jobs
+    // get jobs with their analytics
     const { data: jobs } = await supabase
       .from('jobs')
-      .select('id, title, company')
+      .select(`
+        id,
+        title,
+        company,
+        job_applications(count)
+      `)
       .eq('status', 'active');
 
     // get analytics for these jobs
@@ -198,10 +204,12 @@ export default function PlatformEffectiveness() {
     jobs?.forEach(job => {
       const jobAnalytics = analytics?.filter(a => a.job_id === job.id) || [];
       const views = jobAnalytics.filter(a => a.event_type === 'view').length;
-      const clicks = jobAnalytics.filter(a => a.event_type === 'click_apply' || a.event_type === 'link_click').length;
+      const clicks = jobAnalytics.filter(a => a.event_type === 'click_apply').length;
+      const applications = job.job_applications?.[0]?.count || 0;
       
-      const engagement_rate = views > 0 ? (clicks / views * 100) : 0;
-      const effectiveness_score = engagement_rate; // simplified scoring based on engagement
+      const conversion_rate = views > 0 ? (applications / views * 100) : 0;
+      const click_rate = views > 0 ? (clicks / views * 100) : 0;
+      const effectiveness_score = (conversion_rate * 0.6) + (click_rate * 0.4);
       
       jobMetrics.set(job.id, {
         id: job.id,
@@ -209,14 +217,14 @@ export default function PlatformEffectiveness() {
         company: job.company,
         views,
         clicks,
-        engagement_rate,
+        applications,
+        conversion_rate,
         effectiveness_score
       });
     });
 
     // sort by effectiveness and take top 10
     const performanceList = Array.from(jobMetrics.values())
-      .filter(job => job.views > 0) // only show jobs with at least some views
       .sort((a, b) => b.effectiveness_score - a.effectiveness_score)
       .slice(0, 10);
     
@@ -252,14 +260,13 @@ export default function PlatformEffectiveness() {
 
     const jobFreshnessScore = totalActiveJobs ? (recentJobs! / totalActiveJobs * 100) : 0;
 
-    // calculate click rate score
-    const { count: recentClicks } = await supabase
-      .from('job_analytics')
+    // calculate application rate score
+    const { count: recentApplications } = await supabase
+      .from('job_applications')
       .select('*', { count: 'exact', head: true })
-      .in('event_type', ['click_apply', 'link_click'])
-      .gte('created_at', startDate.toISOString());
+      .gte('applied_at', startDate.toISOString());
 
-    const clickRateScore = Math.min((recentClicks! / 10), 100);
+    const applicationRateScore = Math.min((recentApplications! / 10), 100);
 
     // calculate engagement rate score
     const { count: engagements } = await supabase
@@ -273,7 +280,7 @@ export default function PlatformEffectiveness() {
     const overallScore = (
       userActivityScore * 0.3 +
       jobFreshnessScore * 0.2 +
-      clickRateScore * 0.3 +
+      applicationRateScore * 0.3 +
       engagementRateScore * 0.2
     );
 
@@ -289,7 +296,7 @@ export default function PlatformEffectiveness() {
       metrics: {
         user_activity: Math.round(userActivityScore),
         job_freshness: Math.round(jobFreshnessScore),
-        click_rate: Math.round(clickRateScore),
+        application_rate: Math.round(applicationRateScore),
         engagement_rate: Math.round(engagementRateScore)
       }
     });
@@ -367,8 +374,8 @@ export default function PlatformEffectiveness() {
                   <p className="text-sm text-gray-600">Job Freshness</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{platformHealth.metrics.click_rate}%</p>
-                  <p className="text-sm text-gray-600">Click Rate</p>
+                  <p className="text-2xl font-bold">{platformHealth.metrics.application_rate}%</p>
+                  <p className="text-sm text-gray-600">Application Rate</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold">{platformHealth.metrics.engagement_rate}%</p>
@@ -379,10 +386,10 @@ export default function PlatformEffectiveness() {
           </div>
         )}
 
-        {/* conversion funnel visualization - updated */}
+        {/* conversion funnel visualization */}
         {conversionFunnel && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Engagement Funnel</h2>
+            <h2 className="text-xl font-semibold mb-4">Conversion Funnel</h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-blue-50 rounded">
                 <div className="flex items-center">
@@ -408,15 +415,35 @@ export default function PlatformEffectiveness() {
                 <div className="flex items-center">
                   <CursorArrowRaysIcon className="h-8 w-8 text-green-600 mr-3" />
                   <div>
-                    <p className="font-semibold">Link Clicks</p>
-                    <p className="text-sm text-gray-600">{conversionFunnel.unique_clickers} unique clickers</p>
+                    <p className="font-semibold">Apply Clicks</p>
+                    <p className="text-sm text-gray-600">Clicked apply button</p>
                   </div>
                 </div>
-                <p className="text-2xl font-bold">{conversionFunnel.link_clicks}</p>
+                <p className="text-2xl font-bold">{conversionFunnel.apply_clicks}</p>
+              </div>
+
+              <div className="flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">Click to Apply Rate</p>
+                  <p className="text-lg font-semibold text-green-600">
+                    {conversionFunnel.click_to_apply_rate.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-purple-50 rounded">
+                <div className="flex items-center">
+                  <CheckCircleIcon className="h-8 w-8 text-purple-600 mr-3" />
+                  <div>
+                    <p className="font-semibold">Applications</p>
+                    <p className="text-sm text-gray-600">Completed applications</p>
+                  </div>
+                </div>
+                <p className="text-2xl font-bold">{conversionFunnel.quick_applies}</p>
               </div>
 
               <div className="border-t pt-4 text-center">
-                <p className="text-sm text-gray-600">Overall Engagement Rate</p>
+                <p className="text-sm text-gray-600">Overall Conversion Rate</p>
                 <p className="text-3xl font-bold text-purple-600">
                   {conversionFunnel.overall_conversion.toFixed(1)}%
                 </p>
@@ -457,7 +484,7 @@ export default function PlatformEffectiveness() {
           </div>
         </div>
 
-        {/* top performing jobs table - updated */}
+        {/* top performing jobs table */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Top Performing Jobs</h2>
           <div className="overflow-x-auto">
@@ -474,10 +501,13 @@ export default function PlatformEffectiveness() {
                     Views
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Link Clicks
+                    Clicks
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Engagement Rate
+                    Applications
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Conversion
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Effectiveness Score
@@ -487,7 +517,7 @@ export default function PlatformEffectiveness() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {topPerformingJobs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
                       No job performance data available for this period
                     </td>
                   </tr>
@@ -511,12 +541,15 @@ export default function PlatformEffectiveness() {
                         {job.clicks}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                        {job.applications}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          job.engagement_rate > 10 ? 'bg-green-100 text-green-800' :
-                          job.engagement_rate > 5 ? 'bg-yellow-100 text-yellow-800' :
+                          job.conversion_rate > 10 ? 'bg-green-100 text-green-800' :
+                          job.conversion_rate > 5 ? 'bg-yellow-100 text-yellow-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
-                          {job.engagement_rate.toFixed(1)}%
+                          {job.conversion_rate.toFixed(1)}%
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
