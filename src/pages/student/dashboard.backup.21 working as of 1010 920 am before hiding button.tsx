@@ -1,4 +1,4 @@
-// pages/student/dashboard.tsx - updated to remove all application functionality
+// pages/student/dashboard.tsx - enhanced version with better layout and quick apply modal
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
@@ -21,9 +21,9 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
+//import QuickApplyModal from '@/components/QuickApplyModal';
+import QuickApplyModal from '../../components/QuickApplyModal';
 
-// disabled: quick apply modal no longer needed
-// import QuickApplyModal from '../../components/QuickApplyModal';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -96,18 +96,18 @@ export default function StudentDashboard() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null); // for split view
   const [showOnlyRecommended, setShowOnlyRecommended] = useState(false); // toggle in for you tab
 
-  // disabled: quick apply modal no longer needed
-  // const [quickApplyModal, setQuickApplyModal] = useState<{
-  //   isOpen: boolean;
-  //   jobId: string;
-  //   jobTitle: string;
-  //   companyName: string;
-  // }>({
-  //   isOpen: false,
-  //   jobId: '',
-  //   jobTitle: '',
-  //   companyName: ''
-  // });
+  // state for the quick apply modal
+  const [quickApplyModal, setQuickApplyModal] = useState<{
+    isOpen: boolean;
+    jobId: string;
+    jobTitle: string;
+    companyName: string;
+  }>({
+    isOpen: false,
+    jobId: '',
+    jobTitle: '',
+    companyName: ''
+  });
 
   // check authentication and fetch user session
   useEffect(() => {
@@ -486,48 +486,48 @@ export default function StudentDashboard() {
     }
   };
 
-  // disabled: apply to job functionality is no longer available internally
-  // const applyToJob = async (jobId: string, applicationData?: any) => {
-  //   if (!session) return;
-  //
-  //   try {
-  //     // build the insert data with optional application details
-  //     const insertData = {
-  //       student_id: session.user.id, 
-  //       job_id: jobId, 
-  //       applied_at: new Date().toISOString(), 
-  //       status: 'applied',
-  //       ...(applicationData || {}) // spread the form data if provided
-  //     };
-  //
-  //     const { error } = await supabase
-  //       .from('job_applications')
-  //       .insert(insertData);
-  //
-  //     if (!error) {
-  //       fetchApplications();
-  //       setSavedJobs(prev => prev.filter(sj => sj.job.id !== jobId));
-  //       alert('Application submitted successfully!');
-  //       // close the modal if it was open
-  //       setQuickApplyModal({ isOpen: false, jobId: '', jobTitle: '', companyName: '' });
-  //     } else {
-  //       throw error;
-  //     }
-  //   } catch (error) {
-  //     console.error('Error applying to job:', error);
-  //     alert('Failed to submit application');
-  //   }
-  // };
+  // enhanced apply to job function that can handle quick apply data
+  const applyToJob = async (jobId: string, applicationData?: any) => {
+    if (!session) return;
 
-  // disabled: quick apply modal opener
-  // const openQuickApplyModal = (job: Job) => {
-  //   setQuickApplyModal({
-  //     isOpen: true,
-  //     jobId: job.id,
-  //     jobTitle: job.title,
-  //     companyName: job.company
-  //   });
-  // };
+    try {
+      // build the insert data with optional application details
+      const insertData = {
+        student_id: session.user.id, 
+        job_id: jobId, 
+        applied_at: new Date().toISOString(), 
+        status: 'applied',
+        ...(applicationData || {}) // spread the form data if provided
+      };
+
+      const { error } = await supabase
+        .from('job_applications')
+        .insert(insertData);
+
+      if (!error) {
+        fetchApplications();
+        setSavedJobs(prev => prev.filter(sj => sj.job.id !== jobId));
+        alert('Application submitted successfully!');
+        // close the modal if it was open
+        setQuickApplyModal({ isOpen: false, jobId: '', jobTitle: '', companyName: '' });
+      } else {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error applying to job:', error);
+      alert('Failed to submit application');
+    }
+  };
+
+  // function to open the quick apply modal
+  const openQuickApplyModal = (job: Job) => {
+    setQuickApplyModal({
+      isOpen: true,
+      jobId: job.id,
+      jobTitle: job.title,
+      companyName: job.company
+    });
+  };
 
   // filter function - applies all filters
   const getFilteredJobs = (jobsToFilter: Job[]) => {
@@ -658,11 +658,9 @@ export default function StudentDashboard() {
                   {matchPercent}% match
                 </span>
               )}
-              {/* disabled: no longer showing applied status
               {hasApplied && (
                 <CheckCircleIcon className="h-5 w-5 text-green-600" />
               )}
-              */}
             </div>
             <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
               <span>{job.company}</span>
@@ -834,18 +832,17 @@ export default function StudentDashboard() {
           )}
 
           <div className="flex gap-2 pt-2 border-t">
-            {/* only show view details button - no quick apply */}
             <Link href={`/jobs/${job.id}`} className="flex-1">
-              <button className="w-full px-4 py-2 bg-uga-red text-white rounded-md hover:bg-red-800 transition-colors text-sm font-medium">
+              <button className="w-full px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors text-sm font-medium">
                 View Details
               </button>
             </Link>
             
-            {/* disabled: quick apply and applied status buttons
             {!hasApplied && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  // open the quick apply modal instead of instant apply
                   openQuickApplyModal(job);
                 }}
                 className="flex-1 px-4 py-2 bg-uga-red text-white rounded-md hover:bg-red-800 transition-colors text-sm font-medium"
@@ -859,7 +856,6 @@ export default function StudentDashboard() {
                 ✔ Applied
               </span>
             )}
-            */}
             
             {savedJob && job.deadline && (
               <button
@@ -943,9 +939,8 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* action buttons - removed apply now */}
+          {/* action buttons */}
           <div className="flex gap-3 mb-6">
-            {/* disabled: apply button no longer available
             {!hasApplied ? (
               <button
                 onClick={() => openQuickApplyModal(job)}
@@ -958,11 +953,10 @@ export default function StudentDashboard() {
                 ✔ Applied
               </span>
             )}
-            */}
             
             <button
               onClick={() => toggleSaveJob(job.id)}
-              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 isSaved 
                   ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -971,9 +965,9 @@ export default function StudentDashboard() {
               {isSaved ? 'Saved' : 'Save'}
             </button>
             
-            <Link href={`/jobs/${job.id}`} className="flex-1">
-              <button className="w-full px-4 py-2 bg-uga-red text-white rounded-lg hover:bg-red-800 font-medium">
-                View Full Details
+            <Link href={`/jobs/${job.id}`}>
+              <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium">
+                Full Details
               </button>
             </Link>
           </div>
@@ -1044,14 +1038,12 @@ export default function StudentDashboard() {
           <p className="text-gray-600 mt-2">Find your perfect opportunity</p>
         </div>
 
-        {/* overview stats cards - removed applications count */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          {/* disabled: showing application count
+        {/* overview stats cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500">
             <div className="text-2xl font-bold text-gray-900">{applications.length}</div>
             <div className="text-sm text-gray-600">Active Applications</div>
           </div>
-          */}
           <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500">
             <div className="text-2xl font-bold text-gray-900">{savedJobs.length}</div>
             <div className="text-sm text-gray-600">Saved Jobs</div>
@@ -1091,7 +1083,7 @@ export default function StudentDashboard() {
           </div>
         )}
         
-        {/* improved tab navigation - removed applications tab */}
+        {/* improved tab navigation - better flow */}
         <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex space-x-8">
             <button
@@ -1125,8 +1117,6 @@ export default function StudentDashboard() {
                 Saved ({savedJobs.length})
               </span>
             </button>
-            
-            {/* disabled: applications tab no longer shown
             <button
               onClick={() => setActiveTab('applications')}
               className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
@@ -1137,8 +1127,6 @@ export default function StudentDashboard() {
             >
               Applications ({applications.length})
             </button>
-            */}
-            
             <button
               onClick={() => setActiveTab('deadlines')}
               className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
@@ -1435,8 +1423,7 @@ export default function StudentDashboard() {
                       )}
                     </div>
                   </div>
-				  
-				  ) : viewMode === 'list' ? (
+                ) : viewMode === 'list' ? (
                   // list view for saved jobs
                   <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                     {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
@@ -1444,6 +1431,11 @@ export default function StudentDashboard() {
                     ))}
                   </div>
                 ) : (
+				
+				
+						
+				
+				
                   // card view for saved jobs
                   <div className="grid gap-4 md:grid-cols-2">
                     {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
@@ -1458,7 +1450,7 @@ export default function StudentDashboard() {
               </div>
             )}
 
-            {/* disabled: applications tab is no longer shown
+            {/* applications tab - with visual pipeline */}
             {activeTab === 'applications' && (
               <div>
                 {loadingApplications ? (
@@ -1480,6 +1472,7 @@ export default function StudentDashboard() {
                   <div className="grid gap-4">
                     {applications.map((application) => (
                       <div key={application.id} className="bg-white rounded-lg shadow p-6">
+                        {/* visual pipeline status */}
                         <div className="mb-4">
                           <div className="flex items-center justify-between text-xs mb-2">
                             <span className={application.status === 'applied' ? 'font-semibold text-blue-600' : 'text-gray-400'}>Applied</span>
@@ -1549,7 +1542,6 @@ export default function StudentDashboard() {
                 )}
               </div>
             )}
-            */}
 
             {/* deadlines tab with calendar view */}
             {activeTab === 'deadlines' && (
@@ -1663,15 +1655,15 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* disabled: quick apply modal no longer needed */}
-      {/* <QuickApplyModal
+      {/* quick apply modal - this is the new popup form */}
+      <QuickApplyModal
         isOpen={quickApplyModal.isOpen}
         onClose={() => setQuickApplyModal({ isOpen: false, jobId: '', jobTitle: '', companyName: '' })}
         onSubmit={(data) => applyToJob(quickApplyModal.jobId, data)}
         jobTitle={quickApplyModal.jobTitle}
         companyName={quickApplyModal.companyName}
         userEmail={session?.user?.email || ''}
-      /> */}
+      />
     </div>
   );
 }
