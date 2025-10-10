@@ -1,10 +1,10 @@
-// pages/jobs/[id].tsx - updated to require authentication and track link clicks
+// pages/jobs/[id].tsx - Enhanced version with all fields and fixed overflow
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// initialize supabase client
+// Initialize Supabase client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -34,58 +34,47 @@ export default function JobDetails() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [backHref, setBackHref] = useState('/');
-  
-  // disabled: no longer tracking applications internally
-  // const [hasApplied, setHasApplied] = useState(false);
-  // const [isApplying, setIsApplying] = useState(false);
-  
+  const [hasApplied, setHasApplied] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     if (!id) return;
 
-    const checkUserAndFetchJob = async () => {
-      // first check if user is authenticated
+    const checkUserAndSetBackLink = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      // if no session, redirect to login page with return url
-      if (!session?.user) {
-        // user must be logged in to view job details
-        router.push(`/login?redirect=/jobs/${id}`);
-        return;
-      }
-      
-      // user is logged in, set user data
-      setUser(session.user);
-      
-      // check user role to set appropriate back link
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', session.user.id)
-        .single();
-      
-      if (roleData?.role === 'student') {
-        setBackHref('/student/dashboard');
+      if (session?.user) {
+        setUser(session.user);
         
-        // disabled: no longer checking if student has applied
-        // const { data: applicationData } = await supabase
-        //   .from('job_applications')
-        //   .select('id')
-        //   .eq('job_id', id)
-        //   .eq('student_id', session.user.id)
-        //   .single();
-        // 
-        // setHasApplied(!!applicationData);
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (roleData?.role === 'student') {
+          setBackHref('/student/dashboard');
+          
+          // Check if already applied
+          const { data: applicationData } = await supabase
+            .from('job_applications')
+            .select('id')
+            .eq('job_id', id)
+            .eq('student_id', session.user.id)
+            .single();
+          
+          setHasApplied(!!applicationData);
+        }
       }
+    };
 
-      // now fetch the job details since user is authenticated
+    const fetchJob = async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('id', id)
-        .eq('status', 'active') // only show active jobs
+        .eq('status', 'active') // Only show active jobs
         .single();
 
       if (error) {
@@ -96,10 +85,11 @@ export default function JobDetails() {
       setLoading(false);
     };
 
-    checkUserAndFetchJob();
-  }, [id, router]);
+    checkUserAndSetBackLink();
+    fetchJob();
+  }, [id]);
 
-  // track when a student views this job posting
+  // new: track when a student views this job posting
   // this helps faculty see how many students looked at their job
   useEffect(() => {
     const trackJobView = async () => {
@@ -132,62 +122,38 @@ export default function JobDetails() {
     if (id && user) {
       trackJobView();
     }
-  }, [id, user]);
+  }, [id, user]); // re-run if either id or user changes
 
-  // new function to track when someone clicks the company application link
-  const trackLinkClick = async (jobId: string) => {
-    if (!user) return;
-    
-    try {
-      // insert a record of this click - using upsert to avoid duplicates
-      await supabase
-        .from('job_link_clicks')
-        .upsert({
-          job_id: jobId,
-          user_id: user.id,
-          clicked_at: new Date().toISOString()
-        }, {
-          onConflict: 'job_id,user_id'
-        });
-      
-      console.log('tracked link click for job:', jobId);
-    } catch (error) {
-      console.error('error tracking link click:', error);
-      // don't break the link functionality if tracking fails
+  const handleApply = async () => {
+    if (!user) {
+      router.push('/login?redirect=' + router.asPath);
+      return;
     }
-  };
 
-  // disabled: no longer handling applications internally
-  // const handleApply = async () => {
-  //   if (!user) {
-  //     router.push('/login?redirect=' + router.asPath);
-  //     return;
-  //   }
-  //
-  //   setIsApplying(true);
-  //
-  //   // track application in database
-  //   const { error } = await supabase
-  //     .from('job_applications')
-  //     .insert([{
-  //       job_id: job?.id,
-  //       student_id: user.id,
-  //       status: 'applied'
-  //     }]);
-  //
-  //   if (!error) {
-  //     setHasApplied(true);
-  //   }
-  //
-  //   // handle different application methods
-  //   if (job?.apply_method.startsWith('http')) {
-  //     window.open(job.apply_method, '_blank');
-  //   } else if (job?.apply_method.includes('@')) {
-  //     window.location.href = `mailto:${job.apply_method}?subject=Application for ${job.title} position`;
-  //   }
-  //
-  //   setIsApplying(false);
-  // };
+    setIsApplying(true);
+
+    // Track application in database
+    const { error } = await supabase
+      .from('job_applications')
+      .insert([{
+        job_id: job?.id,
+        student_id: user.id,
+        status: 'applied'
+      }]);
+
+    if (!error) {
+      setHasApplied(true);
+    }
+
+    // Handle different application methods
+    if (job?.apply_method.startsWith('http')) {
+      window.open(job.apply_method, '_blank');
+    } else if (job?.apply_method.includes('@')) {
+      window.location.href = `mailto:${job.apply_method}?subject=Application for ${job.title} position`;
+    }
+
+    setIsApplying(false);
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -238,21 +204,21 @@ export default function JobDetails() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* back button */}
+        {/* Back button */}
         <Link href={backHref}>
           <span className="text-red-700 hover:text-red-900 font-medium inline-flex items-center cursor-pointer mb-6">
             ← Back to Jobs
           </span>
         </Link>
 
-        {/* main job card */}
+        {/* Main job card */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          {/* header section */}
+          {/* Header Section */}
           <div className="bg-gradient-to-r from-red-700 to-red-600 text-white px-8 py-6">
             <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
             <p className="text-xl opacity-95 mb-4">{job.company}</p>
             
-            {/* key info grid */}
+            {/* Key Info Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="opacity-75">Location</span>
@@ -275,7 +241,7 @@ export default function JobDetails() {
             </div>
           </div>
 
-          {/* deadline alert */}
+          {/* Deadline Alert */}
           {!isExpired ? (
             <div className={`px-8 py-4 ${isDeadlineSoon ? 'bg-yellow-50 border-b-2 border-yellow-200' : 'bg-gray-50 border-b'}`}>
               <p className={`text-sm font-medium ${isDeadlineSoon ? 'text-yellow-800' : 'text-gray-600'}`}>
@@ -287,14 +253,12 @@ export default function JobDetails() {
           ) : (
             <div className="px-8 py-4 bg-red-50 border-b-2 border-red-200">
               <p className="text-sm font-semibold text-red-800">
-                ⌛ This position is no longer accepting applications (Deadline was {formatDate(job.deadline)})
+                ❌ This position is no longer accepting applications (Deadline was {formatDate(job.deadline)})
               </p>
             </div>
           )}
 
-          {/* disabled: removed internal apply section */}
-          {/* original apply section code preserved below */}
-          {/*
+          {/* Apply Section */}
           <div className="px-8 py-6 bg-gray-50 border-b">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div>
@@ -331,11 +295,10 @@ export default function JobDetails() {
               </button>
             </div>
           </div>
-          */}
 
-          {/* job details content */}
+          {/* Job Details Content */}
           <div className="px-8 py-6">
-            {/* description section */}
+            {/* Description Section */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
                 Job Description
@@ -347,7 +310,7 @@ export default function JobDetails() {
               </div>
             </section>
 
-            {/* requirements section */}
+            {/* Requirements Section */}
             {job.requirements && job.requirements.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
@@ -364,7 +327,7 @@ export default function JobDetails() {
               </section>
             )}
 
-            {/* skills section */}
+            {/* Skills Section */}
             {job.skills && job.skills.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
@@ -383,67 +346,49 @@ export default function JobDetails() {
               </section>
             )}
 
-            {/* application method section - now always visible for authenticated users */}
-            {/* this section shows the external application link */}
+            {/* Application Method Section */}
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">
                 How to Apply
               </h2>
-              {!isExpired ? (
-                <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
-                  <p className="text-gray-700">
-                    {job.apply_method.startsWith('http') ? (
-                      <>
-                        <span className="font-medium block mb-3">Click the link below to apply directly on the company website:</span>
-                        <a 
-                          href={job.apply_method} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          onClick={() => trackLinkClick(job.id)}
-                          className="inline-block px-6 py-3 bg-uga-red text-white rounded-lg hover:bg-red-800 font-medium transition-colors"
-                        >
-                          Apply on Company Website →
-                        </a>
-                        <br />
-                        <span className="text-sm text-gray-600 mt-3 block">
-                          You will be redirected to: {job.apply_method}
-                        </span>
-                      </>
-                    ) : job.apply_method.includes('@') ? (
-                      <>
-                        <span className="font-medium block mb-3">Send your application via email:</span>
-                        <a 
-                          href={`mailto:${job.apply_method}?subject=Application for ${job.title} position at ${job.company}`}
-                          onClick={() => trackLinkClick(job.id)}
-                          className="inline-block px-6 py-3 bg-uga-red text-white rounded-lg hover:bg-red-800 font-medium transition-colors"
-                        >
-                          Send Application Email →
-                        </a>
-                        <br />
-                        <span className="text-sm text-gray-600 mt-3 block">
-                          Email will be sent to: {job.apply_method}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-medium block mb-2">Application Instructions:</span>
-                        <p className="text-gray-700 bg-white p-4 rounded border border-gray-200">
-                          {job.apply_method}
-                        </p>
-                      </>
-                    )}
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-gray-100 p-6 rounded-lg">
-                  <p className="text-gray-600">
-                    This position is no longer accepting applications as the deadline has passed.
-                  </p>
-                </div>
-              )}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-gray-700">
+                  {job.apply_method.startsWith('http') ? (
+                    <>
+                      <span className="font-medium">Apply directly on the company website:</span>
+                      <br />
+                      <a 
+                        href={job.apply_method} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-red-700 underline hover:text-red-900 break-all"
+                      >
+                        {job.apply_method}
+                      </a>
+                    </>
+                  ) : job.apply_method.includes('@') ? (
+                    <>
+                      <span className="font-medium">Send your application to:</span>
+                      <br />
+                      <a 
+                        href={`mailto:${job.apply_method}`}
+                        className="text-red-700 underline hover:text-red-900"
+                      >
+                        {job.apply_method}
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium">Application Instructions:</span>
+                      <br />
+                      {job.apply_method}
+                    </>
+                  )}
+                </p>
+              </div>
             </section>
 
-            {/* additional information */}
+            {/* Additional Information */}
             <section className="border-t pt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                 <div>
@@ -459,7 +404,7 @@ export default function JobDetails() {
           </div>
         </div>
 
-        {/* action buttons */}
+        {/* Action Buttons */}
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={() => window.print()}
@@ -476,19 +421,15 @@ export default function JobDetails() {
           >
             <span>🔗</span> Share Link
           </button>
-          
-          {/* disabled: bookmark feature */}
-          {/*
           <button
             onClick={() => {
-              // you can implement a save/bookmark feature here
+              // You can implement a save/bookmark feature here
               alert('Bookmark feature coming soon!');
             }}
             className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
           >
-            <span>🔖</span> Save Job
+            <span>📖</span> Save Job
           </button>
-          */}
         </div>
       </div>
     </div>
