@@ -1,5 +1,5 @@
 // /pages/rep/analytics.tsx
-// Complete analytics dashboard for company representatives to track job posting engagement (link clicks instead of applications)
+// Complete analytics dashboard for company representatives with improved skills metrics
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -54,8 +54,8 @@ interface TopJob {
 interface SkillDemand {
   skill: string;
   count: number;
-  clicks: number;
-  avgClicksPerJob: string;
+  avgViewsPerJob: string;
+  engagementRate: string;
 }
 
 interface StatusBreakdown {
@@ -336,13 +336,15 @@ export default function RepAnalytics() {
 
       setTopPerformingJobs(topJobs);
 
-      const skillData: { [key: string]: { count: number; clicks: number } } = {};
+      // Updated skills analysis with better metrics
+      const skillData: { [key: string]: { count: number; views: number; clicks: number } } = {};
       jobs?.forEach(job => {
         job.skills?.forEach((skill: string) => {
           if (!skillData[skill]) {
-            skillData[skill] = { count: 0, clicks: 0 };
+            skillData[skill] = { count: 0, views: 0, clicks: 0 };
           }
           skillData[skill].count++;
+          skillData[skill].views += job.job_views?.length || 0;
           skillData[skill].clicks += job.job_link_clicks?.length || 0;
         });
       });
@@ -351,10 +353,10 @@ export default function RepAnalytics() {
         .map(([skill, data]) => ({
           skill,
           count: data.count,
-          clicks: data.clicks,
-          avgClicksPerJob: data.count > 0 ? (data.clicks / data.count).toFixed(1) : '0'
+          avgViewsPerJob: data.count > 0 ? (data.views / data.count).toFixed(1) : '0',
+          engagementRate: data.views > 0 ? ((data.clicks / data.views) * 100).toFixed(1) : '0'
         }))
-        .sort((a, b) => b.clicks - a.clicks)
+        .sort((a, b) => parseFloat(b.engagementRate) - parseFloat(a.engagementRate))
         .slice(0, 10);
 
       setSkillsDemand(skills);
@@ -746,8 +748,9 @@ export default function RepAnalytics() {
           )}
         </div>
 
+        {/* Updated Skills Performance Section */}
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">🎯 Skills Performance Analysis</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">🎯 Skills Demand Analysis</h2>
           {skillsDemand.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full">
@@ -755,8 +758,8 @@ export default function RepAnalytics() {
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Skill</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Jobs Posted</th>
-                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Total Clicks</th>
-                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Avg per Job</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Avg Views per Job</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Engagement Rate</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -765,11 +768,15 @@ export default function RepAnalytics() {
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.skill}</td>
                       <td className="px-4 py-3 text-sm text-center">{item.count}</td>
                       <td className="px-4 py-3 text-sm text-center">
-                        <span className="font-semibold text-green-600">{item.clicks}</span>
+                        <span className="font-semibold text-blue-600">{item.avgViewsPerJob}</span>
                       </td>
                       <td className="px-4 py-3 text-sm text-center">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                          {item.avgClicksPerJob}
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          parseFloat(item.engagementRate) > 15 ? 'bg-green-100 text-green-800' :
+                          parseFloat(item.engagementRate) > 8 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {item.engagementRate}%
                         </span>
                       </td>
                     </tr>
@@ -793,6 +800,7 @@ export default function RepAnalytics() {
                 ? "Great job! Keep up the quality postings" 
                 : "Review admin feedback to improve approval rate"
             }</li>
+            <li>• Skills with high engagement rates are in demand - consider posting more jobs requiring those skills</li>
           </ul>
         </div>
       </div>
