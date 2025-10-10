@@ -1,16 +1,16 @@
-// src/pages/index.tsx - updated with simplified view details only approach
+//src/pages/index.tsx - Updated with UGA brand colors
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-// initialize supabase
+// Initialize Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// job interface with all fields
+// Job interface with all fields
 interface Job {
   id: string;
   title: string;
@@ -33,7 +33,7 @@ interface Job {
 
 type JobFilter = 'all' | 'faculty' | 'companies';
 
-// loading skeleton component for better ux
+// Loading skeleton component for better UX
 const JobCardSkeleton = () => (
   <div className="border border-gray-200 bg-white rounded-lg p-6 animate-pulse">
     <div className="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
@@ -47,7 +47,7 @@ const JobCardSkeleton = () => (
   </div>
 );
 
-// job card component - simplified with only view details button
+// Job card component - no expired jobs will reach here now
 const JobCard = ({ job, isStudent, hasApplied, onApply }: { 
   job: Job;
   isStudent: boolean;
@@ -155,54 +155,51 @@ const JobCard = ({ job, isStudent, hasApplied, onApply }: {
           </span>
         </div>
 
-        {/* simplified action button section - only view details */}
-        <div className="flex">
+        {/* action buttons */}
+        <div className="flex gap-2">
           <Link href={`/jobs/${job.id}`} className="flex-1">
-            <button className="w-full bg-uga-red text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors">
+            <button className="w-full bg-gray-700 text-white font-medium py-2 px-4 rounded-lg hover:bg-gray-800 transition-colors">
               View Details
             </button>
           </Link>
+          
+          {/* only show apply for students */}
+          {isStudent && (
+            <>
+              {hasApplied ? (
+                <button 
+                  disabled
+                  className="flex-1 bg-green-100 text-green-800 font-medium py-2 px-4 rounded-lg cursor-not-allowed"
+                >
+                  ✔ Applied
+                </button>
+              ) : (
+                <button
+                  onClick={() => onApply(job.id)}
+                  className="flex-1 bg-uga-red text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
+                >
+                  Quick Apply
+                </button>
+              )}
+            </>
+          )}
+          
+          {/* prompt non-students to sign up */}
+          {!isStudent && (
+            <button
+              onClick={() => router.push('/login')}
+              className="flex-1 bg-uga-red text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
+            >
+              Sign in to Apply
+            </button>
+          )}
         </div>
-        
-        {/* disabled: removed all application buttons and sign in prompts */}
-        {/* original code preserved below but commented out */}
-        {/* 
-        // this section used to show quick apply and sign in to apply buttons
-        {isStudent && (
-          <>
-            {hasApplied ? (
-              <button 
-                disabled
-                className="flex-1 bg-green-100 text-green-800 font-medium py-2 px-4 rounded-lg cursor-not-allowed"
-              >
-                ✔ Applied
-              </button>
-            ) : (
-              <button
-                onClick={() => onApply(job.id)}
-                className="flex-1 bg-uga-red text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
-              >
-                Quick Apply
-              </button>
-            )}
-          </>
-        )}
-        
-        {!isStudent && (
-          <button
-            onClick={() => router.push('/login')}
-            className="flex-1 bg-uga-red text-white font-medium py-2 px-4 rounded-lg hover:bg-red-800 transition-colors"
-          >
-            Sign in to Apply
-          </button>
-        )}
-        */}
       </div>
     </div>
   );
 };
 
-// main component
+// Main component
 export default function JobBoard() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -211,9 +208,7 @@ export default function JobBoard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [userSession, setUserSession] = useState<any>(null);
   const [isStudent, setIsStudent] = useState(false);
-  
-  // disabled: application tracking no longer needed
-  // const [applications, setApplications] = useState<Set<string>>(new Set());
+  const [applications, setApplications] = useState<Set<string>>(new Set());
   
   // filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -234,12 +229,12 @@ export default function JobBoard() {
     fetchJobsWithCreatorInfo();
   }, []);
 
-  // disabled: no longer fetching applications
-  // useEffect(() => {
-  //   if (isStudent && userSession) {
-  //     fetchUserApplications();
-  //   }
-  // }, [isStudent, userSession]);
+  // fetch applications if student
+  useEffect(() => {
+    if (isStudent && userSession) {
+      fetchUserApplications();
+    }
+  }, [isStudent, userSession]);
 
   const checkUserSession = async () => {
     try {
@@ -263,29 +258,28 @@ export default function JobBoard() {
     }
   };
 
-  // disabled: no longer tracking applications
-  // const fetchUserApplications = async () => {
-  //   if (!userSession) return;
-  //   
-  //   try {
-  //     const { data } = await supabase
-  //       .from('job_applications')
-  //       .select('job_id')
-  //       .eq('student_id', userSession.user.id);
-  //     
-  //     if (data) {
-  //       setApplications(new Set(data.map(app => app.job_id)));
-  //     }
-  //   } catch (error) {
-  //     console.error('Error fetching applications:', error);
-  //   }
-  // };
+  const fetchUserApplications = async () => {
+    if (!userSession) return;
+    
+    try {
+      const { data } = await supabase
+        .from('job_applications')
+        .select('job_id')
+        .eq('student_id', userSession.user.id);
+      
+      if (data) {
+        setApplications(new Set(data.map(app => app.job_id)));
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+  };
 
   const fetchJobsWithCreatorInfo = async () => {
     setLoading(true);
     
     try {
-      const today = new Date().toISOString().split('T')[0]; // get today's date in yyyy-mm-dd format
+      const today = new Date().toISOString().split('T')[0]; // get today's date in YYYY-MM-DD format
       
       // get only active jobs that haven't expired yet
       const { data: jobsData, error: jobsError } = await supabase
@@ -344,34 +338,29 @@ export default function JobBoard() {
     }
   };
 
-  // disabled: quick apply no longer available
   const handleQuickApply = async (jobId: string) => {
-    // this function is disabled - applications are handled externally
-    console.log('quick apply is disabled - users must use company application links');
-    
-    // original code preserved below
-    // if (!userSession) {
-    //   router.push('/login');
-    //   return;
-    // }
-    //
-    // try {
-    //   const { error } = await supabase
-    //     .from('job_applications')
-    //     .insert({
-    //       job_id: jobId,
-    //       student_id: userSession.user.id,
-    //       status: 'applied'
-    //     });
-    //
-    //   if (!error) {
-    //     setApplications(prev => new Set(prev).add(jobId));
-    //     alert('Application submitted successfully!');
-    //   }
-    // } catch (error) {
-    //   console.error('Error applying:', error);
-    //   alert('Failed to submit application');
-    // }
+    if (!userSession) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('job_applications')
+        .insert({
+          job_id: jobId,
+          student_id: userSession.user.id,
+          status: 'applied'
+        });
+
+      if (!error) {
+        setApplications(prev => new Set(prev).add(jobId));
+        alert('Application submitted successfully!');
+      }
+    } catch (error) {
+      console.error('Error applying:', error);
+      alert('Failed to submit application');
+    }
   };
 
   // handle quick filters
@@ -500,7 +489,7 @@ export default function JobBoard() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* hero section - using uga brand colors */}
+      {/* hero section - using UGA brand colors */}
       <header className="bg-gradient-to-r from-uga-red to-red-700 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-4xl font-bold mb-3">UGA Job Board</h1>
@@ -700,7 +689,7 @@ export default function JobBoard() {
                     key={job.id} 
                     job={job}
                     isStudent={isStudent}
-                    hasApplied={false} // disabled: always false since we don't track applications
+                    hasApplied={applications.has(job.id)}
                     onApply={handleQuickApply}
                   />
                 ))}
