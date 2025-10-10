@@ -1,13 +1,13 @@
 // pages/faculty/dashboard.tsx
-// Updated faculty dashboard with link click tracking instead of applications
+// Complete faculty dashboard with analytics tab and applications access included
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { 
-  CursorArrowRaysIcon,
-  ChartBarIcon 
+  UserGroupIcon,
+  ClipboardDocumentListIcon 
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -30,18 +30,18 @@ interface Job {
 // types for analytics data
 interface AnalyticsOverview {
   totalJobs: number;
-  totalLinkClicks: number; // changed from totalApplications
-  averageClicksPerJob: string; // changed from averageApplicationsPerJob
+  totalApplications: number;
+  averageApplicationsPerJob: string;
   totalViews: number;
-  engagementRate: string; // changed from conversionRate
+  conversionRate: string;
   activeJobs: number;
   expiredJobs: number;
-  averageDaysToClick: string; // changed from averageDaysToApply
+  averageDaysToApply: string;
 }
 
 interface TrendData {
   date: string;
-  clicks: number; // changed from applications
+  applications: number;
   views: number;
 }
 
@@ -49,9 +49,9 @@ interface TopJob {
   id: string;
   title: string;
   company: string;
-  clicks: number; // changed from applications
+  applications: number;
   views: number;
-  engagementRate: string; // changed from conversionRate
+  conversionRate: string;
   status: string;
   daysActive: number;
 }
@@ -167,22 +167,22 @@ export default function FacultyDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [userRole, setUserRole] = useState<string | null>(null);
   
-  // updated state for link clicks count instead of applications
-  const [linkClicksCount, setLinkClicksCount] = useState(0);
+  // new state for applications count
+  const [applicationsCount, setApplicationsCount] = useState(0);
   
   // analytics state - stores all the data for charts and metrics
   const [dateRange, setDateRange] = useState('30'); // default to 30 days
   const [analyticsOverview, setAnalyticsOverview] = useState<AnalyticsOverview>({
     totalJobs: 0,
-    totalLinkClicks: 0,
-    averageClicksPerJob: '0',
+    totalApplications: 0,
+    averageApplicationsPerJob: '0',
     totalViews: 0,
-    engagementRate: '0',
+    conversionRate: '0',
     activeJobs: 0,
     expiredJobs: 0,
-    averageDaysToClick: '0'
+    averageDaysToApply: '0'
   });
-  const [clickTrends, setClickTrends] = useState<TrendData[]>([]);
+  const [applicationTrends, setApplicationTrends] = useState<TrendData[]>([]);
   const [topPerformingJobs, setTopPerformingJobs] = useState<TopJob[]>([]);
 
   // check if user is logged in and has faculty role
@@ -214,32 +214,37 @@ export default function FacultyDashboard() {
     checkSession();
   }, [router]);
 
-  // function to fetch link clicks count for all faculty's jobs
-  const fetchLinkClicksCount = async () => {
-    if (!session) return;
-    
-    try {
-      // get all jobs by this faculty member
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('id')
-        .eq('created_by', session.user.id);
-      
-      if (jobs && jobs.length > 0) {
-        // count link clicks for these specific jobs only
-        const { count } = await supabase
-          .from('job_link_clicks')
-          .select('*', { count: 'exact', head: true })
-          .in('job_id', jobs.map(j => j.id));
-        
-        setLinkClicksCount(count || 0);
-      } else {
-        setLinkClicksCount(0);
-      }
-    } catch (error) {
-      console.error('Error fetching link clicks count:', error);
-    }
-  };
+  // function to fetch applications count for all faculty's jobs
+  	const fetchApplicationsCount = async () => {
+	  if (!session) return;
+	  
+	  try {
+		// get all jobs by this faculty member
+		const { data: jobs } = await supabase
+		  .from('jobs')
+		  .select('id')
+		  .eq('created_by', session.user.id);
+		
+		if (jobs && jobs.length > 0) {
+		  // count applications for these specific jobs only
+		  const { count } = await supabase
+			.from('job_applications')
+			.select('*', { count: 'exact', head: true })
+			.in('job_id', jobs.map(j => j.id));
+		  
+		  setApplicationsCount(count || 0);
+		} else {
+		  setApplicationsCount(0);
+		}
+	  } catch (error) {
+		console.error('Error fetching applications count:', error);
+	  }
+	};
+
+
+
+
+
 
   // fetch active jobs when tab changes or filter changes
   useEffect(() => {
@@ -280,7 +285,7 @@ export default function FacultyDashboard() {
 
     if (session) {
       fetchJobs();
-      fetchLinkClicksCount(); // fetch link clicks count when session is ready
+      fetchApplicationsCount(); // fetch applications count when session is ready
     }
   }, [session, statusFilter]);
 
@@ -328,7 +333,7 @@ export default function FacultyDashboard() {
     }
   }, [activeTab, dateRange, session]);
 
-  // function to fetch all analytics data - updated for link clicks
+  // function to fetch all analytics data
   const fetchAnalyticsData = async () => {
     if (!session?.user) return;
     
@@ -336,15 +341,17 @@ export default function FacultyDashboard() {
     try {
       const userId = session.user.id;
       
-      // fetch all jobs with link clicks and views
+      // fetch all jobs with applications and views
+      // using the actual column names from your database
       const { data: jobsWithData, error: jobsError } = await supabase
         .from('jobs')
         .select(`
           *,
-          job_link_clicks (
+          job_applications (
             id,
-            clicked_at,
-            user_id
+            applied_at,
+            status,
+            student_id
           ),
           job_views (
             id,
@@ -355,6 +362,10 @@ export default function FacultyDashboard() {
         .eq('created_by', userId);
 
       if (jobsError) throw jobsError;
+
+      // log data to help see what we're getting (you can remove these later)
+      console.log('Jobs fetched:', jobsWithData?.length);
+      console.log('Sample job with applications:', jobsWithData?.[0]);
 
       // calculate overview metrics
       const totalJobs = jobsWithData?.length || 0;
@@ -368,56 +379,58 @@ export default function FacultyDashboard() {
         new Date(job.deadline) <= today
       ).length || 0;
 
-      const totalLinkClicks = jobsWithData?.reduce((sum, job) => 
-        sum + (job.job_link_clicks?.length || 0), 0
+      const totalApplications = jobsWithData?.reduce((sum, job) => 
+        sum + (job.job_applications?.length || 0), 0
       ) || 0;
       
       const totalViews = jobsWithData?.reduce((sum, job) => 
         sum + (job.job_views?.length || 0), 0
       ) || 0;
 
-      const averageClicksPerJob = totalJobs > 0 
-        ? (totalLinkClicks / totalJobs).toFixed(1) 
+      const averageApplicationsPerJob = totalJobs > 0 
+        ? (totalApplications / totalJobs).toFixed(1) 
         : '0';
 
-      const engagementRate = totalViews > 0 
-        ? ((totalLinkClicks / totalViews) * 100).toFixed(1)
+      const conversionRate = totalViews > 0 
+        ? ((totalApplications / totalViews) * 100).toFixed(1)
         : '0';
 
-      // calculate average days to first click
-      let totalDaysToClick = 0;
-      let jobsWithClicks = 0;
+      // calculate average days to first application
+      let totalDaysToApply = 0;
+      let jobsWithApplications = 0;
       
       jobsWithData?.forEach(job => {
-        if (job.job_link_clicks && job.job_link_clicks.length > 0) {
-          const sortedClicks = [...job.job_link_clicks].sort((a, b) => 
-            new Date(a.clicked_at).getTime() - new Date(b.clicked_at).getTime()
+        if (job.job_applications && job.job_applications.length > 0) {
+          // sort applications by when they were submitted
+          const sortedApps = [...job.job_applications].sort((a, b) => 
+            new Date(a.applied_at).getTime() - new Date(b.applied_at).getTime() // using applied_at from job_applications
           );
-          const firstClick = sortedClicks[0];
-          const daysToClick = Math.ceil(
-            (new Date(firstClick.clicked_at).getTime() - new Date(job.created_at).getTime())
+          const firstApp = sortedApps[0];
+          // calculate days between job posting and first application
+          const daysToApply = Math.ceil(
+            (new Date(firstApp.applied_at).getTime() - new Date(job.created_at).getTime()) // using applied_at for application date
             / (1000 * 60 * 60 * 24)
           );
-          if (daysToClick > 0) {
-            totalDaysToClick += daysToClick;
-            jobsWithClicks++;
+          if (daysToApply > 0) {
+            totalDaysToApply += daysToApply;
+            jobsWithApplications++;
           }
         }
       });
 
-      const averageDaysToClick = jobsWithClicks > 0
-        ? (totalDaysToClick / jobsWithClicks).toFixed(1)
+      const averageDaysToApply = jobsWithApplications > 0
+        ? (totalDaysToApply / jobsWithApplications).toFixed(1)
         : '0';
 
       setAnalyticsOverview({
         totalJobs,
-        totalLinkClicks,
-        averageClicksPerJob,
+        totalApplications,
+        averageApplicationsPerJob,
         totalViews,
-        engagementRate,
+        conversionRate,
         activeJobs: activeJobsCount,
         expiredJobs: expiredJobsCount,
-        averageDaysToClick
+        averageDaysToApply
       });
 
       // prepare trend data for chart
@@ -425,26 +438,30 @@ export default function FacultyDashboard() {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - daysAgo);
       
-      const trendMap: { [key: string]: { clicks: number; views: number } } = {};
+      const trendMap: { [key: string]: { applications: number; views: number } } = {};
       
+      // initialize all dates with zero counts
       for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
         const dateKey = d.toISOString().split('T')[0];
-        trendMap[dateKey] = { clicks: 0, views: 0 };
+        trendMap[dateKey] = { applications: 0, views: 0 };
       }
       
+      // count applications and views by date
       jobsWithData?.forEach(job => {
-        job.job_link_clicks?.forEach(click => {
-          const clickDate = new Date(click.clicked_at);
-          if (clickDate >= startDate) {
-            const dateKey = clickDate.toISOString().split('T')[0];
+        // count applications for each day
+        job.job_applications?.forEach(app => {
+          const appDate = new Date(app.applied_at); // using applied_at from job_applications table
+          if (appDate >= startDate) {
+            const dateKey = appDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
-              trendMap[dateKey].clicks++;
+              trendMap[dateKey].applications++;
             }
           }
         });
         
+        // count views for each day
         job.job_views?.forEach(view => {
-          const viewDate = new Date(view.created_at);
+          const viewDate = new Date(view.created_at); // using created_at from job_views table
           if (viewDate >= startDate) {
             const dateKey = viewDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
@@ -456,26 +473,26 @@ export default function FacultyDashboard() {
 
       const trends = Object.entries(trendMap).map(([date, data]) => ({
         date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        clicks: data.clicks,
+        applications: data.applications,
         views: data.views
       }));
 
-      setClickTrends(trends);
+      setApplicationTrends(trends);
 
       // calculate top performing jobs
       const topJobs = jobsWithData?.map(job => ({
         id: job.id,
         title: job.title,
         company: job.company,
-        clicks: job.job_link_clicks?.length || 0,
+        applications: job.job_applications?.length || 0,
         views: job.job_views?.length || 0,
-        engagementRate: (job.job_views?.length || 0) > 0 
-          ? (((job.job_link_clicks?.length || 0) / (job.job_views?.length || 0)) * 100).toFixed(1)
+        conversionRate: (job.job_views?.length || 0) > 0 
+          ? (((job.job_applications?.length || 0) / (job.job_views?.length || 0)) * 100).toFixed(1)
           : '0',
         status: job.status,
         daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))
       }))
-      .sort((a, b) => b.clicks - a.clicks)
+      .sort((a, b) => b.applications - a.applications)
       .slice(0, 5) || [];
 
       setTopPerformingJobs(topJobs);
@@ -514,12 +531,14 @@ export default function FacultyDashboard() {
     const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
     if (!newDeadline) return;
 
+    // validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(newDeadline)) {
       alert('Please enter date in YYYY-MM-DD format');
       return;
     }
 
+    // check if date is in the future
     const selectedDate = new Date(newDeadline);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -540,6 +559,7 @@ export default function FacultyDashboard() {
 
       if (!error) {
         alert('Job reactivated successfully!');
+        // refresh both lists
         window.location.reload();
       } else {
         alert('Failed to reactivate job.');
@@ -565,11 +585,16 @@ export default function FacultyDashboard() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-red-800">📚 Faculty Dashboard</h1>
           <div className="flex gap-4">
-            {/* removed view applications button since faculty can't see applications anymore */}
+            {/* new button to view all applications */}
+            <Link href="/faculty/applications">
+              <button className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors shadow-sm flex items-center gap-2">
+                <ClipboardDocumentListIcon className="h-5 w-5" />
+                View Applications
+              </button>
+            </Link>
             <Link href="/faculty/analytics">
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
-                <ChartBarIcon className="h-5 w-5" />
-                Full Analytics
+              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm">
+                📊 Full Analytics
               </button>
             </Link>
             <Link href="/faculty/create">
@@ -580,7 +605,7 @@ export default function FacultyDashboard() {
           </div>
         </div>
 
-        {/* metrics cards - updated to show link clicks instead of applications */}
+        {/* metrics cards - shows key statistics with new applications card */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Total Jobs</h3>
@@ -601,17 +626,19 @@ export default function FacultyDashboard() {
             <p className="text-4xl font-bold text-gray-600 mt-2">{totalArchived}</p>
           </div>
           
-          {/* updated card showing link clicks instead of applications */}
+          {/* new applications card with link */}
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 border-l-4 border-l-purple-500">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-gray-500 font-semibold">Link Clicks</h3>
-                <p className="text-4xl font-bold text-purple-600 mt-2">{linkClicksCount}</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  Student engagement
-                </p>
+                <h3 className="text-gray-500 font-semibold">Applications</h3>
+                <p className="text-4xl font-bold text-purple-600 mt-2">{applicationsCount}</p>
+                <Link href="/faculty/applications">
+                  <button className="text-sm text-purple-600 hover:text-purple-700 mt-2">
+                    View All →
+                  </button>
+                </Link>
               </div>
-              <CursorArrowRaysIcon className="h-10 w-10 text-purple-500" />
+              <UserGroupIcon className="h-10 w-10 text-purple-500" />
             </div>
           </div>
         </div>
@@ -730,8 +757,9 @@ export default function FacultyDashboard() {
             )}
           </div>
         ) : (
-          // analytics section - updated labels
+          // analytics section - shows performance metrics
           <div className="space-y-6">
+            {/* date range selector for analytics */}
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-gray-800">Quick Analytics Overview</h2>
@@ -751,20 +779,20 @@ export default function FacultyDashboard() {
                 <p className="text-center text-gray-500 py-10">Loading analytics...</p>
               ) : (
                 <>
-                  {/* analytics overview cards - updated labels */}
+                  {/* analytics overview cards */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Total Link Clicks</p>
-                      <p className="text-2xl font-bold text-gray-800">{analyticsOverview.totalLinkClicks}</p>
+                      <p className="text-sm text-gray-500">Total Applications</p>
+                      <p className="text-2xl font-bold text-gray-800">{analyticsOverview.totalApplications}</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        Avg: {analyticsOverview.averageClicksPerJob} per job
+                        Avg: {analyticsOverview.averageApplicationsPerJob} per job
                       </p>
                     </div>
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Total Views</p>
                       <p className="text-2xl font-bold text-blue-600">{analyticsOverview.totalViews}</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        Engagement: {analyticsOverview.engagementRate}%
+                        Conversion: {analyticsOverview.conversionRate}%
                       </p>
                     </div>
                     <div className="bg-gray-50 p-4 rounded-lg">
@@ -775,32 +803,32 @@ export default function FacultyDashboard() {
                       </p>
                     </div>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Avg Days to Click</p>
-                      <p className="text-2xl font-bold text-purple-600">{analyticsOverview.averageDaysToClick}</p>
+                      <p className="text-sm text-gray-500">Avg Days to Apply</p>
+                      <p className="text-2xl font-bold text-purple-600">{analyticsOverview.averageDaysToApply}</p>
                       <p className="text-xs text-gray-600 mt-1">after posting</p>
                     </div>
                   </div>
 
-                  {/* simple trend chart - updated labels */}
+                  {/* simple trend chart */}
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-3">Engagement Trends</h3>
+                    <h3 className="text-lg font-semibold mb-3">Application & View Trends</h3>
                     <div className="overflow-x-auto">
                       <div className="min-w-[600px] h-48 flex items-end justify-between gap-1">
-                        {clickTrends.slice(-14).map((day, index) => (
+                        {applicationTrends.slice(-14).map((day, index) => (
                           <div key={index} className="flex-1 flex flex-col items-center">
                             <div className="w-full flex gap-0.5 items-end h-40">
                               <div 
                                 className="flex-1 bg-red-600 rounded-t"
                                 style={{ 
-                                  height: `${day.clicks > 0 ? (day.clicks / Math.max(...clickTrends.map(d => d.clicks)) * 100) : 0}%`,
-                                  minHeight: day.clicks > 0 ? '4px' : '0'
+                                  height: `${day.applications > 0 ? (day.applications / Math.max(...applicationTrends.map(d => d.applications)) * 100) : 0}%`,
+                                  minHeight: day.applications > 0 ? '4px' : '0'
                                 }}
-                                title={`${day.clicks} clicks`}
+                                title={`${day.applications} applications`}
                               />
                               <div 
                                 className="flex-1 bg-blue-600 rounded-t"
                                 style={{ 
-                                  height: `${day.views > 0 ? (day.views / Math.max(...clickTrends.map(d => d.views)) * 100) : 0}%`,
+                                  height: `${day.views > 0 ? (day.views / Math.max(...applicationTrends.map(d => d.views)) * 100) : 0}%`,
                                   minHeight: day.views > 0 ? '4px' : '0'
                                 }}
                                 title={`${day.views} views`}
@@ -814,7 +842,7 @@ export default function FacultyDashboard() {
                     <div className="flex items-center gap-4 mt-3 justify-center">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-red-600 rounded"></div>
-                        <span className="text-sm text-gray-600">Link Clicks</span>
+                        <span className="text-sm text-gray-600">Applications</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-blue-600 rounded"></div>
@@ -823,7 +851,7 @@ export default function FacultyDashboard() {
                     </div>
                   </div>
 
-                  {/* top performing jobs table - updated labels */}
+                  {/* top performing jobs table */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">Top Performing Jobs</h3>
                     <div className="overflow-x-auto">
@@ -831,9 +859,9 @@ export default function FacultyDashboard() {
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Link Clicks</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Applications</th>
                             <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Views</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Engagement</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Conversion</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -841,12 +869,12 @@ export default function FacultyDashboard() {
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm font-medium text-gray-900">{job.title}</td>
                               <td className="px-4 py-3 text-sm text-center">
-                                <span className="font-semibold text-green-600">{job.clicks}</span>
+                                <span className="font-semibold text-green-600">{job.applications}</span>
                               </td>
                               <td className="px-4 py-3 text-sm text-center">{job.views}</td>
                               <td className="px-4 py-3 text-sm text-center">
                                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                  {job.engagementRate}%
+                                  {job.conversionRate}%
                                 </span>
                               </td>
                             </tr>
