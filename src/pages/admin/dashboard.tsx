@@ -326,30 +326,30 @@ export default function AdminDashboard() {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-red-800">Admin Dashboard</h1>
-        <div className="flex space-x-4">
-          {/* Updated buttons with consistent sizing */}
+      {/* Updated responsive header and buttons section */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-red-800">Admin Dashboard</h1>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex gap-2 lg:gap-4">
           <Link href="/admin/analytics">
-            <button className="min-w-[140px] bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800 text-center">
+            <button className="w-full lg:w-auto lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm">
               View Analytics
             </button>
           </Link>
           
           <Link href="/admin/content-review">
-            <button className="min-w-[140px] bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center">
+            <button className="w-full lg:w-auto lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm">
               Content Review
             </button>
           </Link>
           
           <Link href="/admin/archive-reports">
-            <button className="min-w-[140px] bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-center">
+            <button className="w-full lg:w-auto lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm">
               Archive Reports
             </button>
           </Link>
           
           <Link href="/admin/platform-effectiveness">
-            <button className="min-w-[140px] bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 text-center">
+            <button className="w-full lg:w-auto lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm">
               Platform Health
             </button>
           </Link>
@@ -357,7 +357,7 @@ export default function AdminDashboard() {
           {activeTab === 'users' && (
             <button
               onClick={() => setShowCreateAdmin(true)}
-              className="min-w-[140px] bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 text-center"
+              className="col-span-2 sm:col-span-1 w-full lg:w-auto lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
             >
               + Create Admin
             </button>
@@ -365,7 +365,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Rest of the component remains exactly the same */}
       <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button 
@@ -418,9 +417,6 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-// All the other component functions (CreateAdminModal, UsersManagementPanel, JobsManagementPanel, ArchivedJobsPanel, EditUserModal) remain exactly the same as in your original code
-// I'm not repeating them here to save space, but they should be included as-is
 
 // create admin modal component with password visibility
 function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
@@ -683,7 +679,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
             <tbody className="bg-white divide-y divide-gray-200">
               {jobs.map((job) => (
                 <tr key={job.id}>
-                  {/* make the job title clickable to view details */}
                   <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">
                     <Link href={`/admin/view/${job.id}`}>
                       <span className="hover:text-blue-600 hover:underline cursor-pointer">
@@ -703,18 +698,16 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="flex justify-center items-center gap-2">
-                      {/* view button - always visible for easy access */}
                       <Link href={`/admin/view/${job.id}`}>
                         <button className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
                           View
                         </button>
                       </Link>
                       
-                      {/* actions menu for other operations like edit, approve, reject */}
                       <div className="relative inline-block text-left">
                         <button onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)} 
                                 className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24" stroke="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </button>
@@ -722,7 +715,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                           <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" 
                                onMouseLeave={() => setOpenActionMenu(null)}>
                             <div className="py-1" role="menu" aria-orientation="vertical">
-                              {/* removed view details from menu since it has its own button now */}
                               {job.status === 'pending' && (
                                 <>
                                   <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} 
