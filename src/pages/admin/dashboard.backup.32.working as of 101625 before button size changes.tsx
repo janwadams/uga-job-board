@@ -329,43 +329,44 @@ export default function AdminDashboard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-red-800">Admin Dashboard</h1>
         <div className="flex space-x-4">
-          {/* Updated buttons with consistent sizing */}
+          {/* existing analytics button */}
           <Link href="/admin/analytics">
-            <button className="min-w-[140px] bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800 text-center">
+            <button className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">
               View Analytics
             </button>
           </Link>
           
+          {/* new buttons for the three governance features */}
           <Link href="/admin/content-review">
-            <button className="min-w-[140px] bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-center">
+            <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
               Content Review
             </button>
           </Link>
           
           <Link href="/admin/archive-reports">
-            <button className="min-w-[140px] bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-center">
+            <button className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
               Archive Reports
             </button>
           </Link>
           
           <Link href="/admin/platform-effectiveness">
-            <button className="min-w-[140px] bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 text-center">
+            <button className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
               Platform Health
             </button>
           </Link>
           
+          {/* existing create admin button that only shows on users tab */}
           {activeTab === 'users' && (
             <button
               onClick={() => setShowCreateAdmin(true)}
-              className="min-w-[140px] bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 text-center"
+              className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
             >
-              + Create Admin
+              + Create Admin Account
             </button>
           )}
         </div>
       </div>
 
-      {/* Rest of the component remains exactly the same */}
       <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button 
@@ -418,9 +419,6 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-// All the other component functions (CreateAdminModal, UsersManagementPanel, JobsManagementPanel, ArchivedJobsPanel, EditUserModal) remain exactly the same as in your original code
-// I'm not repeating them here to save space, but they should be included as-is
 
 // create admin modal component with password visibility
 function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
