@@ -656,14 +656,35 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
 
 
 
-// component for jobs tab - with all action buttons visible (disabled when not applicable)
+
+// component for jobs tab - responsive with buttons on desktop, dropdown on mobile
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
+  const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
+  const [dropdownDirection, setDropdownDirection] = useState<{ [key: string]: 'up' | 'down' }>({});
+  
   const statusColors: Record<Job['status'], string> = { 
     active: 'bg-green-100 text-green-800', 
     pending: 'bg-yellow-100 text-yellow-800', 
     removed: 'bg-red-100 text-red-800', 
     rejected: 'bg-gray-100 text-gray-800', 
     archived: 'bg-gray-100 text-gray-800' 
+  };
+
+  // function to check if dropdown should open upward based on position (for mobile)
+  const handleMenuClick = (jobId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const menuHeight = 150; // approximate height of dropdown menu
+    
+    // decide if menu should open up or down based on available space
+    setDropdownDirection(prev => ({
+      ...prev,
+      [jobId]: spaceBelow < menuHeight ? 'up' : 'down'
+    }));
+    
+    // toggle the menu open/closed
+    setOpenActionMenu(openActionMenu === jobId ? null : jobId);
   };
 
   return (
@@ -687,8 +708,8 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -706,8 +727,8 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       </span>
                     </Link>
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-500">{job.company}</td>
-                  <td className="px-4 py-4 text-sm text-gray-500">
+                  <td className="px-4 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
+                  <td className="px-4 py-4 text-sm text-gray-500 hidden md:table-cell">
                     <div>{job.creator_name}</div>
                     <span className="text-xs text-gray-400">{job.created_by}</span>
                   </td>
@@ -720,58 +741,129 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex justify-center items-center gap-1">
-                      {/* view button - always enabled */}
+                      {/* always show view button */}
                       <Link href={`/admin/view/${job.id}`}>
                         <button className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
                           View
                         </button>
                       </Link>
                       
-                      {/* approve button - enabled only for pending jobs */}
-                      <button 
-                        onClick={() => job.status === 'pending' && onJobAction(job.id, 'active')}
-                        disabled={job.status !== 'pending'}
-                        className={`px-2 py-1 rounded text-xs transition-colors ${
-                          job.status === 'pending' 
-                            ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer' 
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                      >
-                        Approve
-                      </button>
-                      
-                      {/* reject button - enabled only for pending jobs */}
-                      <button 
-                        onClick={() => job.status === 'pending' && onJobAction(job.id, 'rejected')}
-                        disabled={job.status !== 'pending'}
-                        className={`px-2 py-1 rounded text-xs transition-colors ${
-                          job.status === 'pending' 
-                            ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer' 
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                      >
-                        Reject
-                      </button>
-                      
-                      {/* remove button - enabled only for active jobs */}
-                      <button 
-                        onClick={() => job.status === 'active' && onJobAction(job.id, 'removed')}
-                        disabled={job.status !== 'active'}
-                        className={`px-2 py-1 rounded text-xs transition-colors ${
-                          job.status === 'active' 
-                            ? 'bg-orange-600 text-white hover:bg-orange-700 cursor-pointer' 
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                      >
-                        Remove
-                      </button>
-                      
-                      {/* edit button - always enabled */}
-                      <Link href={`/admin/edit/${job.id}`}>
-                        <button className="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">
-                          Edit
+                      {/* desktop: show all buttons inline */}
+                      <div className="hidden md:flex gap-1">
+                        {/* approve button - enabled only for pending jobs */}
+                        <button 
+                          onClick={() => job.status === 'pending' && onJobAction(job.id, 'active')}
+                          disabled={job.status !== 'pending'}
+                          className={`px-2 py-1 rounded text-xs transition-colors ${
+                            job.status === 'pending' 
+                              ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer' 
+                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          Approve
                         </button>
-                      </Link>
+                        
+                        {/* reject button - enabled only for pending jobs */}
+                        <button 
+                          onClick={() => job.status === 'pending' && onJobAction(job.id, 'rejected')}
+                          disabled={job.status !== 'pending'}
+                          className={`px-2 py-1 rounded text-xs transition-colors ${
+                            job.status === 'pending' 
+                              ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer' 
+                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          Reject
+                        </button>
+                        
+                        {/* remove button - enabled only for active jobs */}
+                        <button 
+                          onClick={() => job.status === 'active' && onJobAction(job.id, 'removed')}
+                          disabled={job.status !== 'active'}
+                          className={`px-2 py-1 rounded text-xs transition-colors ${
+                            job.status === 'active' 
+                              ? 'bg-orange-600 text-white hover:bg-orange-700 cursor-pointer' 
+                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          Remove
+                        </button>
+                        
+                        {/* edit button - always enabled */}
+                        <Link href={`/admin/edit/${job.id}`}>
+                          <button className="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">
+                            Edit
+                          </button>
+                        </Link>
+                      </div>
+                      
+                      {/* mobile: show dropdown menu */}
+                      <div className="relative inline-block text-left md:hidden">
+                        <button 
+                          onClick={(e) => handleMenuClick(job.id, e)}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
+                        {openActionMenu === job.id && (
+                          <div 
+                            className={`absolute right-0 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 ${
+                              dropdownDirection[job.id] === 'up' 
+                                ? 'bottom-full mb-2' // opens upward with margin
+                                : 'top-full mt-2'    // opens downward with margin
+                            }`}
+                          >
+                            <div className="py-1" role="menu" aria-orientation="vertical">
+                              {/* show approve/reject for pending jobs */}
+                              {job.status === 'pending' && (
+                                <>
+                                  <button
+                                    onClick={() => { 
+                                      onJobAction(job.id, 'active'); 
+                                      setOpenActionMenu(null); 
+                                    }} 
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => { 
+                                      onJobAction(job.id, 'rejected'); 
+                                      setOpenActionMenu(null); 
+                                    }} 
+                                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              {/* show remove for active jobs */}
+                              {job.status === 'active' && (
+                                <button
+                                  onClick={() => { 
+                                    onJobAction(job.id, 'removed'); 
+                                    setOpenActionMenu(null); 
+                                  }} 
+                                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                              {/* edit is always available */}
+                              <Link href={`/admin/edit/${job.id}`}>
+                                <span 
+                                  onClick={() => setOpenActionMenu(null)}
+                                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                >
+                                  Edit
+                                </span>
+                              </Link>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -783,8 +875,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
     </div>
   );
 }
-
-
 
 
 
