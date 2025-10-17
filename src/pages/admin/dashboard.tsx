@@ -662,9 +662,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
 
 
 
-
-
-// component for jobs tab - no dropdown, just responsive buttons
+// component for jobs tab - all buttons visible (disabled when not applicable) on both desktop and mobile
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const statusColors: Record<Job['status'], string> = { 
     active: 'bg-green-100 text-green-800', 
@@ -678,7 +676,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-gray-700">All Current Job Postings</h2>
-        <div className="hidden sm:block">
+        <div>
           <label className="mr-2 font-medium">Filter by Status:</label>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
             <option value="">All</option>
@@ -689,90 +687,142 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
           </select>
         </div>
       </div>
-      
-      {/* mobile filter */}
-      <div className="sm:hidden mb-4">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full p-2 border rounded">
-          <option value="">All Jobs</option>
-          <option value="pending">Pending</option>
-          <option value="active">Active</option>
-          <option value="removed">Removed</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-
       {loading ? (<p>Loading jobs...</p>) : jobs.length === 0 ? (<p>No job postings found for the selected filter.</p>) : (
         <div className="border border-gray-200 rounded-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job</th>
-                <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
-                <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Posted By</th>
-                <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Email</th>
-                <th className="px-2 sm:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-2 sm:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Role</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {jobs.map((job) => (
                 <tr key={job.id}>
-                  <td className="px-2 sm:px-4 py-3 text-sm font-medium text-gray-900">
+                  <td className="px-4 py-4 text-sm font-medium text-gray-900">
                     <Link href={`/admin/view/${job.id}`}>
-                      <span className="hover:text-blue-600 hover:underline cursor-pointer block">
+                      <span className="hover:text-blue-600 hover:underline cursor-pointer">
                         {job.title}
                       </span>
                     </Link>
-                    <span className="text-xs text-gray-500 sm:hidden">{job.company}</span>
                   </td>
-                  <td className="px-2 sm:px-4 py-3 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
-                  <td className="px-2 sm:px-4 py-3 text-sm text-gray-500 hidden lg:table-cell">
+                  <td className="px-4 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
+                  <td className="px-4 py-4 text-sm text-gray-500 hidden md:table-cell">
                     <div>{job.creator_name}</div>
                     <span className="text-xs text-gray-400">{job.created_by}</span>
                   </td>
-                  <td className="px-2 sm:px-4 py-3 text-sm text-gray-500 hidden xl:table-cell">{job.email}</td>
-                  <td className="px-2 sm:px-3 py-3 whitespace-nowrap text-center">
-                    <span className={`px-1 sm:px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
+                  <td className="px-4 py-4 text-sm text-gray-500 hidden lg:table-cell">{job.email}</td>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 capitalize hidden sm:table-cell">{job.role}</td>
+                  <td className="px-3 py-4 whitespace-nowrap text-center">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
                       {job.status}
                     </span>
                   </td>
-                  <td className="px-2 sm:px-3 py-3 text-center text-sm font-medium">
-                    {/* all buttons visible but smaller on mobile */}
-                    <div className="flex flex-col sm:flex-row gap-1 sm:justify-center">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
+                    {/* desktop version - all buttons in a row */}
+                    <div className="hidden md:flex justify-center items-center gap-1">
                       <Link href={`/admin/view/${job.id}`}>
-                        <button className="w-full sm:w-auto px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                        <button className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
                           View
                         </button>
                       </Link>
                       
-                      {job.status === 'pending' && (
-                        <>
-                          <button 
-                            onClick={() => onJobAction(job.id, 'active')}
-                            className="w-full sm:w-auto px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-                          >
-                            Approve
-                          </button>
-                          <button 
-                            onClick={() => onJobAction(job.id, 'rejected')}
-                            className="w-full sm:w-auto px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
+                      <button 
+                        onClick={() => job.status === 'pending' && onJobAction(job.id, 'active')}
+                        disabled={job.status !== 'pending'}
+                        className={`px-2 py-1 rounded text-xs transition-colors ${
+                          job.status === 'pending' 
+                            ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer' 
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Approve
+                      </button>
                       
-                      {job.status === 'active' && (
-                        <button 
-                          onClick={() => onJobAction(job.id, 'removed')}
-                          className="w-full sm:w-auto px-2 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700"
-                        >
-                          Remove
-                        </button>
-                      )}
+                      <button 
+                        onClick={() => job.status === 'pending' && onJobAction(job.id, 'rejected')}
+                        disabled={job.status !== 'pending'}
+                        className={`px-2 py-1 rounded text-xs transition-colors ${
+                          job.status === 'pending' 
+                            ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer' 
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Reject
+                      </button>
+                      
+                      <button 
+                        onClick={() => job.status === 'active' && onJobAction(job.id, 'removed')}
+                        disabled={job.status !== 'active'}
+                        className={`px-2 py-1 rounded text-xs transition-colors ${
+                          job.status === 'active' 
+                            ? 'bg-orange-600 text-white hover:bg-orange-700 cursor-pointer' 
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Remove
+                      </button>
                       
                       <Link href={`/admin/edit/${job.id}`}>
-                        <button className="w-full sm:w-auto px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">
+                        <button className="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">
+                          Edit
+                        </button>
+                      </Link>
+                    </div>
+
+                    {/* mobile version - all buttons stacked in 2 rows */}
+                    <div className="flex md:hidden flex-wrap justify-center gap-1">
+                      {/* first row - view, approve, reject */}
+                      <Link href={`/admin/view/${job.id}`}>
+                        <button className="px-1.5 py-0.5 bg-blue-600 text-white rounded text-xs">
+                          View
+                        </button>
+                      </Link>
+                      
+                      <button 
+                        onClick={() => job.status === 'pending' && onJobAction(job.id, 'active')}
+                        disabled={job.status !== 'pending'}
+                        className={`px-1.5 py-0.5 rounded text-xs ${
+                          job.status === 'pending' 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-gray-200 text-gray-400'
+                        }`}
+                      >
+                        Approve
+                      </button>
+                      
+                      <button 
+                        onClick={() => job.status === 'pending' && onJobAction(job.id, 'rejected')}
+                        disabled={job.status !== 'pending'}
+                        className={`px-1.5 py-0.5 rounded text-xs ${
+                          job.status === 'pending' 
+                            ? 'bg-red-600 text-white' 
+                            : 'bg-gray-200 text-gray-400'
+                        }`}
+                      >
+                        Reject
+                      </button>
+                      
+                      {/* second row - remove, edit */}
+                      <button 
+                        onClick={() => job.status === 'active' && onJobAction(job.id, 'removed')}
+                        disabled={job.status !== 'active'}
+                        className={`px-1.5 py-0.5 rounded text-xs ${
+                          job.status === 'active' 
+                            ? 'bg-orange-600 text-white' 
+                            : 'bg-gray-200 text-gray-400'
+                        }`}
+                      >
+                        Remove
+                      </button>
+                      
+                      <Link href={`/admin/edit/${job.id}`}>
+                        <button className="px-1.5 py-0.5 bg-indigo-600 text-white rounded text-xs">
                           Edit
                         </button>
                       </Link>
@@ -787,9 +837,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
     </div>
   );
 }
-
-
-
 
 
 
