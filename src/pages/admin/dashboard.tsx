@@ -676,7 +676,14 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
   );
 }
 
-// component for jobs tab - all buttons visible (disabled when not applicable) on both desktop and mobile
+
+
+
+
+
+
+
+// component for jobs tab - uniform button sizes on mobile
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const statusColors: Record<Job['status'], string> = { 
     active: 'bg-green-100 text-green-800', 
@@ -690,7 +697,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-gray-700">All Current Job Postings</h2>
-        <div>
+        <div className="hidden sm:block">
           <label className="mr-2 font-medium">Filter by Status:</label>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
             <option value="">All</option>
@@ -701,6 +708,18 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
           </select>
         </div>
       </div>
+      
+      {/* mobile filter - full width for better usability */}
+      <div className="sm:hidden mb-4">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full p-2 border rounded">
+          <option value="">All Jobs</option>
+          <option value="pending">Pending</option>
+          <option value="active">Active</option>
+          <option value="removed">Removed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
       {loading ? (<p>Loading jobs...</p>) : jobs.length === 0 ? (<p>No job postings found for the selected filter.</p>) : (
         <div className="border border-gray-200 rounded-lg overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -724,6 +743,8 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                         {job.title}
                       </span>
                     </Link>
+                    {/* show company on mobile under title */}
+                    <div className="text-xs text-gray-500 sm:hidden mt-1">{job.company}</div>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
                   <td className="px-4 py-4 text-sm text-gray-500 hidden md:table-cell">
@@ -789,11 +810,10 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       </Link>
                     </div>
 
-                    {/* mobile version - all buttons stacked in 2 rows */}
-                    <div className="flex md:hidden flex-wrap justify-center gap-1">
-                      {/* first row - view, approve, reject */}
+                    {/* mobile version - uniform grid layout */}
+                    <div className="grid md:hidden grid-cols-3 gap-1">
                       <Link href={`/admin/view/${job.id}`}>
-                        <button className="px-1.5 py-0.5 bg-blue-600 text-white rounded text-xs">
+                        <button className="w-full px-1 py-1 bg-blue-600 text-white rounded text-xs">
                           View
                         </button>
                       </Link>
@@ -801,10 +821,10 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       <button 
                         onClick={() => job.status === 'pending' && onJobAction(job.id, 'active')}
                         disabled={job.status !== 'pending'}
-                        className={`px-1.5 py-0.5 rounded text-xs ${
+                        className={`w-full px-1 py-1 rounded text-xs ${
                           job.status === 'pending' 
                             ? 'bg-green-600 text-white' 
-                            : 'bg-gray-200 text-gray-400'
+                            : 'bg-gray-300 text-gray-500'
                         }`}
                       >
                         Approve
@@ -813,30 +833,29 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       <button 
                         onClick={() => job.status === 'pending' && onJobAction(job.id, 'rejected')}
                         disabled={job.status !== 'pending'}
-                        className={`px-1.5 py-0.5 rounded text-xs ${
+                        className={`w-full px-1 py-1 rounded text-xs ${
                           job.status === 'pending' 
                             ? 'bg-red-600 text-white' 
-                            : 'bg-gray-200 text-gray-400'
+                            : 'bg-gray-300 text-gray-500'
                         }`}
                       >
                         Reject
                       </button>
                       
-                      {/* second row - remove, edit */}
                       <button 
                         onClick={() => job.status === 'active' && onJobAction(job.id, 'removed')}
                         disabled={job.status !== 'active'}
-                        className={`px-1.5 py-0.5 rounded text-xs ${
+                        className={`w-full px-1 py-1 rounded text-xs ${
                           job.status === 'active' 
                             ? 'bg-orange-600 text-white' 
-                            : 'bg-gray-200 text-gray-400'
+                            : 'bg-gray-300 text-gray-500'
                         }`}
                       >
                         Remove
                       </button>
                       
                       <Link href={`/admin/edit/${job.id}`}>
-                        <button className="px-1.5 py-0.5 bg-indigo-600 text-white rounded text-xs">
+                        <button className="w-full px-1 py-1 bg-indigo-600 text-white rounded text-xs col-span-2">
                           Edit
                         </button>
                       </Link>
@@ -851,6 +870,26 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // component for archived jobs tab - fixed mobile layout
 function ArchivedJobsPanel({ 
