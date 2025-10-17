@@ -326,38 +326,43 @@ export default function AdminDashboard() {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-      {/* Updated responsive header and buttons section */}
+      {/* header section with title and buttons - fixed for mobile */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-red-800">Admin Dashboard</h1>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex gap-2 lg:gap-4">
-          <Link href="/admin/analytics">
-            <button className="w-full lg:w-auto lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm">
-              View Analytics
-            </button>
-          </Link>
+        {/* button container - 2x2 grid on mobile with create admin button as full width below */}
+        <div className="flex flex-col gap-2 lg:flex-row lg:gap-4">
+          {/* first row of buttons on mobile, all buttons on desktop */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:flex gap-2 lg:gap-4">
+            <Link href="/admin/analytics" className="w-full">
+              <button className="w-full lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm h-full">
+                View Analytics
+              </button>
+            </Link>
+            
+            <Link href="/admin/content-review" className="w-full">
+              <button className="w-full lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm h-full">
+                Content Review
+              </button>
+            </Link>
+            
+            <Link href="/admin/archive-reports" className="w-full">
+              <button className="w-full lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm h-full">
+                Archive Reports
+              </button>
+            </Link>
+            
+            <Link href="/admin/platform-effectiveness" className="w-full">
+              <button className="w-full lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm h-full">
+                Platform Health
+              </button>
+            </Link>
+          </div>
           
-          <Link href="/admin/content-review">
-            <button className="w-full lg:w-auto lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm">
-              Content Review
-            </button>
-          </Link>
-          
-          <Link href="/admin/archive-reports">
-            <button className="w-full lg:w-auto lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm">
-              Archive Reports
-            </button>
-          </Link>
-          
-          <Link href="/admin/platform-effectiveness">
-            <button className="w-full lg:w-auto lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm">
-              Platform Health
-            </button>
-          </Link>
-          
+          {/* create admin button - full width on mobile, normal on desktop */}
           {activeTab === 'users' && (
             <button
               onClick={() => setShowCreateAdmin(true)}
-              className="col-span-2 sm:col-span-1 w-full lg:w-auto lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
+              className="w-full lg:w-auto lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
             >
               + Create Admin
             </button>
@@ -365,6 +370,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* tab navigation for switching between users, jobs, and archived */}
       <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button 
@@ -388,6 +394,7 @@ export default function AdminDashboard() {
         </nav>
       </div>
 
+      {/* conditional content based on active tab */}
       {activeTab === 'users' && <UsersManagementPanel users={users} loading={loadingUsers} onStatusToggle={handleStatusToggle} onEditUser={openEditModal} onDeleteUser={handleDeleteUser} />}
       {activeTab === 'jobs' && <JobsManagementPanel jobs={filteredJobs} loading={loadingJobs} onJobAction={handleJobAction} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
       {activeTab === 'archived' && (
@@ -401,10 +408,12 @@ export default function AdminDashboard() {
         />
       )}
 
+      {/* modal for editing user details */}
       {isModalOpen && editingUser && (
         <EditUserModal user={editingUser} onClose={closeEditModal} onSave={handleUpdateUserDetails} />
       )}
 
+      {/* modal for creating new admin */}
       {showCreateAdmin && (
         <CreateAdminModal 
           onClose={() => setShowCreateAdmin(false)}
@@ -480,7 +489,7 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
     }
   };
 
-  // eye icon components
+  // eye icon components for showing/hiding passwords
   const EyeIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -490,7 +499,7 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
 
   const EyeOffIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M8 12a4 4 0 004 4m0 0l6-6m-6 6l-6-6" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057-5.064 7-9.542 7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M8 12a4 4 0 004 4m0 0l6-6m-6 6l-6-6" />
     </svg>
   );
 
@@ -679,6 +688,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
             <tbody className="bg-white divide-y divide-gray-200">
               {jobs.map((job) => (
                 <tr key={job.id}>
+                  {/* make the job title clickable to view details */}
                   <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">
                     <Link href={`/admin/view/${job.id}`}>
                       <span className="hover:text-blue-600 hover:underline cursor-pointer">
@@ -698,12 +708,14 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <div className="flex justify-center items-center gap-2">
+                      {/* view button - always visible for easy access */}
                       <Link href={`/admin/view/${job.id}`}>
                         <button className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
                           View
                         </button>
                       </Link>
                       
+                      {/* actions menu for other operations like edit, approve, reject */}
                       <div className="relative inline-block text-left">
                         <button onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)} 
                                 className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none">
@@ -715,6 +727,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                           <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" 
                                onMouseLeave={() => setOpenActionMenu(null)}>
                             <div className="py-1" role="menu" aria-orientation="vertical">
+                              {/* removed view details from menu since it has its own button now */}
                               {job.status === 'pending' && (
                                 <>
                                   <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} 
