@@ -324,48 +324,51 @@ export default function AdminDashboard() {
     return diffDays;
   };
 
-  return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-      {/* header section with title and buttons - fixed for mobile */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-red-800">Admin Dashboard</h1>
-        {/* buttons container - vertical stack on mobile, grid on tablet, flex on desktop */}
-        <div className="flex flex-col sm:grid sm:grid-cols-3 lg:flex lg:flex-row gap-2 lg:gap-4">
-          <Link href="/admin/analytics" className="w-full">
-            <button className="w-full lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm">
-              View Analytics
-            </button>
-          </Link>
-          
-          <Link href="/admin/content-review" className="w-full">
-            <button className="w-full lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm">
-              Content Review
-            </button>
-          </Link>
-          
-          <Link href="/admin/archive-reports" className="w-full">
-            <button className="w-full lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm">
-              Archive Reports
-            </button>
-          </Link>
-          
-          <Link href="/admin/platform-effectiveness" className="w-full">
-            <button className="w-full lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm">
-              Platform Health
-            </button>
-          </Link>
-          
-          {/* create admin button - same size as all others */}
-          {activeTab === 'users' && (
-            <button
-              onClick={() => setShowCreateAdmin(true)}
-              className="w-full lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
-            >
-              + Create Admin
-            </button>
-          )}
-        </div>
+
+
+
+return (
+  <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+    {/* header section with title and buttons - fixed for mobile */}
+    <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-red-800">Admin Dashboard</h1>
+      {/* buttons container - vertical stack on mobile, grid on tablet, flex on desktop */}
+      <div className="flex flex-col sm:grid sm:grid-cols-3 lg:flex lg:flex-row gap-2 lg:gap-4">
+        <Link href="/admin/analytics" className="w-full">
+          <button className="w-full lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm">
+            View Analytics
+          </button>
+        </Link>
+        
+        <Link href="/admin/content-review" className="w-full">
+          <button className="w-full lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm">
+            Content Review
+          </button>
+        </Link>
+        
+        <Link href="/admin/archive-reports" className="w-full">
+          <button className="w-full lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm">
+            Archive Reports
+          </button>
+        </Link>
+        
+        <Link href="/admin/platform-effectiveness" className="w-full">
+          <button className="w-full lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm">
+            Platform Health
+          </button>
+        </Link>
+        
+        {/* create admin button - same size as all others */}
+        {activeTab === 'users' && (
+          <button
+            onClick={() => setShowCreateAdmin(true)}
+            className="w-full lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
+          >
+            + Create Admin
+          </button>
+        )}
       </div>
+    </div>
 
       {/* tab navigation for switching between users, jobs, and archived */}
       <div className="mb-4 border-b border-gray-200">
@@ -601,7 +604,7 @@ function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSucce
   );
 }
 
-// component for users tab - fixed mobile layout
+// component for users tab
 function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDeleteUser }: { users: AdminUser[], loading: boolean, onStatusToggle: (userId: string, currentStatus: boolean) => void, onEditUser: (user: AdminUser) => void, onDeleteUser: (user: AdminUser) => void }) {
   return (
     <div>
@@ -611,60 +614,32 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Email</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Company</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Role</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Status</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {users.map((user) => (
                 <tr key={user.user_id}>
-                  <td className="px-3 py-4 text-sm font-medium text-gray-900">
-                    <div>{user.first_name} {user.last_name}</div>
-                    {/* show role and status on mobile under name */}
-                    <div className="text-xs text-gray-500 sm:hidden">{user.role}</div>
-                    <div className="text-xs sm:hidden">
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {user.is_active ? 'Active' : 'Disabled'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">{user.email}</td>
-                  <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">{user.company_name || 'N/A'}</td>
-                  <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden sm:table-cell">{user.role}</td>
-                  <td className="px-3 py-4 text-center hidden sm:table-cell">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.first_name} {user.last_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.company_name || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {user.is_active ? 'Active' : 'Disabled'}
                     </span>
                   </td>
-                  <td className="px-3 py-4 text-center text-sm font-medium">
-                    {/* mobile: vertical stack to prevent overflow */}
-                    <div className="flex flex-col gap-1 sm:hidden">
-                      <button onClick={() => onEditUser(user)} className="px-2 py-1 rounded text-white text-xs bg-indigo-600">
-                        Edit
-                      </button>
-                      <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-2 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600' : 'bg-green-600'}`}>
-                        {user.is_active ? 'Disable' : 'Enable'}
-                      </button>
-                      <button onClick={() => onDeleteUser(user)} className="px-2 py-1 rounded text-white text-xs bg-gray-700">
-                        Delete
-                      </button>
-                    </div>
-                    {/* desktop: horizontal row */}
-                    <div className="hidden sm:flex gap-2 justify-center">
-                      <button onClick={() => onEditUser(user)} className="px-3 py-1 rounded text-white text-xs bg-indigo-600 hover:bg-indigo-700">
-                        Edit
-                      </button>
-                      <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
-                        {user.is_active ? 'Disable' : 'Enable'}
-                      </button>
-                      <button onClick={() => onDeleteUser(user)} className="px-3 py-1 rounded text-white text-xs bg-gray-700 hover:bg-gray-800">
-                        Delete
-                      </button>
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
+                    <button onClick={() => onEditUser(user)} className="px-3 py-1 rounded text-white text-xs bg-indigo-600 hover:bg-indigo-700">Edit</button>
+                    <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
+                      {user.is_active ? 'Disable' : 'Enable'}
+                    </button>
+                    <button onClick={() => onDeleteUser(user)} className="px-3 py-1 rounded text-white text-xs bg-gray-700 hover:bg-gray-800">Delete</button>
                   </td>
                 </tr>
               ))}
@@ -675,6 +650,17 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 
 // component for jobs tab - all buttons visible (disabled when not applicable) on both desktop and mobile
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
@@ -852,7 +838,12 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
   );
 }
 
-// component for archived jobs tab - fixed mobile layout
+
+
+
+
+
+// component for archived jobs tab
 function ArchivedJobsPanel({ 
   jobs, 
   loading, 
@@ -870,11 +861,11 @@ function ArchivedJobsPanel({
 }) {
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Archived Jobs (Past Deadline)</h2>
-        <div className="w-full sm:w-auto">
-          <label className="mr-2 font-medium text-sm">Posted by:</label>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="p-2 border rounded w-full sm:w-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-700">Archived Jobs (Past Deadline)</h2>
+        <div>
+          <label className="mr-2 font-medium">Posted by:</label>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="p-2 border rounded">
             <option value="">All Users</option>
             <option value="faculty">Faculty/Staff Only</option>
             <option value="rep">Company Reps Only</option>
@@ -893,14 +884,14 @@ function ArchivedJobsPanel({
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Role</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Type</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Expired</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Days Ago</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted By</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expired</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Days Ago</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -908,19 +899,16 @@ function ArchivedJobsPanel({
                 const daysAgo = getDaysSinceExpired(job.deadline);
                 return (
                   <tr key={job.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-4 text-sm font-medium text-gray-900">
-                      <div>{job.title}</div>
-                      {/* show company and days expired on mobile */}
-                      <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
-                      <div className="text-xs text-gray-400 sm:hidden">Expired {daysAgo} days ago</div>
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900">
+                      {job.title}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">
                       {job.company}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
+                    <td className="px-6 py-4 whitespace-normal break-words text-sm text-gray-500">
                       {job.creator_name}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden lg:table-cell">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         job.role === 'faculty' || job.role === 'staff' 
                           ? 'bg-blue-100 text-blue-800' 
@@ -929,13 +917,13 @@ function ArchivedJobsPanel({
                         {job.role}
                       </span>
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {job.job_type || 'N/A'}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(job.deadline).toLocaleDateString()}
                     </td>
-                    <td className="px-3 py-4 text-center hidden sm:table-cell">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         daysAgo <= 7 ? 'bg-yellow-100 text-yellow-800' :
                         daysAgo <= 30 ? 'bg-orange-100 text-orange-800' :
@@ -944,35 +932,18 @@ function ArchivedJobsPanel({
                         {daysAgo} {daysAgo === 1 ? 'day' : 'days'}
                       </span>
                     </td>
-                    <td className="px-3 py-4 text-center text-sm">
-                      {/* mobile: vertical stack to prevent overflow */}
-                      <div className="flex flex-col gap-1 sm:hidden">
-                        <button 
-                          onClick={() => onReactivate(job.id)}
-                          className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
-                        >
-                          Reactivate
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                      <button 
+                        onClick={() => onReactivate(job.id)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      >
+                        Reactivate
+                      </button>
+                      <Link href={`/admin/view/${job.id}`}>
+                        <button className="ml-2 px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700">
+                          View
                         </button>
-                        <Link href={`/admin/view/${job.id}`}>
-                          <button className="w-full px-2 py-1 bg-gray-600 text-white rounded text-xs">
-                            View
-                          </button>
-                        </Link>
-                      </div>
-                      {/* desktop: horizontal row */}
-                      <div className="hidden sm:flex gap-2 justify-center">
-                        <button 
-                          onClick={() => onReactivate(job.id)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                        >
-                          Reactivate
-                        </button>
-                        <Link href={`/admin/view/${job.id}`}>
-                          <button className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700">
-                            View
-                          </button>
-                        </Link>
-                      </div>
+                      </Link>
                     </td>
                   </tr>
                 );
@@ -1016,7 +987,7 @@ function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: ()
             {user.role === 'rep' && (
               <div>
                 <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
-                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+         		<input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
             )}
           </div>
