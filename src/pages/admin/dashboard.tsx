@@ -654,7 +654,9 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
 
 
 
-// component for jobs tab - with all action buttons visible in a horizontal row
+
+
+// component for jobs tab - with all action buttons visible (disabled when not applicable)
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const statusColors: Record<Job['status'], string> = { 
     active: 'bg-green-100 text-green-800', 
@@ -718,44 +720,53 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex justify-center items-center gap-1">
-                      {/* view button - always available */}
+                      {/* view button - always enabled */}
                       <Link href={`/admin/view/${job.id}`}>
                         <button className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
                           View
                         </button>
                       </Link>
                       
-                      {/* approve button - only enabled for pending jobs */}
-                      {job.status === 'pending' ? (
-                        <button 
-                          onClick={() => onJobAction(job.id, 'active')}
-                          className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-                        >
-                          Approve
-                        </button>
-                      ) : null}
+                      {/* approve button - enabled only for pending jobs */}
+                      <button 
+                        onClick={() => job.status === 'pending' && onJobAction(job.id, 'active')}
+                        disabled={job.status !== 'pending'}
+                        className={`px-2 py-1 rounded text-xs transition-colors ${
+                          job.status === 'pending' 
+                            ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer' 
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Approve
+                      </button>
                       
-                      {/* reject button - only enabled for pending jobs */}
-                      {job.status === 'pending' ? (
-                        <button 
-                          onClick={() => onJobAction(job.id, 'rejected')}
-                          className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
-                        >
-                          Reject
-                        </button>
-                      ) : null}
+                      {/* reject button - enabled only for pending jobs */}
+                      <button 
+                        onClick={() => job.status === 'pending' && onJobAction(job.id, 'rejected')}
+                        disabled={job.status !== 'pending'}
+                        className={`px-2 py-1 rounded text-xs transition-colors ${
+                          job.status === 'pending' 
+                            ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer' 
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Reject
+                      </button>
                       
-                      {/* remove button - only enabled for active jobs */}
-                      {job.status === 'active' ? (
-                        <button 
-                          onClick={() => onJobAction(job.id, 'removed')}
-                          className="px-2 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700"
-                        >
-                          Remove
-                        </button>
-                      ) : null}
+                      {/* remove button - enabled only for active jobs */}
+                      <button 
+                        onClick={() => job.status === 'active' && onJobAction(job.id, 'removed')}
+                        disabled={job.status !== 'active'}
+                        className={`px-2 py-1 rounded text-xs transition-colors ${
+                          job.status === 'active' 
+                            ? 'bg-orange-600 text-white hover:bg-orange-700 cursor-pointer' 
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        Remove
+                      </button>
                       
-                      {/* edit button - always available */}
+                      {/* edit button - always enabled */}
                       <Link href={`/admin/edit/${job.id}`}>
                         <button className="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">
                           Edit
@@ -772,8 +783,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
     </div>
   );
 }
-
-
 
 
 
