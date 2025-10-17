@@ -681,9 +681,7 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
 
 
 
-
-
-// component for jobs tab - uniform button sizes on mobile
+// component for jobs tab - fixed mobile button layout
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const statusColors: Record<Job['status'], string> = { 
     active: 'bg-green-100 text-green-800', 
@@ -810,18 +808,24 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       </Link>
                     </div>
 
-                    {/* mobile version - uniform grid layout */}
-                    <div className="grid md:hidden grid-cols-3 gap-1">
+                    {/* mobile version - 2x3 grid for all 5 buttons */}
+                    <div className="grid md:hidden grid-cols-2 gap-1">
                       <Link href={`/admin/view/${job.id}`}>
-                        <button className="w-full px-1 py-1 bg-blue-600 text-white rounded text-xs">
+                        <button className="w-full px-1 py-1 bg-blue-600 text-white rounded text-[10px]">
                           View
+                        </button>
+                      </Link>
+                      
+                      <Link href={`/admin/edit/${job.id}`}>
+                        <button className="w-full px-1 py-1 bg-indigo-600 text-white rounded text-[10px]">
+                          Edit
                         </button>
                       </Link>
                       
                       <button 
                         onClick={() => job.status === 'pending' && onJobAction(job.id, 'active')}
                         disabled={job.status !== 'pending'}
-                        className={`w-full px-1 py-1 rounded text-xs ${
+                        className={`w-full px-1 py-1 rounded text-[10px] ${
                           job.status === 'pending' 
                             ? 'bg-green-600 text-white' 
                             : 'bg-gray-300 text-gray-500'
@@ -833,7 +837,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       <button 
                         onClick={() => job.status === 'pending' && onJobAction(job.id, 'rejected')}
                         disabled={job.status !== 'pending'}
-                        className={`w-full px-1 py-1 rounded text-xs ${
+                        className={`w-full px-1 py-1 rounded text-[10px] ${
                           job.status === 'pending' 
                             ? 'bg-red-600 text-white' 
                             : 'bg-gray-300 text-gray-500'
@@ -845,7 +849,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       <button 
                         onClick={() => job.status === 'active' && onJobAction(job.id, 'removed')}
                         disabled={job.status !== 'active'}
-                        className={`w-full px-1 py-1 rounded text-xs ${
+                        className={`w-full px-1 py-1 rounded text-[10px] col-span-2 ${
                           job.status === 'active' 
                             ? 'bg-orange-600 text-white' 
                             : 'bg-gray-300 text-gray-500'
@@ -853,12 +857,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       >
                         Remove
                       </button>
-                      
-                      <Link href={`/admin/edit/${job.id}`}>
-                        <button className="w-full px-1 py-1 bg-indigo-600 text-white rounded text-xs col-span-2">
-                          Edit
-                        </button>
-                      </Link>
                     </div>
                   </td>
                 </tr>
@@ -870,12 +868,6 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
     </div>
   );
 }
-
-
-
-
-
-
 
 
 
