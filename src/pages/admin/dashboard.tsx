@@ -332,37 +332,37 @@ return (
     {/* header section with title and buttons - fixed for mobile */}
     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
       <h1 className="text-2xl sm:text-3xl font-bold text-red-800">Admin Dashboard</h1>
-      {/* single grid container for all buttons - 2 columns on mobile, flex on desktop */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex gap-2 lg:gap-4">
+      {/* buttons container - vertical stack on mobile, grid on tablet, flex on desktop */}
+      <div className="flex flex-col sm:grid sm:grid-cols-3 lg:flex lg:flex-row gap-2 lg:gap-4">
         <Link href="/admin/analytics" className="w-full">
-          <button className="w-full lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm h-full">
+          <button className="w-full lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm">
             View Analytics
           </button>
         </Link>
         
         <Link href="/admin/content-review" className="w-full">
-          <button className="w-full lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm h-full">
+          <button className="w-full lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm">
             Content Review
           </button>
         </Link>
         
         <Link href="/admin/archive-reports" className="w-full">
-          <button className="w-full lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm h-full">
+          <button className="w-full lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm">
             Archive Reports
           </button>
         </Link>
         
         <Link href="/admin/platform-effectiveness" className="w-full">
-          <button className="w-full lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm h-full">
+          <button className="w-full lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm">
             Platform Health
           </button>
         </Link>
         
-        {/* create admin button - spans 2 columns on mobile only */}
+        {/* create admin button - same size as all others */}
         {activeTab === 'users' && (
           <button
             onClick={() => setShowCreateAdmin(true)}
-            className="col-span-2 sm:col-span-1 w-full lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
+            className="w-full lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
           >
             + Create Admin
           </button>
