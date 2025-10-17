@@ -324,51 +324,51 @@ export default function AdminDashboard() {
     return diffDays;
   };
 
-  return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-      {/* header section with title and buttons - fixed for mobile */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-red-800">Admin Dashboard</h1>
-        {/* button container - 2x2 grid on mobile with create admin button as full width below */}
-        <div className="flex flex-col gap-2 lg:flex-row lg:gap-4">
-          {/* first row of buttons on mobile, all buttons on desktop */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:flex gap-2 lg:gap-4">
-            <Link href="/admin/analytics" className="w-full">
-              <button className="w-full lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm h-full">
-                View Analytics
-              </button>
-            </Link>
-            
-            <Link href="/admin/content-review" className="w-full">
-              <button className="w-full lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm h-full">
-                Content Review
-              </button>
-            </Link>
-            
-            <Link href="/admin/archive-reports" className="w-full">
-              <button className="w-full lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm h-full">
-                Archive Reports
-              </button>
-            </Link>
-            
-            <Link href="/admin/platform-effectiveness" className="w-full">
-              <button className="w-full lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm h-full">
-                Platform Health
-              </button>
-            </Link>
-          </div>
-          
-          {/* create admin button - full width on mobile, normal on desktop */}
-          {activeTab === 'users' && (
-            <button
-              onClick={() => setShowCreateAdmin(true)}
-              className="w-full lg:w-auto lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
-            >
-              + Create Admin
-            </button>
-          )}
-        </div>
+
+
+
+return (
+  <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+    {/* header section with title and buttons - fixed for mobile */}
+    <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-6">
+      <h1 className="text-2xl sm:text-3xl font-bold text-red-800">Admin Dashboard</h1>
+      {/* single grid container for all buttons - 2 columns on mobile, flex on desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex gap-2 lg:gap-4">
+        <Link href="/admin/analytics" className="w-full">
+          <button className="w-full lg:min-w-[140px] bg-red-700 text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm h-full">
+            View Analytics
+          </button>
+        </Link>
+        
+        <Link href="/admin/content-review" className="w-full">
+          <button className="w-full lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm h-full">
+            Content Review
+          </button>
+        </Link>
+        
+        <Link href="/admin/archive-reports" className="w-full">
+          <button className="w-full lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm h-full">
+            Archive Reports
+          </button>
+        </Link>
+        
+        <Link href="/admin/platform-effectiveness" className="w-full">
+          <button className="w-full lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm h-full">
+            Platform Health
+          </button>
+        </Link>
+        
+        {/* create admin button - spans 2 columns on mobile only */}
+        {activeTab === 'users' && (
+          <button
+            onClick={() => setShowCreateAdmin(true)}
+            className="col-span-2 sm:col-span-1 w-full lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
+          >
+            + Create Admin
+          </button>
+        )}
       </div>
+    </div>
 
       {/* tab navigation for switching between users, jobs, and archived */}
       <div className="mb-4 border-b border-gray-200">
