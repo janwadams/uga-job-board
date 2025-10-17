@@ -651,35 +651,10 @@ function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDe
   );
 }
 
-// component for jobs tab - now with dropdown that opens upward when needed
+// component for jobs tab - now with visible view button for each job
 function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
-  const [dropdownDirection, setDropdownDirection] = useState<{ [key: string]: 'up' | 'down' }>({});
-  
-  const statusColors: Record<Job['status'], string> = { 
-    active: 'bg-green-100 text-green-800', 
-    pending: 'bg-yellow-100 text-yellow-800', 
-    removed: 'bg-red-100 text-red-800', 
-    rejected: 'bg-gray-100 text-gray-800', 
-    archived: 'bg-gray-100 text-gray-800' 
-  };
-
-  // function to check if dropdown should open upward based on position
-  const handleMenuClick = (jobId: string, event: React.MouseEvent<HTMLButtonElement>) => {
-    const button = event.currentTarget;
-    const rect = button.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const menuHeight = 150; // approximate height of dropdown menu
-    
-    // decide if menu should open up or down based on available space
-    setDropdownDirection(prev => ({
-      ...prev,
-      [jobId]: spaceBelow < menuHeight ? 'up' : 'down'
-    }));
-    
-    // toggle the menu open/closed
-    setOpenActionMenu(openActionMenu === jobId ? null : jobId);
-  };
+  const statusColors: Record<Job['status'], string> = { active: 'bg-green-100 text-green-800', pending: 'bg-yellow-100 text-yellow-800', removed: 'bg-red-100 text-red-800', rejected: 'bg-gray-100 text-gray-800', archived: 'bg-gray-100 text-gray-800' };
 
   return (
     <div>
@@ -742,70 +717,31 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
                       
                       {/* actions menu for other operations like edit, approve, reject */}
                       <div className="relative inline-block text-left">
-                        <button 
-                          onClick={(e) => handleMenuClick(job.id, e)}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none"
-                        >
+                        <button onClick={() => setOpenActionMenu(openActionMenu === job.id ? null : job.id)} 
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 focus:outline-none">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </button>
                         {openActionMenu === job.id && (
-                          <div 
-                            className={`absolute right-0 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50 ${
-                              dropdownDirection[job.id] === 'up' 
-                                ? 'bottom-full mb-2' // opens upward with margin
-                                : 'top-full mt-2'    // opens downward with margin
-                            }`}
-                            onMouseLeave={() => setOpenActionMenu(null)}
-                          >
+                          <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10" 
+                               onMouseLeave={() => setOpenActionMenu(null)}>
                             <div className="py-1" role="menu" aria-orientation="vertical">
-                              {/* show approve/reject options for pending jobs */}
+                              {/* removed view details from menu since it has its own button now */}
                               {job.status === 'pending' && (
                                 <>
-                                  <a 
-                                    href="#" 
-                                    onClick={(e) => { 
-                                      e.preventDefault(); 
-                                      onJobAction(job.id, 'active'); 
-                                      setOpenActionMenu(null); 
-                                    }} 
-                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  >
-                                    Approve
-                                  </a>
-                                  <a 
-                                    href="#" 
-                                    onClick={(e) => { 
-                                      e.preventDefault(); 
-                                      onJobAction(job.id, 'rejected'); 
-                                      setOpenActionMenu(null); 
-                                    }} 
-                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  >
-                                    Reject
-                                  </a>
+                                  <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'active'); setOpenActionMenu(null); }} 
+                                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Approve</a>
+                                  <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'rejected'); setOpenActionMenu(null); }} 
+                                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Reject</a>
                                 </>
                               )}
-                              {/* show remove option for active jobs */}
                               {job.status === 'active' && (
-                                <a 
-                                  href="#" 
-                                  onClick={(e) => { 
-                                    e.preventDefault(); 
-                                    onJobAction(job.id, 'removed'); 
-                                    setOpenActionMenu(null); 
-                                  }} 
-                                  className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  Remove
-                                </a>
+                                <a href="#" onClick={(e) => { e.preventDefault(); onJobAction(job.id, 'removed'); setOpenActionMenu(null); }} 
+                                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Remove</a>
                               )}
-                              {/* edit option is always available */}
                               <Link href={`/admin/edit/${job.id}`}>
-                                <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
-                                  Edit
-                                </span>
+                                <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Edit</span>
                               </Link>
                             </div>
                           </div>
@@ -822,6 +758,7 @@ function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStat
     </div>
   );
 }
+
 // component for archived jobs tab
 function ArchivedJobsPanel({ 
   jobs, 
