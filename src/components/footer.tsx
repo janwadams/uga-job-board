@@ -1,4 +1,6 @@
 // src/components/Footer.tsx
+
+// main footer component that appears on all pages
 export default function Footer() {
   return (
     <footer className="bg-gray-800 text-white p-4 mt-8">
