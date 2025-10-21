@@ -10,6 +10,21 @@ import Navbar from 'components/Navbar';
 import 'styles/globals.css';
 import '../styles/mobile-fixes.css';
 
+
+
+// Define Footer directly here since import isn't working
+const Footer = () => (
+  <footer className="bg-gray-800 text-white p-4 mt-8">
+    <div className="text-center">
+      <p>© 2024 UGA MIS Career Network</p>
+    </div>
+  </footer>
+);
+
+
+
+
+
 function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
   // Your existing Supabase client setup is preserved
   const [supabaseClient] = useState(() =>
