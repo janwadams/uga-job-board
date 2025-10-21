@@ -13,6 +13,7 @@ import '../styles/mobile-fixes.css';
 
 
 // Defining Footer directly here since  I couldnt get the import to work
+
 const Footer = () => (
   <footer className="bg-[#333] text-white mt-auto">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -32,6 +33,22 @@ const Footer = () => (
             Phone: (706) 542-3703<br />
             Email: <a href="mailto:mis@terry.uga.edu" className="hover:text-white underline">mis@terry.uga.edu</a>
           </p>
+          
+          {/* Social Media Icons */}
+          <div className="flex space-x-4 mt-4">
+            <a href="https://www.facebook.com/terrycollegeuga" target="_blank" rel="noopener noreferrer" className="opacity-70 hover:opacity-100 transition-opacity">
+              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/facebook.svg" alt="Facebook" className="h-5 w-5 invert" />
+            </a>
+            <a href="https://twitter.com/terrycollege" target="_blank" rel="noopener noreferrer" className="opacity-70 hover:opacity-100 transition-opacity">
+              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/x.svg" alt="Twitter/X" className="h-5 w-5 invert" />
+            </a>
+            <a href="https://www.linkedin.com/school/terry-college-of-business/" target="_blank" rel="noopener noreferrer" className="opacity-70 hover:opacity-100 transition-opacity">
+              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/linkedin.svg" alt="LinkedIn" className="h-5 w-5 invert" />
+            </a>
+            <a href="https://www.instagram.com/terrycollege/" target="_blank" rel="noopener noreferrer" className="opacity-70 hover:opacity-100 transition-opacity">
+              <img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/instagram.svg" alt="Instagram" className="h-5 w-5 invert" />
+            </a>
+          </div>
         </div>
         
         {/* Column 2 - Quick Links */}
@@ -96,6 +113,15 @@ const Footer = () => (
               </a>
             </li>
           </ul>
+          
+          {/* Terry College Logo */}
+          <div className="mt-4">
+            <img 
+              src="https://brand.uga.edu/wp-content/uploads/Terry_College_W-1200x386.png" 
+              alt="Terry College of Business" 
+              className="h-12 opacity-80 hover:opacity-100 transition-opacity"
+            />
+          </div>
         </div>
       </div>
 
@@ -115,7 +141,7 @@ const Footer = () => (
           
           {/* Copyright */}
           <div className="text-xs text-gray-400">
-            © {new Date().getFullYear()} University of Georgia
+            © {new Date().getFullYear()} University of Georgia. All rights reserved.
           </div>
           
           {/* Legal Links */}
@@ -161,7 +187,6 @@ const Footer = () => (
     </div>
   </footer>
 );
-
 
 
 
