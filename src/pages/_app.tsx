@@ -1,4 +1,4 @@
-// pages/_app.tsx //
+// pages/_app.tsx // //
 import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { SessionContextProvider, Session } from '@supabase/auth-helpers-react';
 import { AppProps } from 'next/app';
