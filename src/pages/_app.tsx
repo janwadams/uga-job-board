@@ -3,9 +3,9 @@ import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { SessionContextProvider, Session } from '@supabase/auth-helpers-react';
 import { AppProps } from 'next/app';
 import { useState } from 'react';
-import Navbar from 'components/Navbar';
-import Footer from 'components/Footer'; // added for footer
-import 'styles/globals.css';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer'; // added for footer
+import '../styles/globals.css';
 import '../styles/mobile-fixes.css';
 
 function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
