@@ -29,7 +29,7 @@ function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Component {...pageProps} />
         </main>
-		{/* <Footer /> */} //added for footer
+		{/* <Footer /> */} 
       </div>
     </SessionContextProvider>
   );
