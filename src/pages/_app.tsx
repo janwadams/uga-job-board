@@ -26,7 +26,7 @@ const Footer = () => (
 
 
 function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
-  // Your existing Supabase client setup is preserved
+  // existing Supabase client setup is preserved
   const [supabaseClient] = useState(() =>
     createBrowserSupabaseClient()
   );
