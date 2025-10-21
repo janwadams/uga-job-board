@@ -14,142 +14,77 @@ import '../styles/mobile-fixes.css';
 
 // Defining Footer directly here since  I couldnt get the import to work
 // Define Footer directly here - based on official UGA footer structure
+// Define Footer directly here - OFFICIAL UGA FOOTER ONLY
 const Footer = () => (
-  <footer>
-    {/* UGA Footer CSS - inline since we can't use PHP includes */}
-    <style jsx global>{`
-      #uga-footer {
-        background: #333;
-        color: #fff;
-        padding: 40px 0 20px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      }
-      
-      #uga-footer .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 20px;
-      }
-      
-      #uga-footer h3 {
-        color: #fff;
-        font-size: 14px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 15px;
-      }
-      
-      #uga-footer ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-      
-      #uga-footer ul li {
-        margin-bottom: 8px;
-      }
-      
-      #uga-footer a {
-        color: #999;
-        text-decoration: none;
-        font-size: 14px;
-        transition: color 0.2s;
-      }
-      
-      #uga-footer a:hover {
-        color: #fff;
-      }
-      
-      #uga-footer-bottom {
-        background: #252525;
-        padding: 15px 0;
-        margin-top: 40px;
-      }
-      
-      #uga-footer-bottom .container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      
-      @media (max-width: 768px) {
-        #uga-footer-bottom .container {
-          flex-direction: column;
-          text-align: center;
-        }
-      }
-    `}</style>
+  <footer id="ugafooter" className="bg-[#333333] text-white">
+    <div className="container mx-auto px-4 py-10">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        {/* Column 1 - UGA Info */}
+        <div>
+          <img 
+            src="https://www.uga.edu/_resources/images/uga-footer-logo.png" 
+            alt="University of Georgia" 
+            className="h-12 mb-4"
+          />
+          <p className="text-xs text-gray-400">
+            University of Georgia<br />
+            Athens, GA 30602<br />
+            (706) 542-3000
+          </p>
+        </div>
 
-    <div id="uga-footer">
-      <div className="container">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Column 1 - MIS Specific Info */}
-          <div>
-            <h3>MIS Career Network</h3>
-            <ul>
-              <li>Terry College of Business</li>
-              <li>Benson Hall C420</li>
-              <li>Athens, GA 30602</li>
-              <li>(706) 542-3703</li>
-            </ul>
-          </div>
-          
-          {/* Column 2 - Resources */}
-          <div>
-            <h3>Resources</h3>
-            <ul>
-              <li><a href="/jobs">Browse Jobs</a></li>
-              <li><a href="/login">Student Login</a></li>
-              <li><a href="/post-job">Post a Job</a></li>
-            </ul>
-          </div>
-          
-          {/* Column 3 - UGA Links */}
-          <div>
-            <h3>University Links</h3>
-            <ul>
-              <li><a href="https://terry.uga.edu" target="_blank" rel="noopener noreferrer">Terry College</a></li>
-              <li><a href="https://www.uga.edu" target="_blank" rel="noopener noreferrer">UGA Home</a></li>
-              <li><a href="https://my.uga.edu" target="_blank" rel="noopener noreferrer">MyUGA</a></li>
-            </ul>
-          </div>
-          
-          {/* Column 4 - Connect */}
-          <div>
-            <h3>Connect</h3>
-            <ul>
-              <li><a href="mailto:mis@terry.uga.edu">Contact Us</a></li>
-              <li><a href="https://terry.uga.edu/directory" target="_blank" rel="noopener noreferrer">Directory</a></li>
-            </ul>
-          </div>
+        {/* Column 2 - Schools and Colleges */}
+        <div>
+          <h3 className="text-sm font-semibold mb-3 uppercase">Schools and Colleges</h3>
+          <ul className="text-sm space-y-1">
+            <li><a href="https://www.uga.edu/directory/" className="text-gray-400 hover:text-white">Directory</a></li>
+          </ul>
+        </div>
+
+        {/* Column 3 - MyUGA */}
+        <div>
+          <h3 className="text-sm font-semibold mb-3 uppercase">MyUGA</h3>
+          <ul className="text-sm space-y-1">
+            <li><a href="https://my.uga.edu" className="text-gray-400 hover:text-white">Employment Opportunities</a></li>
+          </ul>
+        </div>
+
+        {/* Column 4 - Copyright and Trademarks */}
+        <div>
+          <h3 className="text-sm font-semibold mb-3 uppercase">Copyright and Trademarks</h3>
+          <ul className="text-sm space-y-1">
+            <li><a href="https://www.uga.edu/privacy/" className="text-gray-400 hover:text-white">Privacy</a></li>
+          </ul>
         </div>
       </div>
-      
-      <div id="uga-footer-bottom">
-        <div className="container">
-          <div>
-            <img 
-              src="https://www.uga.edu/_resources/images/uga-footer-logo.png" 
-              alt="University of Georgia" 
-              height="48"
-            />
-          </div>
-          <div className="text-xs text-gray-400">
-            © {new Date().getFullYear()} University of Georgia. All rights reserved.
-          </div>
-          <div className="text-xs">
-            <a href="https://www.uga.edu/privacy/" className="mr-3">Privacy</a>
-            <a href="https://www.uga.edu/terms/" className="mr-3">Terms</a>
-            <a href="https://eits.uga.edu/access_and_security/infosec/pols_regs/policies/privacy/" className="mr-3">FERPA</a>
-            <a href="https://www.uga.edu/accessibility/">Accessibility</a>
-          </div>
+
+      {/* Social Media Section */}
+      <div className="mt-8 pt-8 border-t border-gray-600">
+        <p className="text-sm mb-2">#UGA on</p>
+      </div>
+    </div>
+
+    {/* Bottom Bar */}
+    <div className="bg-[#252525] py-4">
+      <div className="container mx-auto px-4 text-center">
+        <p className="text-xs text-gray-500">
+          © {new Date().getFullYear()} University of Georgia. All rights reserved.
+        </p>
+        <div className="mt-2 text-xs">
+          <a href="https://www.uga.edu/privacy/" className="text-gray-500 hover:text-white mx-2">Privacy</a>
+          <a href="https://www.uga.edu/terms/" className="text-gray-500 hover:text-white mx-2">Terms</a>
+          <a href="https://eits.uga.edu/access_and_security/infosec/pols_regs/policies/privacy/" className="text-gray-500 hover:text-white mx-2">FERPA</a>
+          <a href="https://www.uga.edu/accessibility/" className="text-gray-500 hover:text-white mx-2">Accessibility</a>
         </div>
       </div>
     </div>
   </footer>
 );
+
+
+
+
+
 
 function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
   // existing Supabase client setup is preserved
