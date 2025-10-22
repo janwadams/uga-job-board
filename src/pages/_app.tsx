@@ -18,18 +18,17 @@ import '../styles/mobile-fixes.css';
 // Define Footer directly here - with UGA arch background
 const Footer = () => (
   <footer 
-    className="bg-[#333333] text-white relative"
+    className="text-white relative"
     style={{
       backgroundImage: 'url("/images/background-arch.jpg")',
       backgroundRepeat: 'no-repeat',
       backgroundPosition: 'center center',
       backgroundSize: 'cover',
-      backgroundBlendMode: 'overlay'
+      backgroundColor: '#333333'
     }}
   >
-  
-  {/* Lighter overlay so arch shows through better */}
-    <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+    {/* Much lighter overlay - just enough to ensure text readability */}
+    <div className="absolute inset-0 bg-black bg-opacity-30"></div>
   
   
    
