@@ -37,7 +37,7 @@ body {
   border-width: 4px 0 0;
   border-style: solid;
   border-color: #BA0C2F;
-  background: url("../images/background-arch.jpg") #000000 center center no-repeat;
+  background: url("/images/background-arch.jpg") #000000 center center no-repeat;
   background-size: cover;
   font-size: 16px;
   font-family: "Merriweather", Georgia, "Times New Roman", Times, serif; }
