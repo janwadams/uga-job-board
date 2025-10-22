@@ -1,6 +1,11 @@
 //footer.tsx
 
-import React from 'react';
+//import React from 'react';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { createClient } from '@supabase/supabase-js';
 
 // This is the new Footer component using the official UGA CSS classes
 const Footer = () => (
