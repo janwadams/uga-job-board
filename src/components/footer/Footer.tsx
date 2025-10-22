@@ -49,7 +49,7 @@ const Footer = () => (
             <i className="fab fa-facebook-f"></i>
           </a>
           <a href="https://twitter.com/universityofga" className="ugafooter__social-link" target="_blank" rel="noopener noreferrer" aria-label="UGA on Twitter">
-            <i className="fab fa-twitter"></i>
+            <i className="fab fa-x-twitter"></i>
           </a>
           <a href="https://www.instagram.com/universityofga/" className="ugafooter__social-link" target="_blank" rel="noopener noreferrer" aria-label="UGA on Instagram">
             <i className="fab fa-instagram"></i>
