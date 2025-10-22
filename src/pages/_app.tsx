@@ -39,8 +39,9 @@ const Footer = () => (
           {/* Column 1 - UGA Logo and Info */}
           <div>
             <img 
-              src="https://www.uga.edu/_resources/images/uga-footer-logo.png" 
-              alt="University of Georgia" 
+              
+			  src="/images/footeruga.png" 
+			  alt="University of Georgia" 
               className="h-20 mb-4"
             />
             <p className="text-xs text-gray-300">
