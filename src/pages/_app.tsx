@@ -9,7 +9,7 @@ import { useState } from 'react';
 
 import Navbar from 'components/Navbar';
 
-import Footer from 'components'; 
+import Footer from '/src/components/Footer'; 
 import 'styles/globals.css';
 import '../styles/mobile-fixes.css';
 
