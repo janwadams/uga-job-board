@@ -27,9 +27,12 @@ const Footer = () => (
       backgroundBlendMode: 'overlay'
     }}
   >
-    {/* Semi-transparent overlay to ensure text readability */}
-    <div className="absolute inset-0 bg-black bg-opacity-70"></div>
-    
+  
+  {/* Lighter overlay so arch shows through better */}
+    <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+  
+  
+   
     {/* Main content - add relative z-index to appear above overlay */}
     <div className="relative z-10">
       <div className="container mx-auto px-4 py-10 max-w-7xl">
