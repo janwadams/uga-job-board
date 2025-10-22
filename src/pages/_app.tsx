@@ -37,7 +37,7 @@ function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
           <Component {...pageProps} />
         </main>
 		 
-		{/* <Footer /> */}
+		<Footer /> 
 		
       </div>
     </SessionContextProvider>
