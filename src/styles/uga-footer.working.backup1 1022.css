@@ -227,15 +227,11 @@ body {
             -ms-flex-order: 2;
                 order: 2; } }
     .ugafooter__social-label {
-      display: block;
-      margin-right: 0.5em; }
+      display: block; }
       @media (min-width: 768px) {
         .ugafooter__social-label {
           display: inline; } }
     .ugafooter__social-link {
-      display: inline-block;
-      margin-left: 0.5em;
-      padding: 0 0.25em;
       color: #9EA2A2;
       text-decoration: none;
       -webkit-transition: color 100ms ease-in;
@@ -243,6 +239,3 @@ body {
       .ugafooter__social-link:hover {
         color: #FFFFFF;
         text-decoration: none; }
-      .ugafooter__social-link i {
-        font-size: 1em;
-        vertical-align: middle; }
