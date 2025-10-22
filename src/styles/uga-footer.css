@@ -243,7 +243,10 @@ body {
       .ugafooter__social-link:hover {
         color: #FFFFFF;
         text-decoration: none; }
-	  .ugafooter__social-link i {
-		  font-size: 1em;
-		  vertical-align: middle;
-		  color: inherit; }
+	  		  
+		.ugafooter__social-link i {
+      font-size: 1em;
+      vertical-align: middle;
+      color: #9EA2A2; }
+    .ugafooter__social-link:hover i {
+      color: #FFFFFF; }
