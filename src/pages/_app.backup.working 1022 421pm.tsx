@@ -1,22 +1,24 @@
 //pages/_app.tsx
-// this file sets up the main app structure and wraps all pages with common components
+// added import '../styles/mobile-fixes.css'; on 10/02
 
 import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { SessionContextProvider, Session } from '@supabase/auth-helpers-react';
 import { AppProps } from 'next/app';
 import { useState } from 'react';
 
-// import the navbar and footer components that appear on every page
+
 import Navbar from 'components/Navbar';
 import Footer from 'components/footer/Footer';
 
-// import all the global styles for the app
 import 'styles/globals.css';
 import '../styles/mobile-fixes.css';
+
 import '../styles/uga-footer.css';
 
+
+
 function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
-  // create the supabase client once when the app loads (for authentication and database)
+  // existing Supabase client setup is preserved
   const [supabaseClient] = useState(() =>
     createBrowserSupabaseClient()
   );
@@ -26,19 +28,16 @@ function App({ Component, pageProps }: AppProps<{ initialSession: Session }>) {
       supabaseClient={supabaseClient}
       initialSession={pageProps.initialSession}
     >
-      {/* using merriweather sans as the default body font per uga brand guidelines */}
-      {/* it performs well at small sizes and in longer-form text */}
-      <div className="font-merriweather-sans bg-uga-light-gray min-h-screen flex flex-col">
-        {/* navbar appears at the top of every page */}
+      {/* Using Merriweather Sans as the default body font per UGA brand guidelines */}
+      {/* It performs well at small sizes and in longer-form text */}
+      <div className="font-merriweather-sans bg-uga-light-gray min-h-screen">
         <Navbar />
-        
-        {/* main content area with consistent padding - this is where individual pages render */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+        {/* Main content area with consistent padding */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Component {...pageProps} />
         </main>
 		 
-        {/* footer appears at the bottom of every page */}
-        <Footer />
+		<Footer /> 
 		
       </div>
     </SessionContextProvider>
