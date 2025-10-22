@@ -967,4 +967,16 @@ function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: ()
             {user.role === 'rep' && (
               <div>
                 <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
-                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm fo
+                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              </div>
+            )}
+          </div>
+          <div className="mt-6 flex justify-end space-x-4">
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
+            <button type="submit" className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
