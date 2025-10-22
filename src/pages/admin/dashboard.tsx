@@ -58,7 +58,7 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [archivedFilter, setArchivedFilter] = useState<string>(''); // filter for archived tab
   
-  // filter for user status (active/disabled/all)
+  // filter for user status on manage users tab
   const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
 
   // modals
@@ -370,7 +370,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-700">All Platform Users</h2>
               
-              {/* status filter dropdown */}
+              {/* status filter dropdown for users */}
               <div className="w-full sm:w-auto">
                 <label className="mr-2 font-medium text-sm">Status:</label>
                 <select 
@@ -392,33 +392,27 @@ export default function AdminDashboard() {
                 <p className="text-gray-600">No users found{userStatusFilter !== 'all' && ' for selected filter'}.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Email</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Company</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Role</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredUsers.map((user) => (
-                      <tr key={user.user_id} className="hover:bg-gray-50">
-                        <td className="px-3 py-4 text-sm font-medium text-gray-900">
-                          <div>{user.first_name} {user.last_name}</div>
-                          {/* show email on mobile */}
-                          <div className="text-xs text-gray-500 sm:hidden">{user.email}</div>
+                      <tr key={user.user_id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {user.first_name} {user.last_name}
                         </td>
-                        <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">
-                          {user.email}
-                        </td>
-                        <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
-                          {user.company_name || 'N/A'}
-                        </td>
-                        <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden lg:table-cell">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.company_name || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                           <span className={`px-2 py-1 rounded-full text-xs ${
                             user.role === 'admin' ? 'bg-red-100 text-red-800' :
                             user.role === 'faculty' || user.role === 'staff' ? 'bg-blue-100 text-blue-800' :
@@ -427,64 +421,32 @@ export default function AdminDashboard() {
                             {user.role}
                           </span>
                         </td>
-                        <td className="px-3 py-4 text-sm">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
                             {user.is_active ? 'Active' : 'Disabled'}
                           </span>
                         </td>
-                        <td className="px-3 py-4 text-center text-sm">
-                          {/* mobile: vertical stack */}
-                          <div className="flex flex-col gap-1 sm:hidden">
-                            <button 
-                              onClick={() => openEditModal(user)}
-                              className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
-                            >
-                              Edit
-                            </button>
-                            <button 
-                              onClick={() => handleStatusToggle(user.user_id, user.is_active)}
-                              className={`px-2 py-1 rounded text-xs ${
-                                user.is_active 
-                                  ? 'bg-red-600 text-white' 
-                                  : 'bg-green-600 text-white'
-                              }`}
-                            >
-                              {user.is_active ? 'Disable' : 'Enable'}
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteUser(user.user_id)}
-                              className="px-2 py-1 bg-gray-800 text-white rounded text-xs"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                          {/* desktop: horizontal row */}
-                          <div className="hidden sm:flex gap-2 justify-center">
-                            <button 
-                              onClick={() => openEditModal(user)}
-                              className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                            >
-                              Edit
-                            </button>
-                            <button 
-                              onClick={() => handleStatusToggle(user.user_id, user.is_active)}
-                              className={`px-3 py-1 rounded text-xs ${
-                                user.is_active 
-                                  ? 'bg-red-600 text-white hover:bg-red-700' 
-                                  : 'bg-green-600 text-white hover:bg-green-700'
-                              }`}
-                            >
-                              {user.is_active ? 'Disable' : 'Enable'}
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteUser(user.user_id)}
-                              className="px-3 py-1 bg-gray-800 text-white rounded text-xs hover:bg-gray-900"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                          <button 
+                            onClick={() => openEditModal(user)}
+                            className="text-blue-600 hover:text-blue-900 mr-4"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleStatusToggle(user.user_id, user.is_active)}
+                            className={user.is_active ? 'text-red-600 hover:text-red-900 mr-4' : 'text-green-600 hover:text-green-900 mr-4'}
+                          >
+                            {user.is_active ? 'Disable' : 'Enable'}
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteUser(user.user_id)}
+                            className="text-gray-600 hover:text-gray-900"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -495,14 +457,14 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* jobs tab */}
+        {/* current jobs tab */}
         {activeTab === 'jobs' && (
-          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Current Job Postings</h2>
-              <div className="w-full sm:w-auto">
-                <label className="mr-2 font-medium text-sm">Filter by Status:</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded w-full sm:w-auto">
+          <div>
+            <div className="mb-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-700">Current Job Postings</h2>
+              <div>
+                <label className="mr-2 font-medium">Filter by Status:</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
                   <option value="">All Statuses</option>
                   <option value="active">Active</option>
                   <option value="pending">Pending</option>
@@ -514,40 +476,28 @@ export default function AdminDashboard() {
             {loadingJobs ? (
               <p>Loading jobs...</p>
             ) : filteredJobs.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg">
-                <p className="text-gray-600">No jobs found{statusFilter && ' for selected status'}.</p>
-              </div>
+              <p>No jobs found{statusFilter && ' for selected status'}.</p>
             ) : (
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+              <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                <table className="min-w-full">
+                  <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Type</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Location</th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredJobs.map((job) => (
-                      <tr key={job.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-4 text-sm font-medium text-gray-900">
-                          <div>{job.title}</div>
-                          {/* show company on mobile */}
-                          <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
-                        </td>
-                        <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">
-                          {job.company}
-                        </td>
-                        <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
-                          {job.job_type || 'N/A'}
-                        </td>
-                        <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                          {job.location || 'N/A'}
-                        </td>
-                        <td className="px-3 py-4 text-sm">
+                      <tr key={job.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{job.title}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.company}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.job_type || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.location || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             job.status === 'active' ? 'bg-green-100 text-green-800' :
                             job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -557,11 +507,10 @@ export default function AdminDashboard() {
                             {job.status}
                           </span>
                         </td>
-                        <td className="px-3 py-4 text-center text-sm">
-                          {/* mobile: vertical stack */}
-                          <div className="flex flex-col gap-1 sm:hidden">
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                          <div className="flex justify-center gap-2">
                             <Link href={`/admin/view/${job.id}`}>
-                              <button className="w-full px-2 py-1 bg-gray-600 text-white rounded text-xs">
+                              <button className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700">
                                 View
                               </button>
                             </Link>
@@ -569,13 +518,13 @@ export default function AdminDashboard() {
                               <>
                                 <button 
                                   onClick={() => handleJobAction(job.id, 'active')}
-                                  className="px-2 py-1 bg-green-600 text-white rounded text-xs"
+                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                                 >
                                   Approve
                                 </button>
                                 <button 
                                   onClick={() => handleJobAction(job.id, 'rejected')}
-                                  className="px-2 py-1 bg-red-600 text-white rounded text-xs"
+                                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
                                 >
                                   Reject
                                 </button>
@@ -584,39 +533,7 @@ export default function AdminDashboard() {
                             {job.status === 'active' && (
                               <button 
                                 onClick={() => handleJobAction(job.id, 'removed')}
-                                className="px-2 py-1 bg-red-600 text-white rounded text-xs"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-                          {/* desktop: horizontal row */}
-                          <div className="hidden sm:flex gap-2 justify-center">
-                            <Link href={`/admin/view/${job.id}`}>
-                              <button className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700">
-                                View
-                              </button>
-                            </Link>
-                            {job.status === 'pending' && (
-                              <>
-                                <button 
-                                  onClick={() => handleJobAction(job.id, 'active')}
-                                  className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-                                >
-                                  Approve
-                                </button>
-                                <button 
-                                  onClick={() => handleJobAction(job.id, 'rejected')}
-                                  className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            {job.status === 'active' && (
-                              <button 
-                                onClick={() => handleJobAction(job.id, 'removed')}
-                                className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
                               >
                                 Remove
                               </button>
