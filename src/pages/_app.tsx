@@ -6,10 +6,10 @@ import { SessionContextProvider, Session } from '@supabase/auth-helpers-react';
 import { AppProps } from 'next/app';
 import { useState } from 'react';
 
-
+import Footer from 'components/Footer'; 
 import Navbar from 'components/Navbar';
 
-import Footer from '/src/components/Footer'; 
+
 import 'styles/globals.css';
 import '../styles/mobile-fixes.css';
 
