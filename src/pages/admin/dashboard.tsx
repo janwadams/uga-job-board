@@ -57,9 +57,6 @@ export default function AdminDashboard() {
   // filter for jobs
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [archivedFilter, setArchivedFilter] = useState<string>(''); // filter for archived tab
-  
-  // filter for user status on manage users tab
-  const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
 
   // modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -212,22 +209,28 @@ export default function AdminDashboard() {
     setIsModalOpen(true);
   };
 
-  const closeModal = () => {
+  const closeEditModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
   };
 
-  const handleSaveUser = async (updatedUser: AdminUser) => {
+  const handleUpdateUserDetails = async (updatedUser: AdminUser) => {
     try {
-      const response = await fetch('/api/admin/update-user-profile', {
+      const response = await fetch('/api/admin/update-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUser),
+        body: JSON.stringify({ 
+          userId: updatedUser.user_id, 
+          firstName: updatedUser.first_name, 
+          lastName: updatedUser.last_name, 
+          companyName: updatedUser.company_name 
+        }),
       });
+      
       if (response.ok) {
         alert('User updated successfully!');
         fetchUsers();
-        closeModal();
+        closeEditModal();
       } else {
         alert('Failed to update user.');
       }
@@ -237,14 +240,14 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const handleDeleteUser = async (user: AdminUser) => {
+    if (!confirm(`Are you sure you want to delete ${user.first_name} ${user.last_name}?`)) return;
 
     try {
       const response = await fetch('/api/admin/delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId: user.user_id }),
       });
       if (response.ok) {
         alert('User deleted successfully!');
@@ -276,14 +279,6 @@ export default function AdminDashboard() {
     return archivedJobs;
   }, [archivedJobs, archivedFilter]);
 
-  // filter users based on their active status
-  const filteredUsers = useMemo(() => {
-    if (userStatusFilter === 'all') return users;
-    if (userStatusFilter === 'active') return users.filter(user => user.is_active);
-    if (userStatusFilter === 'disabled') return users.filter(user => !user.is_active);
-    return users;
-  }, [users, userStatusFilter]);
-
   // calculate days since job expired
   const getDaysSinceExpired = (deadline: string) => {
     const deadlineDate = new Date(deadline);
@@ -293,284 +288,517 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* header with action buttons */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-uga-red">Admin Dashboard</h1>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/admin/analytics">
-              <button className="px-4 py-2 bg-uga-red text-white rounded hover:bg-red-800 text-sm sm:text-base">
-                View Analytics
-              </button>
-            </Link>
-            <Link href="/admin/content-review">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm sm:text-base">
-                Content Review
-              </button>
-            </Link>
-            <Link href="/admin/archive-reports">
-              <button className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm sm:text-base">
-                Archive Reports
-              </button>
-            </Link>
-            <Link href="/admin/platform-health">
-              <button className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm sm:text-base">
-                Platform Health
-              </button>
-            </Link>
-            <button 
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* header with admin dashboard title and action buttons */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-uga-red mb-4">Admin Dashboard</h1>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <Link href="/admin/analytics" className="w-full">
+            <button className="w-full lg:min-w-[140px] bg-uga-red text-white px-3 py-2 rounded hover:bg-red-800 text-center text-xs sm:text-sm">
+              View Analytics
+            </button>
+          </Link>
+          
+          <Link href="/admin/content-review" className="w-full">
+            <button className="w-full lg:min-w-[140px] bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-center text-xs sm:text-sm">
+              Content Review
+            </button>
+          </Link>
+          
+          <Link href="/admin/archive-reports" className="w-full">
+            <button className="w-full lg:min-w-[140px] bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-center text-xs sm:text-sm">
+              Archive Reports
+            </button>
+          </Link>
+          
+          <Link href="/admin/platform-effectiveness" className="w-full">
+            <button className="w-full lg:min-w-[140px] bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 text-center text-xs sm:text-sm">
+              Platform Health
+            </button>
+          </Link>
+          
+          {/* create admin button - same size as all others */}
+          {activeTab === 'users' && (
+            <button
               onClick={() => setShowCreateAdmin(true)}
-              className="px-4 py-2 bg-green-700 text-white rounded hover:bg-green-800 text-sm sm:text-base"
+              className="w-full lg:min-w-[140px] bg-green-700 text-white px-3 py-2 rounded hover:bg-green-800 text-center text-xs sm:text-sm"
             >
               + Create Admin
             </button>
-          </div>
+          )}
         </div>
-
-        {/* tabs for switching between views */}
-        <div className="bg-white rounded-lg shadow-md mb-6">
-          <div className="flex flex-col sm:flex-row border-b">
-            <button
-              className={`flex-1 px-4 py-3 text-center font-medium transition-colors text-sm sm:text-base ${
-                activeTab === 'users'
-                  ? 'bg-uga-red text-white border-b-4 border-uga-red'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-              onClick={() => setActiveTab('users')}
-            >
-              Manage Users
-            </button>
-            <button
-              className={`flex-1 px-4 py-3 text-center font-medium transition-colors text-sm sm:text-base ${
-                activeTab === 'jobs'
-                  ? 'bg-uga-red text-white border-b-4 border-uga-red'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-              onClick={() => setActiveTab('jobs')}
-            >
-              Current Jobs ({jobs.length})
-            </button>
-            <button
-              className={`flex-1 px-4 py-3 text-center font-medium transition-colors text-sm sm:text-base ${
-                activeTab === 'archived'
-                  ? 'bg-uga-red text-white border-b-4 border-uga-red'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-              onClick={() => setActiveTab('archived')}
-            >
-              Archived Jobs ({archivedJobs.length})
-            </button>
-          </div>
-        </div>
-
-        {/* users tab */}
-        {activeTab === 'users' && (
-          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-700">All Platform Users</h2>
-              
-              {/* status filter dropdown for users */}
-              <div className="w-full sm:w-auto">
-                <label className="mr-2 font-medium text-sm">Status:</label>
-                <select 
-                  value={userStatusFilter} 
-                  onChange={(e) => setUserStatusFilter(e.target.value)} 
-                  className="p-2 border rounded w-full sm:w-auto"
-                >
-                  <option value="all">All</option>
-                  <option value="active">Active</option>
-                  <option value="disabled">Disabled</option>
-                </select>
-              </div>
-            </div>
-
-            {loadingUsers ? (
-              <p>Loading users...</p>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg">
-                <p className="text-gray-600">No users found{userStatusFilter !== 'all' && ' for selected filter'}.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredUsers.map((user) => (
-                      <tr key={user.user_id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.company_name || 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                            user.role === 'faculty' || user.role === 'staff' ? 'bg-blue-100 text-blue-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {user.role}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.is_active ? 'Active' : 'Disabled'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                          <button 
-                            onClick={() => openEditModal(user)}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            onClick={() => handleStatusToggle(user.user_id, user.is_active)}
-                            className={user.is_active ? 'text-red-600 hover:text-red-900 mr-4' : 'text-green-600 hover:text-green-900 mr-4'}
-                          >
-                            {user.is_active ? 'Disable' : 'Enable'}
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteUser(user.user_id)}
-                            className="text-gray-600 hover:text-gray-900"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* current jobs tab */}
-        {activeTab === 'jobs' && (
-          <div>
-            <div className="mb-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-700">Current Job Postings</h2>
-              <div>
-                <label className="mr-2 font-medium">Filter by Status:</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
-                  <option value="">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-            </div>
-
-            {loadingJobs ? (
-              <p>Loading jobs...</p>
-            ) : filteredJobs.length === 0 ? (
-              <p>No jobs found{statusFilter && ' for selected status'}.</p>
-            ) : (
-              <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                <table className="min-w-full">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredJobs.map((job) => (
-                      <tr key={job.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{job.title}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.company}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.job_type || 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.location || 'N/A'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            job.status === 'active' ? 'bg-green-100 text-green-800' :
-                            job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            job.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {job.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                          <div className="flex justify-center gap-2">
-                            <Link href={`/admin/view/${job.id}`}>
-                              <button className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700">
-                                View
-                              </button>
-                            </Link>
-                            {job.status === 'pending' && (
-                              <>
-                                <button 
-                                  onClick={() => handleJobAction(job.id, 'active')}
-                                  className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                                >
-                                  Approve
-                                </button>
-                                <button 
-                                  onClick={() => handleJobAction(job.id, 'rejected')}
-                                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            {job.status === 'active' && (
-                              <button 
-                                onClick={() => handleJobAction(job.id, 'removed')}
-                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* archived jobs tab */}
-        {activeTab === 'archived' && (
-          <ArchivedJobsPanel 
-            jobs={filteredArchivedJobs}
-            loading={loadingArchived}
-            filter={archivedFilter}
-            setFilter={setArchivedFilter}
-            onReactivate={handleReactivateJob}
-            getDaysSinceExpired={getDaysSinceExpired}
-          />
-        )}
-
-        {/* edit user modal */}
-        {isModalOpen && editingUser && (
-          <EditUserModal user={editingUser} onClose={closeModal} onSave={handleSaveUser} />
-        )}
-
-        {/* create admin modal */}
-        {showCreateAdmin && (
-          <CreateAdminModal onClose={() => setShowCreateAdmin(false)} onSuccess={fetchUsers} />
-        )}
       </div>
+
+      {/* tab navigation for switching between users, jobs, and archived */}
+      <div className="mb-4 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+          <button 
+            onClick={() => setActiveTab('users')} 
+            className={`${activeTab === 'users' ? 'border-red-700 text-red-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
+          >
+            Manage Users
+          </button>
+          <button 
+            onClick={() => setActiveTab('jobs')} 
+            className={`${activeTab === 'jobs' ? 'border-red-700 text-red-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
+          >
+            Current Jobs ({jobs.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab('archived')} 
+            className={`${activeTab === 'archived' ? 'border-red-700 text-red-800' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
+          >
+            Archived Jobs ({archivedJobs.length})
+          </button>
+        </nav>
+      </div>
+
+      {/* conditional content based on active tab */}
+      {activeTab === 'users' && <UsersManagementPanel users={users} loading={loadingUsers} onStatusToggle={handleStatusToggle} onEditUser={openEditModal} onDeleteUser={handleDeleteUser} />}
+      {activeTab === 'jobs' && <JobsManagementPanel jobs={filteredJobs} loading={loadingJobs} onJobAction={handleJobAction} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
+      {activeTab === 'archived' && (
+        <ArchivedJobsPanel 
+          jobs={filteredArchivedJobs} 
+          loading={loadingArchived} 
+          filter={archivedFilter}
+          setFilter={setArchivedFilter}
+          onReactivate={handleReactivateJob}
+          getDaysSinceExpired={getDaysSinceExpired}
+        />
+      )}
+
+      {/* modal for editing user details */}
+      {isModalOpen && editingUser && (
+        <EditUserModal user={editingUser} onClose={closeEditModal} onSave={handleUpdateUserDetails} />
+      )}
+
+      {/* modal for creating new admin */}
+      {showCreateAdmin && (
+        <CreateAdminModal 
+          onClose={() => setShowCreateAdmin(false)}
+          onSuccess={() => {
+            setShowCreateAdmin(false);
+            fetchUsers();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// create admin modal component with password visibility
+function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/admin/create-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Admin account created successfully!');
+        onSuccess();
+      } else {
+        setError(data.error || 'Failed to create admin account.');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // eye icon components for showing/hiding passwords
+  const EyeIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  );
+
+  const EyeOffIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.025 10.025 0 01-1.273-4M12 5a10.016 10.016 0 016.24 2.182M6.343 6.343A10.015 10.015 0 0112 5m0 14v-7m0 0a3 3 0 100-6m0 6a3 3 0 110 6m6.657-6.343a10.015 10.015 0 01-2.475 6.565M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Create New Admin</h2>
+        {error && <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+            <input 
+              type="text" 
+              id="firstName" 
+              name="firstName" 
+              value={formData.firstName} 
+              onChange={handleChange} 
+              required 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <input 
+              type="text" 
+              id="lastName" 
+              name="lastName" 
+              value={formData.lastName} 
+              onChange={handleChange} 
+              required 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              value={formData.email} 
+              onChange={handleChange} 
+              required 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="mb-4 relative">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input 
+              type={showPassword ? 'text' : 'password'} 
+              id="password" 
+              name="password" 
+              value={formData.password} 
+              onChange={handleChange} 
+              required 
+              minLength={6}
+              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button 
+              type="button" 
+              onClick={() => setShowPassword(!showPassword)} 
+              className="absolute right-3 top-9 text-gray-500 hover:text-gray-700"
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+          <div className="mb-6 relative">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+            <input 
+              type={showConfirmPassword ? 'text' : 'password'} 
+              id="confirmPassword" 
+              name="confirmPassword" 
+              value={formData.confirmPassword} 
+              onChange={handleChange} 
+              required 
+              minLength={6}
+              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button 
+              type="button" 
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+              className="absolute right-3 top-9 text-gray-500 hover:text-gray-700"
+            >
+              {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+          <div className="flex justify-end space-x-3">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Admin'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// component for users tab - fixed mobile layout WITH STATUS FILTER
+function UsersManagementPanel({ users, loading, onStatusToggle, onEditUser, onDeleteUser }: { users: AdminUser[], loading: boolean, onStatusToggle: (userId: string, currentStatus: boolean) => void, onEditUser: (user: AdminUser) => void, onDeleteUser: (user: AdminUser) => void }) {
+  // filter for user status (active/disabled/all)
+  const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
+
+  // filter users based on their active status
+  const filteredUsers = useMemo(() => {
+    if (userStatusFilter === 'all') return users;
+    if (userStatusFilter === 'active') return users.filter(user => user.is_active);
+    if (userStatusFilter === 'disabled') return users.filter(user => !user.is_active);
+    return users;
+  }, [users, userStatusFilter]);
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-700">All Platform Users</h2>
+        
+        {/* status filter dropdown */}
+        <div>
+          <label className="mr-2 font-medium">Status:</label>
+          <select 
+            value={userStatusFilter} 
+            onChange={(e) => setUserStatusFilter(e.target.value)} 
+            className="p-2 border rounded"
+          >
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (<p>Loading users...</p>) : filteredUsers.length === 0 ? (
+        <p>No users found{userStatusFilter !== 'all' && ' for selected filter'}.</p>
+      ) : (
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Email</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Company</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Role</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Status</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredUsers.map((user) => (
+                <tr key={user.user_id}>
+                  <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                    <div>{user.first_name} {user.last_name}</div>
+                    {/* show role and status on mobile under name */}
+                    <div className="text-xs text-gray-500 sm:hidden">{user.role}</div>
+                    <div className="text-xs sm:hidden">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {user.is_active ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">{user.email}</td>
+                  <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">{user.company_name || 'N/A'}</td>
+                  <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden sm:table-cell">{user.role}</td>
+                  <td className="px-3 py-4 text-center hidden sm:table-cell">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {user.is_active ? 'Active' : 'Disabled'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4 text-center text-sm font-medium">
+                    {/* mobile: vertical stack to prevent overflow */}
+                    <div className="flex flex-col gap-1 sm:hidden">
+                      <button onClick={() => onEditUser(user)} className="px-2 py-1 rounded text-white text-xs bg-indigo-600">
+                        Edit
+                      </button>
+                      <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-2 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600' : 'bg-green-600'}`}>
+                        {user.is_active ? 'Disable' : 'Enable'}
+                      </button>
+                      <button onClick={() => onDeleteUser(user)} className="px-2 py-1 rounded text-white text-xs bg-gray-700">
+                        Delete
+                      </button>
+                    </div>
+                    {/* desktop: horizontal row */}
+                    <div className="hidden sm:flex gap-2 justify-center">
+                      <button onClick={() => onEditUser(user)} className="px-3 py-1 rounded text-white text-xs bg-indigo-600 hover:bg-indigo-700">
+                        Edit
+                      </button>
+                      <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-white text-xs ${user.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
+                        {user.is_active ? 'Disable' : 'Enable'}
+                      </button>
+                      <button onClick={() => onDeleteUser(user)} className="px-3 py-1 rounded text-white text-xs bg-gray-700 hover:bg-gray-800">
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// component for jobs tab - fixed mobile button layout
+function JobsManagementPanel({ jobs, loading, onJobAction, statusFilter, setStatusFilter }: { jobs: Job[], loading: boolean, onJobAction: (jobId: string, newStatus: Job['status']) => void, statusFilter: string, setStatusFilter: (filter: string) => void }) {
+  const statusColors: Record<Job['status'], string> = { 
+    active: 'bg-green-100 text-green-800', 
+    pending: 'bg-yellow-100 text-yellow-800', 
+    removed: 'bg-red-100 text-red-800', 
+    rejected: 'bg-gray-100 text-gray-800', 
+    archived: 'bg-gray-100 text-gray-800' 
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-700">All Current Job Postings</h2>
+        <div className="hidden sm:block">
+          <label className="mr-2 font-medium">Filter by Status:</label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="active">Active</option>
+            <option value="removed">Removed</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+      </div>
+      
+      {/* mobile filter - full width for better usability */}
+      <div className="sm:hidden mb-4">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full p-2 border rounded">
+          <option value="">All Jobs</option>
+          <option value="pending">Pending</option>
+          <option value="active">Active</option>
+          <option value="removed">Removed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      {loading ? (<p>Loading jobs...</p>) : jobs.length === 0 ? (<p>No job postings found for the selected filter.</p>) : (
+        <div className="border border-gray-200 rounded-lg overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Role</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {jobs.map((job) => (
+                <tr key={job.id}>
+                  <td className="px-4 py-4 text-sm font-medium text-gray-900">
+                    <Link href={`/admin/view/${job.id}`}>
+                      <span className="hover:text-blue-600 hover:underline cursor-pointer">
+                        {job.title}
+                      </span>
+                    </Link>
+                    {/* show company on mobile under title */}
+                    <div className="text-xs text-gray-500 sm:hidden mt-1">{job.company}</div>
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
+                  <td className="px-4 py-4 text-sm text-gray-500 hidden md:table-cell">
+                    <div>{job.creator_name}</div>
+                    <span className="text-xs text-gray-400">{job.created_by}</span>
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-500 hidden lg:table-cell">{job.email}</td>
+                  <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden sm:table-cell">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      job.role === 'faculty' || job.role === 'staff' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {job.role}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4 text-center">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[job.status]}`}>
+                      {job.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4 text-center text-sm font-medium">
+                    {/* mobile: vertical stack to prevent button overflow */}
+                    <div className="flex flex-col gap-1 sm:hidden">
+                      {job.status === 'pending' && (
+                        <>
+                          <button onClick={() => onJobAction(job.id, 'active')} className="px-2 py-1 bg-green-600 text-white rounded text-xs">
+                            Approve
+                          </button>
+                          <button onClick={() => onJobAction(job.id, 'rejected')} className="px-2 py-1 bg-red-600 text-white rounded text-xs">
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {job.status === 'active' && (
+                        <button onClick={() => onJobAction(job.id, 'removed')} className="px-2 py-1 bg-red-600 text-white rounded text-xs">
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    {/* desktop: horizontal row */}
+                    <div className="hidden sm:flex gap-2 justify-center">
+                      {job.status === 'pending' && (
+                        <>
+                          <button onClick={() => onJobAction(job.id, 'active')} className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">
+                            Approve
+                          </button>
+                          <button onClick={() => onJobAction(job.id, 'rejected')} className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {job.status === 'active' && (
+                        <button onClick={() => onJobAction(job.id, 'removed')} className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -739,126 +967,4 @@ function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: ()
             {user.role === 'rep' && (
               <div>
                 <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
-                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-              </div>
-            )}
-          </div>
-          <div className="mt-6 flex justify-end space-x-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800">Save Changes</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// component for create admin modal
-function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/admin/create-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, firstName, lastName }),
-      });
-
-      if (response.ok) {
-        alert('Admin created successfully!');
-        onSuccess();
-        onClose();
-      } else {
-        const data = await response.json();
-        alert(`Failed to create admin: ${data.error}`);
-      }
-    } catch (error) {
-      console.error('Error creating admin:', error);
-      alert('Error creating admin.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4">Create New Admin</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-              <input 
-                type="email" 
-                id="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-              <input 
-                type="password" 
-                id="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required
-                minLength={6}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
-              />
-            </div>
-            <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name</label>
-              <input 
-                type="text" 
-                id="firstName" 
-                value={firstName} 
-                onChange={(e) => setFirstName(e.target.value)} 
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
-              />
-            </div>
-            <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last Name</label>
-              <input 
-                type="text" 
-                id="lastName" 
-                value={lastName} 
-                onChange={(e) => setLastName(e.target.value)} 
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
-              />
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end space-x-4">
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800"
-              disabled={loading}
-            >
-              {loading ? 'Creating...' : 'Create Admin'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm fo
