@@ -20,7 +20,7 @@ const Footer = () => (
   <footer 
     className="bg-[#333333] text-white relative"
     style={{
-      backgroundImage: "/images/background-arch.jpg"',
+      backgroundImage: "/images/background-arch.jpg",
       backgroundRepeat: 'no-repeat',
       backgroundPosition: 'center center',
       backgroundSize: 'cover',
