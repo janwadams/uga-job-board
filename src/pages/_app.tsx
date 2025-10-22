@@ -8,7 +8,7 @@ import { useState } from 'react';
 
 
 import Navbar from 'components/Navbar';
-import Footer from 'components/Footer';
+import Footer from 'components/footer/Footer';
 
 import 'styles/globals.css';
 import '../styles/mobile-fixes.css';
