@@ -98,20 +98,6 @@ const Footer = () => (
       </div>
 
 
-	{/* Bottom Bar */}
-      <div className="bg-[#252525] bg-opacity-95 py-4">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="flex flex-col md:flex-row justify-between items-center text-xs text-gray-400">
-            <p>© 2025 University of Georgia. All rights reserved.</p>
-            <div className="mt-2 md:mt-0 space-x-4">
-              <a href="https://www.uga.edu/privacy/" className="hover:text-white">Privacy</a>
-              <a href="https://www.uga.edu/terms/" className="hover:text-white">Terms</a>
-              <a href="https://eits.uga.edu/access_and_security/infosec/pols_regs/policies/privacy/" className="hover:text-white">FERPA</a>
-              <a href="https://www.uga.edu/accessibility/" className="hover:text-white">Accessibility</a>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
       
   </footer>
