@@ -103,7 +103,7 @@ export default function Navbar() {
               <span className="hidden sm:block text-lg md:text-2xl font-oswald font-bold text-uga-white transition-colors tracking-wide">
                 UNIVERSITY OF GEORGIA
               </span>
-              {/* show short version on mobile */}
+              {/* show short version on mobile - but only if there's room */}
               <span className="sm:hidden text-base font-oswald font-bold text-uga-white">
                 UGA
               </span>
@@ -164,7 +164,7 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* mobile menu hamburger button */}
+          {/* mobile menu hamburger button - RESTORED TO ORIGINAL */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100 flex items-center gap-2"
@@ -177,79 +177,72 @@ export default function Navbar() {
 
         {/* mobile dropdown menu - shows when hamburger is clicked */}
         {mobileMenuOpen && (
-          <div className="md:hidden pb-4 bg-uga-red max-h-[calc(100vh-64px)] overflow-y-auto">
+          <div className="md:hidden pb-4 bg-uga-red">
             <div className="flex flex-col space-y-3 pt-4 border-t border-red-700">
               {session ? (
                 <>
                   {/* logged in user mobile menu */}
-                  <div className="px-3 pb-2 border-b border-red-700">
-                    <span className="text-sm text-white opacity-90">Welcome, {userProfile?.first_name || 'User'}</span>
-                  </div>
+                  <span className="text-sm text-white opacity-90 px-3">Welcome, {userProfile?.first_name || 'User'}</span>
                   
-                  {/* App navigation section for logged-in users */}
-                  <div className="px-3 space-y-2">
-                    {/* Dashboard link - shown when on home page */}
-                    {router.pathname === "/" && userProfile && (
-                      <Link href={getDashboardLink()}>
-                        <span 
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block py-2 text-white hover:text-gray-200"
-                        >
-                          My Dashboard
-                        </span>
-                      </Link>
-                    )}
-                    
-                    {/* Sign Out link - styled like other links */}
-                    <button
-                      onClick={handleSignOut}
-                      className="block w-full text-left py-2 text-white hover:text-gray-200"
-                    >
-                      Sign Out
-                    </button>
-                  </div>
+                  {/* Dashboard button - shown when appropriate */}
+                  {router.pathname === "/" && userProfile && (
+                    <Link href={getDashboardLink()}>
+                      <span 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block mx-3 px-3 py-2 text-sm font-semibold bg-white text-uga-red rounded-md text-center"
+                      >
+                        My Dashboard
+                      </span>
+                    </Link>
+                  )}
+                  
+                  {/* PROMINENT SIGN OUT BUTTON - Always visible at the top for logged-in users */}
+                  <button
+                    onClick={handleSignOut}
+                    className="mx-3 px-3 py-2 text-sm font-semibold bg-white text-uga-red rounded-md text-center hover:bg-gray-100"
+                  >
+                    Sign Out
+                  </button>
                 </>
               ) : (
                 <>
                   {/* not logged in mobile menu with login and signup options */}
-                  <div className="px-3 space-y-2">
-                    <Link href="/login">
-                      <span 
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="block py-2 text-white hover:text-gray-200"
-                      >
-                        Login
-                      </span>
-                    </Link>
-                    <Link href="/signup-student">
-                      <span 
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="block py-2 text-white hover:text-gray-200"
-                      >
-                        Student Sign Up
-                      </span>
-                    </Link>
-                    <Link href="/signup">
-                      <span 
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="block py-2 text-white hover:text-gray-200"
-                      >
-                        Company Sign Up
-                      </span>
-                    </Link>
-                  </div>
+                  <Link href="/login">
+                    <span 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block mx-3 px-3 py-2 text-white bg-red-700 hover:bg-red-800 rounded-md"
+                    >
+                      Login
+                    </span>
+                  </Link>
+                  <Link href="/signup-student">
+                    <span 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block mx-3 px-3 py-2 text-white bg-red-700 hover:bg-red-800 rounded-md"
+                    >
+                      Student Sign Up
+                    </span>
+                  </Link>
+                  <Link href="/signup">
+                    <span 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block mx-3 px-3 py-2 font-semibold bg-white text-uga-red rounded-md text-center"
+                    >
+                      Company Sign Up
+                    </span>
+                  </Link>
                 </>
               )}
               
               {/* uga external links for mobile */}
-              <div className="border-t border-red-700 pt-3">
-                <div className="px-3 space-y-2">
-                  <a href="https://www.uga.edu" target="_blank" rel="noopener noreferrer" className="block py-2 text-white text-center hover:text-gray-200">UGA</a>
-                  <a href="https://give.uga.edu/" target="_blank" rel="noopener noreferrer" className="block py-2 text-white text-center hover:text-gray-200">Give</a>
-                  <a href="https://calendar.uga.edu/" target="_blank" rel="noopener noreferrer" className="block py-2 text-white text-center hover:text-gray-200">Calendar</a>
-                  <a href="https://news.uga.edu/" target="_blank" rel="noopener noreferrer" className="block py-2 text-white text-center hover:text-gray-200">News</a>
-                  <a href="https://my.uga.edu/" target="_blank" rel="noopener noreferrer" className="block py-2 text-white text-center hover:text-gray-200">MyUGA</a>
-                  <a href="https://www.uga.edu/search.php" target="_blank" rel="noopener noreferrer" className="block py-2 text-white text-center hover:text-gray-200">Search</a>
+              <div className="border-t border-red-700 pt-3 mt-3">
+                <div className="grid grid-cols-3 gap-2 text-xs px-3">
+                  <a href="https://www.uga.edu" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">UGA</a>
+                  <a href="https://give.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Give</a>
+                  <a href="https://calendar.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Calendar</a>
+                  <a href="https://news.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">News</a>
+                  <a href="https://my.uga.edu/" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">MyUGA</a>
+                  <a href="https://www.uga.edu/search.php" target="_blank" rel="noopener noreferrer" className="text-center py-2 text-white">Search</a>
                 </div>
               </div>
             </div>
