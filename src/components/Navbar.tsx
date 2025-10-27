@@ -103,8 +103,8 @@ export default function Navbar() {
               <span className="hidden sm:block text-lg md:text-2xl font-oswald font-bold text-uga-white transition-colors tracking-wide">
                 UNIVERSITY OF GEORGIA
               </span>
-              {/* show short version on mobile */}
-              <span className="sm:hidden text-lg font-oswald font-bold text-uga-white">
+              {/* show short version on mobile - but only if there's room */}
+              <span className="sm:hidden text-base font-oswald font-bold text-uga-white">
                 UGA
               </span>
             </div>
@@ -164,29 +164,15 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* mobile controls - sign out button (if logged in) and menu button */}
-          <div className="md:hidden flex items-center gap-2">
-            {/* Show Sign Out button on mobile when user is logged in */}
-            {session && (
-              <button
-                onClick={handleSignOut}
-                className="px-3 py-1.5 rounded-md bg-red-700 text-white text-sm font-medium hover:bg-red-800 transition-colors"
-                aria-label="Sign Out"
-              >
-                Sign Out
-              </button>
-            )}
-            
-            {/* mobile menu hamburger button - white button with three black lines */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100 flex items-center gap-2"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
-              <span className="text-sm font-medium">Menu</span>
-            </button>
-          </div>
+          {/* mobile menu hamburger button - RESTORED TO ORIGINAL */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-md bg-white text-uga-red transition-colors hover:bg-gray-100 flex items-center gap-2"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+            <span className="text-sm font-medium">Menu</span>
+          </button>
         </div>
 
         {/* mobile dropdown menu - shows when hamburger is clicked */}
@@ -197,6 +183,8 @@ export default function Navbar() {
                 <>
                   {/* logged in user mobile menu */}
                   <span className="text-sm text-white opacity-90 px-3">Welcome, {userProfile?.first_name || 'User'}</span>
+                  
+                  {/* Dashboard button - shown when appropriate */}
                   {router.pathname === "/" && userProfile && (
                     <Link href={getDashboardLink()}>
                       <span 
@@ -207,8 +195,14 @@ export default function Navbar() {
                       </span>
                     </Link>
                   )}
-                  {/* Remove the duplicate Sign Out button from mobile menu since it's now always visible */}
-                  {/* Users can still access other menu items here */}
+                  
+                  {/* PROMINENT SIGN OUT BUTTON - Always visible at the top for logged-in users */}
+                  <button
+                    onClick={handleSignOut}
+                    className="mx-3 px-3 py-2 text-sm font-semibold bg-white text-uga-red rounded-md text-center hover:bg-gray-100"
+                  >
+                    Sign Out
+                  </button>
                 </>
               ) : (
                 <>
