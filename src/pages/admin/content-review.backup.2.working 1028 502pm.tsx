@@ -46,7 +46,7 @@ export default function ContentReview() {
   const [loading, setLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'needs_review' | 'never' | 'recent'>('needs_review');
+  const [filterType, setFilterType] = useState<'all' | 'needs_review' | 'overdue' | 'never' | 'recent'>('needs_review');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   
   // check if user is admin when page loads
@@ -215,7 +215,7 @@ export default function ContentReview() {
     }
   };
 
-  // filter jobs based on review status - SIMPLIFIED LOGIC
+  // filter jobs based on review status - IMPROVED LOGIC
   const filteredJobs = jobs.filter(job => {
     const daysSince = getDaysSinceReview(job.last_reviewed);
     
@@ -223,6 +223,9 @@ export default function ContentReview() {
       case 'needs_review':
         // Jobs that need review: never reviewed OR overdue (>7 days)
         return daysSince === -1 || daysSince > 7;
+      case 'overdue':
+        // Only jobs that HAVE been reviewed but are overdue (>7 days)
+        return daysSince > 7 && daysSince !== -1;
       case 'never':
         // Only jobs that have NEVER been reviewed
         return daysSince === -1;
@@ -243,6 +246,10 @@ export default function ContentReview() {
         const days = getDaysSinceReview(j.last_reviewed);
         return days === -1 || days > 7;
       }).length,
+      overdue: jobs.filter(j => {
+        const days = getDaysSinceReview(j.last_reviewed);
+        return days > 7 && days !== -1;
+      }).length,
       never: jobs.filter(j => getDaysSinceReview(j.last_reviewed) === -1).length,
       recent: jobs.filter(j => {
         const days = getDaysSinceReview(j.last_reviewed);
@@ -253,6 +260,7 @@ export default function ContentReview() {
     const labels = {
       all: 'All Active Jobs',
       needs_review: 'Needs Review',
+      overdue: 'Overdue Only',
       never: 'Never Reviewed',
       recent: 'Recently Reviewed'
     };
@@ -316,10 +324,10 @@ export default function ContentReview() {
                 <p className="text-xl sm:text-2xl font-bold">
                   {jobs.filter(j => {
                     const days = getDaysSinceReview(j.last_reviewed);
-                    return days === -1 || days > 7;
+                    return days > 7 && days !== -1;
                   }).length}
                 </p>
-                <p className="text-gray-600 text-xs sm:text-sm">Needs Review</p>
+                <p className="text-gray-600 text-xs sm:text-sm">Overdue Review</p>
               </div>
             </div>
           </div>
@@ -378,6 +386,15 @@ export default function ContentReview() {
                     Never Reviewed ({jobs.filter(j => getDaysSinceReview(j.last_reviewed) === -1).length})
                   </button>
                   <button
+                    onClick={() => { setFilterType('overdue'); setShowFilterDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'overdue' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                  >
+                    Overdue Only ({jobs.filter(j => {
+                      const days = getDaysSinceReview(j.last_reviewed);
+                      return days > 7 && days !== -1;
+                    }).length})
+                  </button>
+                  <button
                     onClick={() => { setFilterType('recent'); setShowFilterDropdown(false); }}
                     className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'recent' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
                   >
@@ -400,6 +417,7 @@ export default function ContentReview() {
               <p className="text-gray-600">
                 {filterType === 'needs_review' ? 'All jobs have been reviewed recently!' :
                  filterType === 'never' ? 'No jobs waiting for initial review!' :
+                 filterType === 'overdue' ? 'No overdue reviews!' :
                  filterType === 'recent' ? 'No recently reviewed jobs.' :
                  'No jobs found for this filter.'}
               </p>
