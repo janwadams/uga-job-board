@@ -18,7 +18,7 @@ import {
   ListBulletIcon,
   XMarkIcon,
   ChevronRightIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
   UserCircleIcon,
   ArrowLeftOnRectangleIcon
 } from '@heroicons/react/24/outline';
@@ -1275,80 +1275,6 @@ export default function StudentDashboard() {
             </button>
           </div>
         </div>
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
-            <p className="text-gray-600 mt-2">Find your perfect opportunity</p>
-          </div>
-          <div className="flex gap-2">
-            <Link href="/student/profile">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-                <UserCircleIcon className="h-5 w-5" />
-                Edit Profile
-              </button>
-            </Link>
-            <button 
-              onClick={async () => {
-                await supabase.auth.signOut();
-                router.push("/auth/signin");
-              }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-            >
-              <ArrowLeftOnRectangleIcon className="h-5 w-5" />
-              Sign Out
-            </button>
-          </div>
-        </div>
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
-            <p className="text-gray-600 mt-2">Find your perfect opportunity</p>
-          </div>
-          <div className="flex gap-2">
-            <Link href="/student/profile">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-                <UserCircleIcon className="h-5 w-5" />
-                Edit Profile
-              </button>
-            </Link>
-            <button 
-              onClick={async () => {
-                await supabase.auth.signOut();
-                router.push("/auth/signin");
-              }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-            >
-              <ArrowLeftOnRectangleIcon className="h-5 w-5" />
-              Sign Out
-            </button>
-          </div>
-        </div>
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
-            <p className="text-gray-600 mt-2">Find your perfect opportunity</p>
-          </div>
-          <div className="flex gap-2">
-            <Link href="/student/profile">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-                <UserCircleIcon className="h-5 w-5" />
-                Edit Profile
-              </button>
-            </Link>
-            <button 
-              onClick={async () => {
-                await supabase.auth.signOut();
-                router.push("/auth/signin");
-              }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-            >
-              <ArrowLeftOnRectangleIcon className="h-5 w-5" />
-              Sign Out
-            </button>
-          </div>
-        </div>
-        </div>
-
         {/* overview stats cards - removed applications count */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
           {/* disabled: showing application count
