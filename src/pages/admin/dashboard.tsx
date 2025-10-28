@@ -315,7 +315,7 @@ export default function AdminDashboard() {
               Archive Reports
             </button>
           </Link>
-          <Link href="/admin/platform-health-effectiveness" className="w-full">
+          <Link href="/admin/platform-effectiveness" className="w-full">
             <button className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors">
               Platform Health
             </button>
