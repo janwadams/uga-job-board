@@ -433,7 +433,7 @@ function UserManagementPanel({ users, loading, onStatusToggle, onEditUser }: {
             <option value="">All Roles</option>
             <option value="student">Students</option>
             <option value="faculty">Faculty</option>
-            <option value="staff">Staff</option>
+           
             <option value="rep">Company Reps</option>
             <option value="admin">Admins</option>
           </select>
