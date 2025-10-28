@@ -20,6 +20,7 @@ import {
   ChevronRightIcon,
   CheckCircleIcon,
   UserCircleIcon,
+  ArrowLeftOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
 
@@ -1262,6 +1263,16 @@ export default function StudentDashboard() {
                 Edit Profile
               </button>
             </Link>
+            <button 
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push("/auth/signin");
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+            >
+              <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+              Sign Out
+            </button>
           </div>
         </div>
         {/* overview stats cards - removed applications count */}
