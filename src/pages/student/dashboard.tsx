@@ -1,4 +1,4 @@
-// pages/student/dashboard.tsx - student dashboard with job browsing, saving, and deadline tracking
+// pages/student/dashboard.tsx - updated to remove all application functionality
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
@@ -22,16 +22,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkSolidIcon } from '@heroicons/react/24/solid';
 
-// disabled: quick apply modal no longer needed since applications are removed
+// disabled: quick apply modal no longer needed
 // import QuickApplyModal from '../../components/QuickApplyModal';
 
-// create connection to your database
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// this defines what a job looks like in your system
 interface Job {
   id: string;
   title: string;
@@ -48,7 +46,6 @@ interface Job {
   skills?: string[];
 }
 
-// this tracks when a student applies to a job (currently disabled)
 interface Application {
   id: string;
   applied_at: string;
@@ -56,7 +53,6 @@ interface Application {
   job: Job;
 }
 
-// this tracks jobs that students save for later
 interface SavedJob {
   id: string;
   saved_at: string;
@@ -65,7 +61,6 @@ interface SavedJob {
   reminder_date?: string;
 }
 
-// this stores student preferences for job matching (will be used when profile setup is complete)
 interface StudentProfile {
   id: string;
   interests: string[];
@@ -74,11 +69,11 @@ interface StudentProfile {
   preferred_industries: string[];
 }
 
-// these are the main tabs in the dashboard
+// changed tabs - merged browse and recommended into "for you"
 type DashboardTab = 'for-you' | 'saved' | 'applications' | 'deadlines';
 type ViewMode = 'cards' | 'list' | 'split';
 
-// deadline calendar widget component - shows clickable calendar with job deadlines
+// deadline calendar widget component - handles the clickable calendar functionality  
 interface DeadlineCalendarWidgetProps {
   upcomingDeadlines: Job[];
   getDaysUntilDeadline: (deadline: string) => number;
@@ -90,7 +85,7 @@ function DeadlineCalendarWidget({
 }: DeadlineCalendarWidgetProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
-  // filter deadlines based on which date the student clicks
+  // filter deadlines based on selected date
   const filteredDeadlines = selectedDate 
     ? upcomingDeadlines.filter(job => {
         const deadline = new Date(job.deadline);
@@ -146,7 +141,7 @@ function DeadlineCalendarWidget({
             </div>
           ))}
           
-          {/* calendar days - clickable when they have deadlines */}
+          {/* calendar days - now clickable when they have deadlines */}
           {calendarDays.map((date, index) => {
             const hasDeadline = upcomingDeadlines.some(job => {
               const deadline = new Date(job.deadline);
@@ -158,7 +153,7 @@ function DeadlineCalendarWidget({
             const isPastDate = date < today;
             const isFutureMonth = date.getMonth() !== today.getMonth() && date > today;
             
-            // count how many deadlines are on this specific date
+            // count how many deadlines are on this date
             const deadlineCount = upcomingDeadlines.filter(job => {
               const deadline = new Date(job.deadline);
               return deadline.toDateString() === date.toDateString();
@@ -186,59 +181,85 @@ function DeadlineCalendarWidget({
               >
                 <span className="text-sm">{date.getDate()}</span>
                 {hasDeadline && (
-                  <div className={`absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${
-                    isPastDate ? 'bg-gray-300' : 'bg-red-500'
-                  }`} />
+                  <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
+                    <div className={`w-1.5 h-1.5 ${isPastDate ? 'bg-gray-300' : 'bg-red-500'} rounded-full`}>
+                      {deadlineCount > 1 && !isPastDate && (
+                        <span className="absolute -top-1 -right-1 text-xs text-red-600 font-bold">
+                          {deadlineCount}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
+        
+        {/* legend explaining what the colors mean */}
+        <div className="flex gap-4 mt-4 text-xs text-gray-600">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 bg-blue-50 rounded"></div>
+            <span>Today</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+            <span>Has deadline</span>
+          </div>
+          {selectedDate && (
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-red-100 ring-1 ring-red-500 rounded"></div>
+              <span>Selected</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* show jobs with deadlines on the selected date or all upcoming deadlines */}
-      <div className="bg-white rounded-lg shadow p-4 mt-4">
-        <h3 className="font-semibold text-gray-900 mb-3">
+      {/* deadline list - filtered by selected date if one is chosen */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="font-semibold text-gray-900 mb-4">
           {selectedDate 
-            ? `Deadlines on ${selectedDate.toLocaleDateString()}` 
-            : 'All Upcoming Deadlines (Next 7 Days)'}
+            ? `Deadlines for ${selectedDate.toLocaleDateString()}` 
+            : 'All Upcoming Deadlines'}
         </h3>
         
         {filteredDeadlines.length === 0 ? (
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-600 text-center py-4">
             {selectedDate 
-              ? 'No deadlines on this date' 
+              ? `No deadlines on ${selectedDate.toLocaleDateString()}`
               : 'No upcoming deadlines'}
           </p>
         ) : (
           <div className="space-y-3">
-            {filteredDeadlines.map((job) => {
+            {filteredDeadlines.map(job => {
               const daysLeft = getDaysUntilDeadline(job.deadline);
               const isUrgent = daysLeft <= 2;
               
               return (
-                <div key={job.id} className={`border rounded-lg p-3 ${
-                  isUrgent ? 'border-red-200 bg-red-50' : 'border-gray-200'
-                }`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <Link href={`/jobs/${job.id}`}>
-                        <h4 className="font-medium text-gray-900 hover:text-blue-600 cursor-pointer">
-                          {job.title}
-                        </h4>
-                      </Link>
-                      <p className="text-sm text-gray-600">{job.company}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <CalendarIcon className={`h-4 w-4 ${isUrgent ? 'text-red-500' : 'text-gray-400'}`} />
-                        <span className={`text-sm ${isUrgent ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
-                          {daysLeft === 0 
-                            ? 'Due today!' 
-                            : daysLeft === 1 
-                              ? 'Due tomorrow' 
-                              : `${daysLeft} days left`}
-                        </span>
-                      </div>
+                <div 
+                  key={job.id} 
+                  className={`flex justify-between items-center p-3 rounded-lg ${
+                    isUrgent ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
+                  }`}
+                >
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{job.title}</h4>
+                    <p className="text-sm text-gray-600">{job.company}</p>
+                    <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                      <span>{job.job_type}</span>
+                      <span>•</span>
+                      <span>{job.industry}</span>
                     </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-semibold ${isUrgent ? 'text-red-600' : 'text-yellow-600'}`}>
+                      {daysLeft === 0 ? 'Due Today!' :
+                       daysLeft === 1 ? 'Due Tomorrow!' :
+                       `${daysLeft} days left`}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(job.deadline).toLocaleDateString()}
+                    </p>
                     <Link href={`/jobs/${job.id}`}>
                       <button className="mt-2 text-xs text-blue-600 hover:text-blue-700">
                         View Job →
@@ -251,90 +272,94 @@ function DeadlineCalendarWidget({
           </div>
         )}
       </div>
+      
+      {/* reminder tip - updated to explain the new clickable functionality */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-sm text-blue-800">
+          <strong>Pro Tip:</strong> Click on any date with a red dot to filter deadlines for that specific day. 
+          {selectedDate && ' Click "Clear filter" to see all deadlines again.'}
+        </p>
+      </div>
     </>
   );
 }
 
 export default function StudentDashboard() {
   const router = useRouter();
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<DashboardTab>('for-you');
-  
-  // state for storing all the different types of data
-  const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<Job[]>([]);
-  const [loadingApplications, setLoadingApplications] = useState(false);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState<Job[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
+  const [loadingApplications, setLoadingApplications] = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [session, setSession] = useState<any>(null);
   
-  // ui state for filters and view modes
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  // filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [jobTypeFilters, setJobTypeFilters] = useState<string[]>([]);
   const [industryFilter, setIndustryFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
-  const [showOnlyRecommended, setShowOnlyRecommended] = useState(false);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<Job[]>([]);
+  const [locationFilter, setLocationFilter] = useState<'all' | 'remote' | 'on-site'>('all');
+  const [showFilters, setShowFilters] = useState(true); // sidebar visibility
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null); // for split view
+  const [showOnlyRecommended, setShowOnlyRecommended] = useState(false); // toggle in for you tab
 
-  // disabled: quick apply modal state no longer needed
-  // const [quickApplyModal, setQuickApplyModal] = useState({
+  // disabled: quick apply modal no longer needed
+  // const [quickApplyModal, setQuickApplyModal] = useState<{
+  //   isOpen: boolean;
+  //   jobId: string;
+  //   jobTitle: string;
+  //   companyName: string;
+  // }>({
   //   isOpen: false,
   //   jobId: '',
   //   jobTitle: '',
   //   companyName: ''
   // });
 
-  // get unique values for filter dropdowns
-  const uniqueIndustries = useMemo(() => {
-    return ['', ...new Set(allJobs.map(job => job.industry).filter(Boolean))];
-  }, [allJobs]);
-
-  const uniqueLocations = useMemo(() => {
-    const locations = allJobs.map(job => job.location).filter(Boolean);
-    return ['all', ...new Set(locations)];
-  }, [allJobs]);
-
-  // check if user is logged in when page loads
+  // check authentication and fetch user session
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (!session) {
-        router.push('/auth/signin');
-      } else {
-        setLoading(false);
+    const checkAuth = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error || !session) {
+        router.push('/login');
+        return;
       }
-    };
-    getSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (!session) {
-        router.push('/auth/signin');
+      // check if user is a student
+      const { data: userData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (userData?.role !== 'student') {
+        router.push('/unauthorized');
+        return;
       }
-    });
 
-    return () => {
-      authListener.subscription.unsubscribe();
+      setSession(session);
     };
+
+    checkAuth();
   }, [router]);
 
-  // fetch data when user is logged in
+  // fetch all data when session is available
   useEffect(() => {
     if (session) {
-      fetchJobs();
       fetchApplications();
+      fetchAllJobs();
       fetchSavedJobs();
-      fetchUpcomingDeadlines();
       fetchStudentProfile();
+      fetchUpcomingDeadlines();
     }
   }, [session]);
 
-  // generate job recommendations when profile and jobs are loaded
+  // generate recommendations when profile and jobs are loaded
   useEffect(() => {
     if (studentProfile && allJobs.length > 0) {
       generateRecommendations();
@@ -348,7 +373,6 @@ export default function StudentDashboard() {
     }
   }, [viewMode, activeTab]);
 
-  // fetch applications from database (currently disabled but kept for future use)
   const fetchApplications = async () => {
     if (!session) return;
     
@@ -356,18 +380,35 @@ export default function StudentDashboard() {
     
     try {
       const { data, error } = await supabase
-        .from('applications')
+        .from('job_applications')
         .select(`
-          *,
-          job:jobs(*)
+          id,
+          applied_at,
+          status,
+          jobs (
+            id, title, company, job_type, industry, description,
+            deadline, status, created_at, location, salary_range, skills, requirements
+          )
         `)
         .eq('student_id', session.user.id)
         .order('applied_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching applications:', error);
-      } else {
-        setApplications(data || []);
+      } else if (data) {
+        const transformedApplications: Application[] = data
+          .map((item: any) => {
+            const jobData = Array.isArray(item.jobs) ? item.jobs[0] : item.jobs;
+            if (!jobData) return null;
+            return {
+              id: item.id,
+              applied_at: item.applied_at,
+              status: item.status,
+              job: jobData
+            };
+          })
+          .filter((item): item is Application => item !== null);
+        setApplications(transformedApplications);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
@@ -376,26 +417,39 @@ export default function StudentDashboard() {
     }
   };
 
-  // fetch all available jobs from database
-  const fetchJobs = async () => {
+  const fetchAllJobs = async () => {
+    setLoadingJobs(true);
     try {
+      // get current date to filter out expired jobs
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('status', 'active')
+        .gte('deadline', today.toISOString()) // only get jobs with deadline today or in the future
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching jobs:', error);
       } else {
-        setAllJobs(data || []);
+        // additional client-side filter to double-check no expired jobs slip through
+        const nonExpiredJobs = (data || []).filter(job => {
+          if (!job.deadline) return true; // if no deadline, show it
+          const deadlineDate = new Date(job.deadline);
+          const now = new Date();
+          return deadlineDate >= now; // only show if deadline is in the future
+        });
+        setAllJobs(nonExpiredJobs);
       }
     } catch (error) {
-      console.error('Unexpected error fetching jobs:', error);
+      console.error('Unexpected error:', error);
+    } finally {
+      setLoadingJobs(false);
     }
   };
 
-  // fetch jobs that the student has saved
   const fetchSavedJobs = async () => {
     if (!session) return;
 
@@ -403,83 +457,55 @@ export default function StudentDashboard() {
       const { data, error } = await supabase
         .from('saved_jobs')
         .select(`
-          *,
-          job:jobs(*)
+          id,
+          saved_at,
+          reminder_set,
+          reminder_date,
+          jobs (
+            id, title, company, job_type, industry, description,
+            deadline, status, created_at, location, salary_range, skills, requirements
+          )
         `)
         .eq('student_id', session.user.id)
         .order('saved_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching saved jobs:', error);
-      } else {
-        setSavedJobs(data || []);
+      } else if (data) {
+        // filter out expired saved jobs too
+        const transformedSavedJobs: SavedJob[] = data
+        .map((item: any) => {
+            const jobData = Array.isArray(item.jobs) ? item.jobs[0] : item.jobs;
+            if (!jobData) return null;
+            
+            // check if job is expired
+            if (jobData.deadline) {
+              const deadlineDate = new Date(jobData.deadline);
+              const now = new Date();
+              if (deadlineDate < now) {
+                return null; // skip expired jobs
+              }
+            }
+            
+            const savedJob: SavedJob = {
+                id: item.id,
+                saved_at: item.saved_at,
+                reminder_set: item.reminder_set,
+                job: jobData
+            };
+            if(item.reminder_date) {
+                savedJob.reminder_date = item.reminder_date;
+            }
+            return savedJob;
+        })
+        .filter((item): item is SavedJob => item !== null);
+        setSavedJobs(transformedSavedJobs);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
     }
   };
 
-  // disabled: apply to job functionality removed
-  // const applyToJob = async (jobId: string, applicationData: any) => {
-  //   if (!session) return;
-  //   
-  //   try {
-  //     const { error } = await supabase
-  //       .from('applications')
-  //       .insert({
-  //         job_id: jobId,
-  //         student_id: session.user.id,
-  //         status: 'applied',
-  //         cover_letter: applicationData.coverLetter,
-  //         resume_url: applicationData.resumeUrl
-  //       });
-  //
-  //     if (error) throw error;
-  //     
-  //     await fetchApplications();
-  //     setQuickApplyModal({ isOpen: false, jobId: '', jobTitle: '', companyName: '' });
-  //   } catch (error) {
-  //     console.error('Error applying to job:', error);
-  //   }
-  // };
-
-  // helper function to get color for application status
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'applied':
-        return 'bg-blue-100 text-blue-700';
-      case 'viewed':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'interview':
-        return 'bg-purple-100 text-purple-700';
-      case 'hired':
-        return 'bg-green-100 text-green-700';
-      case 'rejected':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  // helper function to display friendly status text
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'applied':
-        return 'Application Sent';
-      case 'viewed':
-        return 'Under Review';
-      case 'interview':
-        return 'Interview Stage';
-      case 'hired':
-        return 'Offer Received';
-      case 'rejected':
-        return 'Not Selected';
-      default:
-        return status;
-    }
-  };
-
-  // fetch student profile for job matching
   const fetchStudentProfile = async () => {
     if (!session) return;
 
@@ -493,7 +519,6 @@ export default function StudentDashboard() {
       if (error) {
         console.error('Error fetching profile:', error);
         if (error.code === 'PGRST116') {
-          // profile doesn't exist, create a default one
           createDefaultProfile();
         }
       } else {
@@ -504,7 +529,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // create empty profile for new students
   const createDefaultProfile = async () => {
     if (!session) return;
 
@@ -531,38 +555,48 @@ export default function StudentDashboard() {
     }
   };
 
-  // fetch jobs with upcoming deadlines (next 7 days)
   const fetchUpcomingDeadlines = async () => {
     if (!session) return;
 
     try {
-      const savedJobIds = savedJobs.map(sj => sj.job.id);
-      const relevantJobs = allJobs.filter(job => 
-        savedJobIds.includes(job.id) && job.deadline
-      );
+      const { data: savedData } = await supabase
+        .from('saved_jobs')
+        .select(`jobs (*)`)
+        .eq('student_id', session.user.id)
+        .eq('reminder_set', true);
 
-      const deadlines = relevantJobs.filter(job => {
-        const daysUntil = getDaysUntilDeadline(job.deadline);
+      const { data: appliedData } = await supabase
+        .from('job_applications')
+        .select(`jobs (*)`)
+        .eq('student_id', session.user.id);
+
+      const savedJobsList = savedData?.map(item => Array.isArray(item.jobs) ? item.jobs[0] : item.jobs).filter(Boolean) || [];
+      const appliedJobsList = appliedData?.map(item => Array.isArray(item.jobs) ? item.jobs[0] : item.jobs).filter(Boolean) || [];
+      
+      const allDeadlineJobs = [...savedJobsList, ...appliedJobsList];
+      const uniqueJobs = Array.from(new Map(allDeadlineJobs.map(job => [job.id, job])).values());
+
+      const upcomingJobs = uniqueJobs.filter(job => {
+        if (!job.deadline) return false;
+        const deadline = new Date(job.deadline);
+        const now = new Date();
+        const daysUntil = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
         return daysUntil >= 0 && daysUntil <= 7; // only upcoming, not expired
-      }).sort((a, b) => {
-        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-      });
+      }).sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
 
-      setUpcomingDeadlines(deadlines);
+      setUpcomingDeadlines(upcomingJobs);
     } catch (error) {
       console.error('Error fetching deadlines:', error);
     }
   };
 
-  // generate job recommendations based on student profile
   const generateRecommendations = () => {
     if (!studentProfile || !allJobs.length) return;
 
-    // score each job based on how well it matches the student's profile
     const scoredJobs = allJobs.map(job => {
       let score = 0;
       
-      // higher weight for job type match (full-time, part-time, internship)
+      // higher weight for job type match
       if (studentProfile.preferred_job_types?.includes(job.job_type)) score += 5;
       
       // high weight for industry match
@@ -587,11 +621,9 @@ export default function StudentDashboard() {
       return { ...job, matchScore: score };
     });
 
-    // remove jobs the student already applied to
     const appliedJobIds = applications.map(app => app.job.id);
     const availableJobs = scoredJobs.filter(job => !appliedJobIds.includes(job.id));
 
-    // get top 20 best matching jobs
     const recommendations = availableJobs
       .sort((a, b) => b.matchScore - a.matchScore)
       .slice(0, 20)
@@ -600,14 +632,12 @@ export default function StudentDashboard() {
     setRecommendedJobs(recommendations);
   };
 
-  // save or unsave a job
   const toggleSaveJob = async (jobId: string) => {
     if (!session) return;
 
     const isCurrentlySaved = savedJobs.some(sj => sj.job.id === jobId);
 
     if (isCurrentlySaved) {
-      // unsave the job
       try {
         const { error } = await supabase
           .from('saved_jobs')
@@ -620,102 +650,149 @@ export default function StudentDashboard() {
         console.error('Error unsaving job:', error);
       }
     } else {
-      // save the job
       try {
         const { data, error } = await supabase
           .from('saved_jobs')
-          .insert({
-            student_id: session.user.id,
-            job_id: jobId,
-            reminder_set: false
-          })
-          .select(`
-            *,
-            job:jobs(*)
-          `)
+          .insert({ student_id: session.user.id, job_id: jobId, saved_at: new Date().toISOString(), reminder_set: false })
+          .select(`id, saved_at, reminder_set, jobs (*)`)
           .single();
 
-        if (!error && data) setSavedJobs(prev => [...prev, data]);
+        if (!error && data) {
+          const jobData = Array.isArray(data.jobs) ? data.jobs[0] : data.jobs;
+          if (jobData) {
+            const newSavedJob: SavedJob = {
+              id: data.id,
+              saved_at: data.saved_at,
+              reminder_set: data.reminder_set,
+              job: jobData
+            };
+            setSavedJobs(prev => [newSavedJob, ...prev]);
+          }
+        }
       } catch (error) {
         console.error('Error saving job:', error);
       }
     }
   };
 
-  // check if a job is saved
-  const isJobSaved = (jobId: string) => savedJobs.some(sj => sj.job.id === jobId);
+  const toggleReminder = async (savedJobId: string, jobDeadline: string) => {
+    const savedJob = savedJobs.find(sj => sj.id === savedJobId);
+    if (!savedJob) return;
 
-  // calculate days until deadline
-  const getDaysUntilDeadline = (deadline: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const deadlineDate = new Date(deadline);
-    deadlineDate.setHours(0, 0, 0, 0);
-    const diffTime = deadlineDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    const newReminderStatus = !savedJob.reminder_set;
+    const reminderDate = newReminderStatus ? new Date(new Date(jobDeadline).getTime() - 24 * 60 * 60 * 1000).toISOString() : null;
+
+    try {
+      const { error } = await supabase
+        .from('saved_jobs')
+        .update({ reminder_set: newReminderStatus, reminder_date: reminderDate })
+        .eq('id', savedJobId);
+
+      if (!error) {
+        setSavedJobs(prev => prev.map(sj => sj.id === savedJobId ? { ...sj, reminder_set: newReminderStatus, reminder_date: reminderDate || undefined } : sj));
+        fetchUpcomingDeadlines();
+      }
+    } catch (error) {
+      console.error('Error toggling reminder:', error);
+    }
   };
 
-  // clear all search filters
-  const clearAllFilters = () => {
-    setSearchTerm('');
-    setJobTypeFilters([]);
-    setIndustryFilter('');
-    setLocationFilter('all');
-    setShowOnlyRecommended(false);
-  };
+  // disabled: apply to job functionality is no longer available internally
+  // const applyToJob = async (jobId: string, applicationData?: any) => {
+  //   if (!session) return;
+  //
+  //   try {
+  //     // build the insert data with optional application details
+  //     const insertData = {
+  //       student_id: session.user.id, 
+  //       job_id: jobId, 
+  //       applied_at: new Date().toISOString(), 
+  //       status: 'applied',
+  //       ...(applicationData || {}) // spread the form data if provided
+  //     };
+  //
+  //     const { error } = await supabase
+  //       .from('job_applications')
+  //       .insert(insertData);
+  //
+  //     if (!error) {
+  //       fetchApplications();
+  //       setSavedJobs(prev => prev.filter(sj => sj.job.id !== jobId));
+  //       alert('Application submitted successfully!');
+  //       // close the modal if it was open
+  //       setQuickApplyModal({ isOpen: false, jobId: '', jobTitle: '', companyName: '' });
+  //     } else {
+  //       throw error;
+  //     }
+  //   } catch (error) {
+  //     console.error('Error applying to job:', error);
+  //     alert('Failed to submit application');
+  //   }
+  // };
 
-  // check if any filters are active
-  const hasActiveFilters = () => {
-    return searchTerm !== '' || 
-           jobTypeFilters.length > 0 || 
-           industryFilter !== '' || 
-           locationFilter !== 'all' ||
-           showOnlyRecommended;
-  };
+  // disabled: quick apply modal opener
+  // const openQuickApplyModal = (job: Job) => {
+  //   setQuickApplyModal({
+  //     isOpen: true,
+  //     jobId: job.id,
+  //     jobTitle: job.title,
+  //     companyName: job.company
+  //   });
+  // };
 
-  // filter jobs based on search and filters
-  const getFilteredJobs = (jobList: Job[]) => {
-    return jobList.filter(job => {
-      // search filter - check title, company, and description
+  // filter function - applies all filters
+  const getFilteredJobs = (jobsToFilter: Job[]) => {
+    return jobsToFilter.filter(job => {
+      // search filter
       const matchesSearch = searchTerm === '' ||
         job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.description.toLowerCase().includes(searchTerm.toLowerCase());
+        job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (job.location && job.location.toLowerCase().includes(searchTerm.toLowerCase()));
 
       // job type filter
       const matchesJobType = jobTypeFilters.length === 0 || 
         jobTypeFilters.includes(job.job_type);
-
+      
       // industry filter
       const matchesIndustry = industryFilter === '' || 
         job.industry === industryFilter;
 
       // location filter
       const matchesLocation = locationFilter === 'all' ||
-        job.location === locationFilter;
+        (locationFilter === 'remote' && job.location?.toLowerCase().includes('remote')) ||
+        (locationFilter === 'on-site' && !job.location?.toLowerCase().includes('remote'));
 
       return matchesSearch && matchesJobType && matchesIndustry && matchesLocation;
     });
   };
 
-  // get jobs to display based on current tab and filters
+  // clear all filters
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setJobTypeFilters([]);
+    setIndustryFilter('');
+    setLocationFilter('all');
+  };
+
+  // get unique industries
+  const uniqueIndustries = useMemo(() => {
+    const industries = new Set(allJobs.map(job => job.industry));
+    return Array.from(industries).sort();
+  }, [allJobs]);
+
+  // get displayed jobs based on tab and filters
   const getDisplayedJobs = () => {
-    switch(activeTab) {
+    switch (activeTab) {
       case 'for-you':
-        // show recommended jobs if available and filter is on, otherwise show all jobs
-        if (showOnlyRecommended && recommendedJobs.length > 0) {
+        // show recommended first if they exist and toggle is on
+        if (showOnlyRecommended) {
           return getFilteredJobs(recommendedJobs);
-        } else {
-          // combine recommended and all jobs, removing duplicates
-          const recommendedJobIds = new Set(recommendedJobs.map(j => j.id));
-          const otherJobs = allJobs.filter(j => !recommendedJobIds.has(j.id));
-          const combinedJobs = [...recommendedJobs, ...otherJobs];
-          return getFilteredJobs(combinedJobs);
         }
+        // otherwise show all jobs with recommended ones marked
+        return getFilteredJobs(allJobs);
       case 'saved':
-        // filter saved jobs
-        const filteredSaved = savedJobs.filter(savedJob => {
+        return savedJobs.filter(savedJob => {
           const job = savedJob.job;
           const matchesSearch = searchTerm === '' ||
             job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -726,761 +803,992 @@ export default function StudentDashboard() {
             job.industry === industryFilter;
           return matchesSearch && matchesJobType && matchesIndustry;
         });
-        return filteredSaved;
+      case 'applications':
+        return applications;
+      case 'deadlines':
+        return upcomingDeadlines;
       default:
         return [];
     }
   };
 
-  // check if a job is recommended (has a match score > 0)
-  const getJobMatchDetails = (job: Job) => {
+  // calculate match percentage for a job
+  const getMatchPercentage = (job: Job) => {
     const recommended = recommendedJobs.find(rj => rj.id === job.id);
-    if (!recommended || !studentProfile) return null;
-
-    const matchingSkills = job.skills?.filter(skill => 
-      studentProfile.skills?.some(s => s.toLowerCase() === skill.toLowerCase())
-    ) || [];
-
-    const matchesJobType = studentProfile.preferred_job_types?.includes(job.job_type);
-    const matchesIndustry = studentProfile.preferred_industries?.includes(job.industry);
-
-    return { matchingSkills, matchesJobType, matchesIndustry };
+    if (!recommended) return 0;
+    
+    // get the job with matchscore
+    const jobWithScore = recommended as Job & { matchScore?: number };
+    if (!jobWithScore.matchScore) return 0;
+    
+    // convert score to percentage (max score would be around 20-30)
+    return Math.min(Math.round((jobWithScore.matchScore / 20) * 100), 100);
   };
 
+  // check if job is recommended
   const isRecommended = (jobId: string) => recommendedJobs.some(rj => rj.id === jobId);
 
-  // component for displaying a job card
-  const JobCard = ({ job, savedJobId = null }: { job: Job; savedJobId?: string | null }) => {
-    const matchDetails = getJobMatchDetails(job);
-    const recommended = isRecommended(job.id);
+  // helper functions
+  const getStatusColor = (status: string) => ({'applied': 'bg-blue-100 text-blue-800', 'viewed': 'bg-yellow-100 text-yellow-800', 'interview': 'bg-purple-100 text-purple-800', 'hired': 'bg-green-100 text-green-800', 'rejected': 'bg-red-100 text-red-800'}[status] || 'bg-gray-100 text-gray-800');
+  const getStatusText = (status: string) => ({'applied': 'Applied', 'viewed': 'Viewed by Employer', 'interview': 'Interview Scheduled', 'hired': 'Hired!', 'rejected': 'Not Selected'}[status] || status);
+  const getDaysUntilDeadline = (deadline: string) => Math.ceil((new Date(deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+  const isJobSaved = (jobId: string) => savedJobs.some(sj => sj.job.id === jobId);
 
-    return (
-      <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-200">
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex-1">
-            {recommended && (
-              <div className="flex items-center gap-1 mb-2">
-                <SparklesIcon className="h-4 w-4 text-green-600" />
-                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full whitespace-nowrap">
-                  Recommended for you
-                </span>
-              </div>
-            )}
-            <Link href={`/jobs/${job.id}`}>
-              <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
-                {job.title}
-              </h3>
-            </Link>
-            <p className="text-gray-600 flex items-center gap-2 mt-1">
-              <BuildingOfficeIcon className="h-4 w-4 flex-shrink-0" />
-              {job.company}
-            </p>
-            {job.location && (
-              <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                <MapPinIcon className="h-4 w-4 flex-shrink-0" />
-                {job.location}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={() => toggleSaveJob(job.id)}
-            className="ml-2 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            {isJobSaved(job.id) ? (
-              <BookmarkSolidIcon className="h-5 w-5 text-blue-600" />
-            ) : (
-              <BookmarkIcon className="h-5 w-5 text-gray-400 hover:text-blue-600" />
-            )}
-          </button>
-        </div>
+  // get new jobs (last 48 hours)
+  const newJobsCount = useMemo(() => {
+    return allJobs.filter(job => {
+      const hours = (new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60);
+      return hours <= 48;
+    }).length;
+  }, [allJobs]);
 
-        {matchDetails && (
-          <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
-            <p className="text-sm font-medium text-green-800 mb-2">
-              Why this job matches:
-            </p>
-            <div className="space-y-1">
-              {matchDetails.matchesJobType && (
-                <p className="text-xs text-green-700">
-                  ✓ Matches your preferred job type
-                </p>
-              )}
-              {matchDetails.matchesIndustry && (
-                <p className="text-xs text-green-700">
-                  ✓ In your preferred industry
-                </p>
-              )}
-              {matchDetails.matchingSkills.length > 0 && (
-                <p className="text-xs text-green-700">
-                  ✓ Matches skills: {matchDetails.matchingSkills.join(', ')}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        <p className="text-gray-700 line-clamp-2 mb-4">{job.description}</p>
-
-        <div className="flex flex-wrap items-center gap-2 mb-4 text-sm text-gray-500">
-          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded">
-            {job.job_type}
-          </span>
-          <span className="flex items-center gap-1">
-            <BriefcaseIcon className="h-4 w-4" />
-            {job.industry}
-          </span>
-          {job.salary_range && (
-            <span className="text-green-700 font-medium">
-              {job.salary_range}
-            </span>
-          )}
-        </div>
-
-        {job.deadline && (
-          <div className="flex items-center gap-2 text-sm">
-            <ClockIcon className="h-4 w-4 text-gray-400" />
-            <span className={`${getDaysUntilDeadline(job.deadline) <= 7 ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>
-              Deadline: {new Date(job.deadline).toLocaleDateString()}
-              {getDaysUntilDeadline(job.deadline) <= 7 && ` (${getDaysUntilDeadline(job.deadline)} days left)`}
-            </span>
-          </div>
-        )}
-
-        <div className="mt-4 flex gap-2">
-          <Link href={`/jobs/${job.id}`} className="flex-1">
-            <button className="w-full px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
-              View Details
-            </button>
-          </Link>
-          {/* disabled: quick apply functionality removed */}
-          {/* <button
-            onClick={() => setQuickApplyModal({
-              isOpen: true,
-              jobId: job.id,
-              jobTitle: job.title,
-              companyName: job.company
-            })}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Quick Apply
-          </button> */}
-        </div>
-      </div>
-    );
-  };
-
-  // component for list view of jobs
+  // list view component - more compact than cards
   const JobListItem = ({ job, isSelected = false }: { job: Job; isSelected?: boolean }) => {
-    const recommended = isRecommended(job.id);
-    
+    const isSaved = isJobSaved(job.id);
+    const hasApplied = applications.some(app => app.job.id === job.id);
+    const daysUntil = job.deadline ? getDaysUntilDeadline(job.deadline) : null;
+    const isExpired = daysUntil !== null && daysUntil < 0;
+    const matchPercent = getMatchPercentage(job);
+
+    // don't show expired jobs
+    if (isExpired) return null;
+
     return (
       <div 
-        onClick={() => setSelectedJob(job)}
-        className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors ${
-          isSelected ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+        className={`border-b hover:bg-gray-50 p-4 cursor-pointer transition-all ${
+          isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
         }`}
+        onClick={() => viewMode === 'split' && setSelectedJob(job)}
       >
-        <div className="flex justify-between items-start">
-          <div className="flex-1">
+        <div className="flex items-center justify-between">
+          <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-gray-900">{job.title}</h3>
-              {recommended && (
-                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
-                  Recommended
+              <h3 className="font-medium text-gray-900 truncate">{job.title}</h3>
+              {matchPercent > 60 && (
+                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full whitespace-nowrap">
+                  {matchPercent}% match
                 </span>
               )}
+              {/* disabled: no longer showing applied status
+              {hasApplied && (
+                <CheckCircleIcon className="h-5 w-5 text-green-600" />
+              )}
+              */}
             </div>
-            <p className="text-gray-600 text-sm mt-1">{job.company}</p>
-            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-              <span>{job.job_type}</span>
-              <span>{job.industry}</span>
-              {job.location && <span>{job.location}</span>}
+            <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+              <span>{job.company}</span>
+              <span>•</span>
+              <span>{job.location || 'Location TBD'}</span>
+              <span>•</span>
+              <span className={`font-medium ${
+                job.job_type === 'Full-Time' ? 'text-green-600' :
+                job.job_type === 'Part-Time' ? 'text-blue-600' :
+                'text-purple-600'
+              }`}>{job.job_type}</span>
             </div>
           </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleSaveJob(job.id);
-            }}
-            className={`p-2 rounded-lg transition-colors ${
-              isJobSaved(job.id) 
-                ? 'bg-blue-100 text-blue-600' 
-                : 'hover:bg-gray-100 text-gray-400'
-            }`}
-          >
-            {isJobSaved(job.id) ? (
-              <BookmarkSolidIcon className="h-4 w-4" />
-            ) : (
-              <BookmarkIcon className="h-4 w-4" />
+          
+          <div className="flex items-center gap-3">
+            {job.deadline && (
+              <span className={`text-sm font-medium ${
+                daysUntil !== null && daysUntil <= 3 ? 'text-orange-600' :
+                'text-gray-600'
+              }`}>
+                {daysUntil === 0 ? 'Due today' :
+                 `${daysUntil}d left`}
+              </span>
             )}
-          </button>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSaveJob(job.id);
+              }}
+              className="p-2 hover:bg-gray-100 rounded transition-colors"
+            >
+              {isSaved ? (
+                <BookmarkSolidIcon className="h-5 w-5 text-blue-600" />
+              ) : (
+                <BookmarkIcon className="h-5 w-5 text-gray-400" />
+              )}
+            </button>
+            
+            {viewMode === 'list' && (
+              <Link href={`/jobs/${job.id}`} onClick={(e) => e.stopPropagation()}>
+                <ChevronRightIcon className="h-5 w-5 text-gray-400" />
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
-  // component for job detail panel in split view
-  const JobDetailPanel = ({ job }: { job: Job }) => {
-    const matchDetails = getJobMatchDetails(job);
-    const recommended = isRecommended(job.id);
+  // enhanced card component
+  const JobCard = ({ job, savedJobId = null }: { job: Job; savedJobId?: string | null }) => {
+    const isSaved = isJobSaved(job.id);
+    const savedJob = savedJobs.find(sj => sj.job.id === job.id);
+    const daysUntil = job.deadline ? getDaysUntilDeadline(job.deadline) : null;
+    const isExpired = daysUntil !== null && daysUntil < 0;
+    const hasApplied = applications.some(app => app.job.id === job.id);
+    const matchPercent = getMatchPercentage(job);
+
+    // don't render expired jobs at all
+    if (isExpired) return null;
 
     return (
-      <div className="h-full overflow-y-auto p-6">
-        {recommended && (
-          <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-center gap-2 mb-2">
-              <SparklesIcon className="h-5 w-5 text-green-600" />
+      <div className="bg-white rounded-lg shadow hover:shadow-lg transition-all duration-200 overflow-hidden">
+        <div className={`h-1 ${
+          job.job_type === 'Full-Time' ? 'bg-green-500' :
+          job.job_type === 'Part-Time' ? 'bg-blue-500' :
+          'bg-purple-500'
+        }`}></div>
+        
+        <div className="p-6">
+          {/* match score badge if high match */}
+          {matchPercent > 60 && (
+            <div className="mb-3 flex items-center gap-2 text-sm">
+              <SparklesIcon className="h-4 w-4 text-green-600" />
               <span className="text-green-700 font-medium">
-                Recommended for you
+                {matchPercent}% Match - Matches your skills & preferences
               </span>
             </div>
-            <p className="text-sm text-green-600">
-              This job matches your skills and preferences
-            </p>
-          </div>
-        )}
-
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{job.title}</h2>
-        <p className="text-lg text-gray-700 mb-4">{job.company}</p>
-
-        <div className="flex flex-wrap gap-2 mb-6">
-          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-            {job.job_type}
-          </span>
-          <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-            {job.industry}
-          </span>
-          {job.location && (
-            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-              📍 {job.location}
-            </span>
           )}
-        </div>
 
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
-            <p className="text-gray-700 whitespace-pre-line">{job.description}</p>
-          </div>
-
-          {job.requirements && job.requirements.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Requirements</h3>
-              <ul className="list-disc list-inside space-y-1">
-                {job.requirements.map((req, index) => (
-                  <li key={index} className="text-gray-700">{req}</li>
-                ))}
-              </ul>
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-1 pr-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-1">
+                {job.title}
+              </h3>
+              <p className="text-gray-700 font-medium flex items-center gap-2">
+                <BuildingOfficeIcon className="h-4 w-4 text-gray-500" />
+                {job.company}
+              </p>
+              {job.location && (
+                <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                  <MapPinIcon className="h-4 w-4 text-gray-500" />
+                  {job.location}
+                </p>
+              )}
             </div>
-          )}
+            
+            <div className="flex flex-col items-end gap-2">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
+                job.job_type === 'Full-Time' ? 'bg-green-100 text-green-800' :
+                job.job_type === 'Part-Time' ? 'bg-blue-100 text-blue-800' :
+                'bg-purple-100 text-purple-800'
+              }`}>
+                {job.job_type}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSaveJob(job.id);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title={isSaved ? "Unsave job" : "Save job"}
+              >
+                {isSaved ? (
+                  <BookmarkSolidIcon className="h-5 w-5 text-blue-600" />
+                ) : (
+                  <BookmarkIcon className="h-5 w-5 text-gray-400" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <p className="text-gray-600 text-sm mb-4 line-clamp-2 break-words">
+            {job.description}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
+            <span className="flex items-center gap-1 text-gray-600">
+              <BriefcaseIcon className="h-4 w-4" />
+              {job.industry}
+            </span>
+            
+            {job.salary_range && (
+              <span className="flex items-center gap-1 text-gray-600">
+                💰 {job.salary_range}
+              </span>
+            )}
+            
+            {job.deadline && (
+              <span className={`flex items-center gap-1 font-medium ${
+                daysUntil !== null && daysUntil <= 3 ? 'text-orange-600' :
+                'text-gray-600'
+              }`}>
+                <CalendarIcon className="h-4 w-4" />
+                {daysUntil === 0 ? 'Due today' :
+                 daysUntil === 1 ? 'Due tomorrow' :
+                 `${daysUntil} days left`}
+              </span>
+            )}
+          </div>
 
           {job.skills && job.skills.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Skills</h3>
-              <div className="flex flex-wrap gap-2">
-                {job.skills.map((skill, index) => (
-                  <span 
-                    key={index} 
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      matchDetails?.matchingSkills.includes(skill)
-                        ? 'bg-green-100 text-green-700 font-medium'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-1 mb-4">
+              {job.skills.slice(0, 3).map((skill, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs"
+                >
+                  {skill}
+                </span>
+              ))}
+              {job.skills.length > 3 && (
+                <span className="px-2 py-1 text-gray-500 text-xs">
+                  +{job.skills.length - 3} more
+                </span>
+              )}
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-2 pt-2 border-t">
+            {/* only show view details button - no quick apply */}
+            <Link href={`/jobs/${job.id}`} className="flex-1">
+              <button className="w-full px-4 py-2 bg-uga-red text-white rounded-md hover:bg-red-800 transition-colors text-sm font-medium">
+                View Details
+              </button>
+            </Link>
+            
+            {/* disabled: quick apply and applied status buttons
+            {!hasApplied && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openQuickApplyModal(job);
+                }}
+                className="flex-1 px-4 py-2 bg-uga-red text-white rounded-md hover:bg-red-800 transition-colors text-sm font-medium"
+              >
+                Quick Apply
+              </button>
+            )}
+            
+            {hasApplied && (
+              <span className="flex-1 px-4 py-2 bg-green-100 text-green-800 rounded-md text-sm font-medium text-center">
+                ✔ Applied
+              </span>
+            )}
+            */}
+            
+            {savedJob && job.deadline && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleReminder(savedJob.id, job.deadline);
+                }}
+                className={`px-3 py-2 rounded-md transition-colors ${
+                  savedJob.reminder_set 
+                    ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title={savedJob.reminder_set ? "Reminder set" : "Set reminder"}
+              >
+                <BellIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // job detail panel for split view
+  const JobDetailPanel = ({ job }: { job: Job }) => {
+    const isSaved = isJobSaved(job.id);
+    const hasApplied = applications.some(app => app.job.id === job.id);
+    const daysUntil = job.deadline ? getDaysUntilDeadline(job.deadline) : null;
+    const isExpired = daysUntil !== null && daysUntil < 0;
+    const matchPercent = getMatchPercentage(job);
+
+    // don't show expired jobs
+    if (isExpired) return null;
+
+    return (
+      <div className="bg-white h-full overflow-y-auto">
+        <div className="p-6">
+          {/* match score if high */}
+          {matchPercent > 60 && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <SparklesIcon className="h-5 w-5 text-green-600" />
+                <span className="text-green-700 font-medium">
+                  {matchPercent}% Match for You
+                </span>
+              </div>
+              <p className="text-sm text-green-600 mt-1">
+                This job matches your skills and preferences
+              </p>
+            </div>
+          )}
+
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{job.title}</h2>
+            <p className="text-lg text-gray-700 mb-4">{job.company}</p>
+            
+            <div className="flex flex-wrap gap-3 text-sm">
+              <span className={`px-3 py-1 rounded-full font-medium ${
+                job.job_type === 'Full-Time' ? 'bg-green-100 text-green-800' :
+                job.job_type === 'Part-Time' ? 'bg-blue-100 text-blue-800' :
+                'bg-purple-100 text-purple-800'
+              }`}>
+                {job.job_type}
+              </span>
+              
+              <span className="flex items-center gap-1 text-gray-600">
+                <MapPinIcon className="h-4 w-4" />
+                {job.location || 'Location TBD'}
+              </span>
+              
+              <span className="flex items-center gap-1 text-gray-600">
+                <BriefcaseIcon className="h-4 w-4" />
+                {job.industry}
+              </span>
+              
+              {job.salary_range && (
+                <span className="flex items-center gap-1 text-gray-600">
+                  💰 {job.salary_range}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* action buttons - removed apply now */}
+          <div className="flex gap-3 mb-6">
+            {/* disabled: apply button no longer available
+            {!hasApplied ? (
+              <button
+                onClick={() => openQuickApplyModal(job)}
+                className="flex-1 px-4 py-2 bg-uga-red text-white rounded-lg hover:bg-red-800 font-medium"
+              >
+                Apply Now
+              </button>
+            ) : (
+              <span className="flex-1 px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium text-center">
+                ✔ Applied
+              </span>
+            )}
+            */}
+            
             <button
               onClick={() => toggleSaveJob(job.id)}
-              className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
-                isJobSaved(job.id)
-                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                isSaved 
+                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {isJobSaved(job.id) ? 'Saved' : 'Save Job'}
+              {isSaved ? 'Saved' : 'Save'}
             </button>
+            
             <Link href={`/jobs/${job.id}`} className="flex-1">
-              <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <button className="w-full px-4 py-2 bg-uga-red text-white rounded-lg hover:bg-red-800 font-medium">
                 View Full Details
               </button>
             </Link>
           </div>
+
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
+              <p className="text-gray-600 whitespace-pre-wrap">{job.description}</p>
+            </div>
+
+            {job.requirements && job.requirements.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Requirements</h3>
+                <ul className="list-disc list-inside text-gray-600 space-y-1">
+                  {job.requirements.map((req, index) => (
+                    <li key={index}>{req}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {job.skills && job.skills.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Skills</h3>
+                <div className="flex flex-wrap gap-2">
+                  {job.skills.map((skill, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {job.deadline && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Application Deadline</h3>
+                <p className={`text-sm font-medium ${
+                  daysUntil !== null && daysUntil <= 3 ? 'text-orange-600' :
+                  'text-gray-600'
+                }`}>
+                  {new Date(job.deadline).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                  {daysUntil !== null && ` (${daysUntil} days left)`}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
+  // main render starts here
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* header section with student info */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-              <p className="text-gray-600 mt-1">Welcome back, {session?.user?.email}</p>
-            </div>
-            <button 
-              onClick={() => router.push('/student/profile')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Edit Profile
-            </button>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* header with title */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
+          <p className="text-gray-600 mt-2">Find your perfect opportunity</p>
+        </div>
+
+        {/* overview stats cards - removed applications count */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          {/* disabled: showing application count
+          <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500">
+            <div className="text-2xl font-bold text-gray-900">{applications.length}</div>
+            <div className="text-sm text-gray-600">Active Applications</div>
+          </div>
+          */}
+          <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500">
+            <div className="text-2xl font-bold text-gray-900">{savedJobs.length}</div>
+            <div className="text-sm text-gray-600">Saved Jobs</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
+            <div className="text-2xl font-bold text-gray-900">{newJobsCount}</div>
+            <div className="text-sm text-gray-600">New This Week</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-orange-500">
+            <div className="text-2xl font-bold text-gray-900">{upcomingDeadlines.length}</div>
+            <div className="text-sm text-gray-600">Due This Week</div>
           </div>
         </div>
-      </div>
 
-      {/* main content area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* main content - takes up 2/3 of screen on large displays */}
-          <div className="lg:col-span-2">
-            {/* tab navigation */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex space-x-6 border-b">
-                <button
-                  onClick={() => setActiveTab('for-you')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                    activeTab === 'for-you'
-                      ? 'border-uga-red text-uga-red'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <SparklesIcon className="h-4 w-4" />
-                    For You
-                  </span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('saved')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                    activeTab === 'saved'
-                      ? 'border-uga-red text-uga-red'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <BookmarkIcon className="h-4 w-4" />
-                    Saved
-                    {savedJobs.length > 0 && (
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs">
-                        {savedJobs.length}
-                      </span>
-                    )}
-                  </span>
-                </button>
-                {/* disabled: applications tab hidden since feature is removed */}
-                {/* <button
-                  onClick={() => setActiveTab('applications')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'applications'
-                      ? 'border-uga-red text-uga-red'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Applications
-                </button> */}
-                <button
-                  onClick={() => setActiveTab('deadlines')}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                    activeTab === 'deadlines'
-                      ? 'border-uga-red text-uga-red'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <BellIcon className="h-4 w-4" />
-                    Deadlines
-                    {upcomingDeadlines.length > 0 && (
-                      <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs">
-                        {upcomingDeadlines.length}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              </div>
+        {/* urgent deadlines alert - only if deadlines exist */}
+        {upcomingDeadlines.filter(job => getDaysUntilDeadline(job.deadline) <= 2).length > 0 && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <ClockIcon className="h-5 w-5 text-red-600" />
+              <h3 className="font-semibold text-red-900">Urgent Deadlines!</h3>
             </div>
-
-            {/* search and filter bar */}
-            {(activeTab === 'for-you' || activeTab === 'saved') && (
-              <div className="mb-4 space-y-4">
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search jobs..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+            <div className="space-y-2">
+              {upcomingDeadlines
+                .filter(job => getDaysUntilDeadline(job.deadline) <= 2)
+                .slice(0, 3)
+                .map(job => (
+                  <div key={job.id} className="flex justify-between items-center text-sm">
+                    <span className="text-gray-700">{job.title} at {job.company}</span>
+                    <span className="text-red-600 font-medium">
+                      {getDaysUntilDeadline(job.deadline) === 0 ? 'Due today!' : 
+                       getDaysUntilDeadline(job.deadline) === 1 ? 'Due tomorrow!' :
+                       `${getDaysUntilDeadline(job.deadline)} days left`}
+                    </span>
                   </div>
-                  <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={`px-4 py-2 border rounded-lg transition-colors flex items-center gap-2 ${
-                      showFilters ? 'bg-blue-50 border-blue-300' : 'border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <FunnelIcon className="h-5 w-5" />
-                    Filters
-                    {hasActiveFilters() && (
-                      <span className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
-                        {[searchTerm ? 1 : 0, jobTypeFilters.length, industryFilter ? 1 : 0, locationFilter !== 'all' ? 1 : 0, showOnlyRecommended ? 1 : 0].reduce((a, b) => a + b, 0)}
-                      </span>
-                    )}
-                  </button>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setViewMode('cards')}
-                      className={`p-2 rounded-lg ${viewMode === 'cards' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100'}`}
-                    >
-                      <Squares2X2Icon className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100'}`}
-                    >
-                      <ListBulletIcon className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('split')}
-                      className={`p-2 rounded-lg ${viewMode === 'split' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100'}`}
-                    >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h2m10-16h2a2 2 0 012 2v12a2 2 0 01-2 2h-2m-4-16v16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* filter panel - shows when filter button is clicked */}
-                {showFilters && (
-                  <div className="bg-white rounded-lg shadow-sm border p-4 space-y-4">
-                    {activeTab === 'for-you' && recommendedJobs.length > 0 && (
-                      <div>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={showOnlyRecommended}
-                            onChange={(e) => setShowOnlyRecommended(e.target.checked)}
-                            className="rounded border-gray-300"
-                          />
-                          <span className="text-sm text-gray-700">Show only recommended</span>
-                        </label>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-2 block">
-                        Job Type
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {['Internship', 'Part-Time', 'Full-Time'].map(type => (
-                          <label key={type} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={jobTypeFilters.includes(type)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setJobTypeFilters([...jobTypeFilters, type]);
-                                } else {
-                                  setJobTypeFilters(jobTypeFilters.filter(t => t !== type));
-                                }
-                              }}
-                              className="rounded border-gray-300"
-                            />
-                            <span className="text-sm text-gray-700">{type}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-2 block">
-                        Industry
-                      </label>
-                      <select
-                        value={industryFilter}
-                        onChange={(e) => setIndustryFilter(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">All Industries</option>
-                        {uniqueIndustries.slice(1).map(industry => (
-                          <option key={industry} value={industry}>{industry}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-2 block">
-                        Location
-                      </label>
-                      <select
-                        value={locationFilter}
-                        onChange={(e) => setLocationFilter(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="all">All Locations</option>
-                        {uniqueLocations.slice(1).map(location => (
-                          <option key={location} value={location}>{location}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <button
-                      onClick={clearAllFilters}
-                      className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
-                    >
-                      Clear All Filters
-                    </button>
-                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+        
+        {/* improved tab navigation - removed applications tab */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('for-you')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'for-you'
+                  ? 'border-uga-red text-uga-red'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <SparklesIcon className="h-4 w-4" />
+                For You
+                {recommendedJobs.length > 0 && (
+                  <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">
+                    {recommendedJobs.length} matches
+                  </span>
                 )}
-              </div>
-            )}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('saved')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'saved'
+                  ? 'border-uga-red text-uga-red'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <BookmarkIcon className="h-4 w-4" />
+                Saved ({savedJobs.length})
+              </span>
+            </button>
+            
+            {/* disabled: applications tab no longer shown
+            <button
+              onClick={() => setActiveTab('applications')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'applications'
+                  ? 'border-uga-red text-uga-red'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Applications ({applications.length})
+            </button>
+            */}
+            
+            <button
+              onClick={() => setActiveTab('deadlines')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === 'deadlines'
+                  ? 'border-uga-red text-uga-red'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <BellIcon className="h-4 w-4" />
+                Deadlines
+                {upcomingDeadlines.length > 0 && (
+                  <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs">
+                    {upcomingDeadlines.length}
+                  </span>
+                )}
+              </span>
+            </button>
+          </nav>
+        </div>
 
-            {/* main content area for each tab */}
-            <div>
-              {/* for you tab - shows all jobs with recommended ones first */}
-              {activeTab === 'for-you' && (
-                <div>
-                  {getDisplayedJobs().length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                      <BriefcaseIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-2">
-                        {hasActiveFilters() 
-                          ? 'No jobs match your filters'
-                          : 'No jobs available at the moment'}
-                      </p>
-                      {hasActiveFilters() && (
-                        <button
-                          onClick={clearAllFilters}
-                          className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                          Clear Filters
-                        </button>
-                      )}
-                    </div>
-                  ) : viewMode === 'split' ? (
-                    // split view for browsing jobs
-                    <div className="flex gap-4 h-[calc(100vh-300px)]">
-                      <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-y-auto">
-                        {getDisplayedJobs().map((job) => (
-                          <JobListItem 
-                            key={job.id} 
-                            job={job as Job} 
-                            isSelected={selectedJob?.id === job.id}
-                          />
-                        ))}
-                      </div>
-                      <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-hidden">
-                        {selectedJob ? (
-                          <JobDetailPanel job={selectedJob} />
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-gray-500">
-                            Select a job to view details
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : viewMode === 'list' ? (
-                    // list view for browsing jobs
-                    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                      {getDisplayedJobs().map((job) => (
-                        <JobListItem key={job.id} job={job as Job} />
-                      ))}
-                    </div>
-                  ) : (
-                    // card view for browsing jobs (default)
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {getDisplayedJobs().map((job) => (
-                        <JobCard key={job.id} job={job as Job} />
-                      ))}
-                    </div>
-                  )}
+        {/* main content area with sidebar filters */}
+        <div className="flex gap-6">
+          {/* improved: sidebar filters - persistent and better organized */}
+          {(activeTab === 'for-you' || activeTab === 'saved') && showFilters && (
+            <div className="w-64 bg-white p-4 rounded-lg shadow-sm h-fit sticky top-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-gray-900">Filters</h3>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="md:hidden p-1 hover:bg-gray-100 rounded"
+                >
+                  <XMarkIcon className="h-5 w-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* search */}
+              <div className="mb-4">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search jobs..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-uga-red focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* for you tab specific toggle */}
+              {activeTab === 'for-you' && recommendedJobs.length > 0 && (
+                <div className="mb-4 pb-4 border-b">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showOnlyRecommended}
+                      onChange={(e) => setShowOnlyRecommended(e.target.checked)}
+                      className="mr-2 text-uga-red focus:ring-uga-red rounded"
+                    />
+                    <span className="text-sm text-gray-700">Show only recommended</span>
+                  </label>
                 </div>
               )}
 
-              {/* saved jobs tab */}
-              {activeTab === 'saved' && (
-                <div>
-                  {savedJobs.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                      <BookmarkIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-4">You haven't saved any jobs yet.</p>
-                      <button
-                        onClick={() => setActiveTab('for-you')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      >
-                        Browse Jobs
-                      </button>
-                    </div>
-                  ) : getDisplayedJobs().length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                      <p className="text-gray-600 mb-4">No saved jobs match your filters.</p>
+              {/* job type */}
+              <div className="mb-4">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Job Type
+                </label>
+                <div className="space-y-2">
+                  {['Internship', 'Part-Time', 'Full-Time'].map(type => (
+                    <label key={type} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={jobTypeFilters.includes(type)}
+                        onChange={() => {
+                          setJobTypeFilters(prev =>
+                            prev.includes(type) 
+                              ? prev.filter(t => t !== type) 
+                              : [...prev, type]
+                          );
+                        }}
+                        className="mr-2 text-uga-red focus:ring-uga-red rounded"
+                      />
+                      <span className="text-sm text-gray-700">{type}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* location type */}
+              <div className="mb-4">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Location
+                </label>
+                <select
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value as 'all' | 'remote' | 'on-site')}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-uga-red"
+                >
+                  <option value="all">All Locations</option>
+                  <option value="remote">Remote Only</option>
+                  <option value="on-site">On-site Only</option>
+                </select>
+              </div>
+
+              {/* industry */}
+              <div className="mb-4">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Industry
+                </label>
+                <select
+                  value={industryFilter}
+                  onChange={(e) => setIndustryFilter(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-uga-red"
+                >
+                  <option value="">All Industries</option>
+                  {uniqueIndustries.map(industry => (
+                    <option key={industry} value={industry}>{industry}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* clear filters */}
+              {(searchTerm || jobTypeFilters.length > 0 || industryFilter || locationFilter !== 'all') && (
+                <button
+                  onClick={clearAllFilters}
+                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                >
+                  Clear All Filters
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* toggle filter button for mobile when hidden */}
+          {(activeTab === 'for-you' || activeTab === 'saved') && !showFilters && (
+            <button
+              onClick={() => setShowFilters(true)}
+              className="fixed bottom-4 right-4 z-10 px-4 py-2 bg-uga-red text-white rounded-full shadow-lg hover:bg-red-800 flex items-center gap-2 md:hidden"
+            >
+              <FunnelIcon className="h-5 w-5" />
+              Filters
+            </button>
+          )}
+
+          {/* main content */}
+          <div className="flex-1">
+            {/* view mode toggle for for you and saved tabs */}
+            {(activeTab === 'for-you' || activeTab === 'saved') && (
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-sm text-gray-600">
+                  {getDisplayedJobs().length} jobs found
+                  {(searchTerm || jobTypeFilters.length > 0 || industryFilter || locationFilter !== 'all') && ' (filtered)'}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setViewMode('cards')}
+                    className={`p-2 rounded ${viewMode === 'cards' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                    title="Card view"
+                  >
+                    <Squares2X2Icon className="h-5 w-5 text-gray-600" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded ${viewMode === 'list' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                    title="List view"
+                  >
+                    <ListBulletIcon className="h-5 w-5 text-gray-600" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('split')}
+                    className={`p-2 rounded ${viewMode === 'split' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                    title="Split view"
+                  >
+                    <svg className="h-5 w-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* for you tab */}
+            {activeTab === 'for-you' && (
+              <div>
+                {loadingJobs ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    <p className="mt-2 text-gray-600">Loading jobs...</p>
+                  </div>
+                ) : getDisplayedJobs().length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+                    <p className="text-gray-600 mb-4">
+                      {showOnlyRecommended 
+                        ? 'No recommended jobs match your filters. Complete your profile for better matches.'
+                        : 'No jobs match your filters. Try adjusting them.'}
+                    </p>
+                    {(searchTerm || jobTypeFilters.length > 0 || industryFilter || locationFilter !== 'all') && (
                       <button
                         onClick={clearAllFilters}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                       >
                         Clear Filters
                       </button>
-                    </div>
-                  ) : viewMode === 'split' ? (
-                    // split view for saved jobs
-                    <div className="flex gap-4 h-[calc(100vh-300px)]">
-                      <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-y-auto">
-                        {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
-                          <JobListItem 
-                            key={savedJob.id} 
-                            job={savedJob.job} 
-                            isSelected={selectedJob?.id === savedJob.job.id}
-                          />
-                        ))}
-                      </div>
-                      <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-hidden">
-                        {selectedJob ? (
-                          <JobDetailPanel job={selectedJob} />
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-gray-500">
-                            Select a job to view details
-                          </div>
-                        )}
-                      </div>
-                    </div>
-				  
-				  ) : viewMode === 'list' ? (
-                    // list view for saved jobs
-                    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                      {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
-                        <JobListItem key={savedJob.id} job={savedJob.job} />
-                      ))}
-                    </div>
-                  ) : (
-                    // card view for saved jobs
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
-                        <JobCard 
-                          key={savedJob.id} 
-                          job={savedJob.job} 
-                          savedJobId={savedJob.id}
+                    )}
+                  </div>
+                ) : viewMode === 'split' ? (
+                  // split view layout
+                  <div className="flex gap-4 h-[calc(100vh-300px)]">
+                    <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-y-auto">
+                      {getDisplayedJobs().map((job) => (
+                        <JobListItem 
+                          key={job.id} 
+                          job={job as Job} 
+                          isSelected={selectedJob?.id === job.id}
                         />
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* disabled: applications tab is no longer shown since feature is removed */}
-              {/* {activeTab === 'applications' && (
-                <div>
-                  application tracking content here
-                </div>
-              )} */}
-
-              {/* deadlines tab with calendar view */}
-              {activeTab === 'deadlines' && (
-                <div>
-                  {upcomingDeadlines.length === 0 ? (
-                    <div className="text-center py-12">
-                      <BellIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No upcoming deadlines in the next 7 days.</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Save jobs and set reminders to track important deadlines.
-                      </p>
+                    <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-hidden">
+                      {selectedJob ? (
+                        <JobDetailPanel job={selectedJob} />
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-gray-500">
+                          Select a job to view details
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* use the deadline calendar widget component */}
-                      <DeadlineCalendarWidget 
-                        upcomingDeadlines={upcomingDeadlines}
-                        getDaysUntilDeadline={getDaysUntilDeadline}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* sidebar - takes up 1/3 of screen on large displays */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-4 space-y-4">
-              {/* quick stats widget */}
-              <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Your Activity</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Jobs Saved</span>
-                    <span className="font-semibold text-gray-900">{savedJobs.length}</span>
                   </div>
-                  {/* disabled: application count no longer shown */}
-                  {/* <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Applications</span>
-                    <span className="font-semibold text-gray-900">{applications.length}</span>
-                  </div> */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Upcoming Deadlines</span>
-                    <span className="font-semibold text-orange-600">{upcomingDeadlines.length}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* recent activity widget */}
-              <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Recent Activity</h3>
-                {savedJobs.length === 0 && applications.length === 0 ? (
-                  <p className="text-sm text-gray-500">No recent activity</p>
-                ) : (
-                  <div className="space-y-2 text-sm">
-                    {savedJobs.slice(0, 3).map((savedJob) => (
-                      <div key={savedJob.id} className="flex items-center gap-2 text-gray-600">
-                        <BookmarkIcon className="h-4 w-4 text-gray-400" />
-                        <span className="truncate">Saved {savedJob.job.title}</span>
-                      </div>
+                ) : viewMode === 'list' ? (
+                  // list view
+                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    {getDisplayedJobs().map((job) => (
+                      <JobListItem key={job.id} job={job as Job} />
                     ))}
-                    {/* disabled: application activity no longer shown */}
-                    {/* {applications.slice(0, 3).map((app) => (
-                      <div key={app.id} className="flex items-center gap-2 text-gray-600">
-                        <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                        <span className="truncate">Applied to {app.job.title}</span>
-                      </div>
-                    ))} */}
+                  </div>
+                ) : (
+                  // card view (default)
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {getDisplayedJobs().map((job) => (
+                      <JobCard key={job.id} job={job as Job} />
+                    ))}
                   </div>
                 )}
               </div>
+            )}
 
-              {/* profile completion reminder (placeholder for future profile setup) */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-2">Complete Your Profile</h3>
-                <p className="text-sm text-blue-700 mb-3">
-                  Add your skills and preferences to get personalized job recommendations.
-                </p>
-                <button 
-                  onClick={() => router.push('/student/profile')}
-                  className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-                >
-                  Complete Profile
-                </button>
+            {/* saved jobs tab */}
+            {activeTab === 'saved' && (
+              <div>
+                {savedJobs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <BookmarkIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">You haven't saved any jobs yet.</p>
+                    <button
+                      onClick={() => setActiveTab('for-you')}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Browse Jobs
+                    </button>
+                  </div>
+                ) : getDisplayedJobs().length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+                    <p className="text-gray-600 mb-4">
+                      No saved jobs match your filters.
+                    </p>
+                    <button
+                      onClick={clearAllFilters}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                ) : viewMode === 'split' ? (
+                  // split view for saved jobs
+                  <div className="flex gap-4 h-[calc(100vh-300px)]">
+                    <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-y-auto">
+                      {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
+                        <JobListItem 
+                          key={savedJob.id} 
+                          job={savedJob.job} 
+                          isSelected={selectedJob?.id === savedJob.job.id}
+                        />
+                      ))}
+                    </div>
+                    <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-hidden">
+                      {selectedJob ? (
+                        <JobDetailPanel job={selectedJob} />
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-gray-500">
+                          Select a job to view details
+                        </div>
+                      )}
+                    </div>
+                  </div>
+				  
+				  ) : viewMode === 'list' ? (
+                  // list view for saved jobs
+                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
+                      <JobListItem key={savedJob.id} job={savedJob.job} />
+                    ))}
+                  </div>
+                ) : (
+                  // card view for saved jobs
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {(getDisplayedJobs() as SavedJob[]).map((savedJob) => (
+                      <JobCard 
+                        key={savedJob.id} 
+                        job={savedJob.job} 
+                        savedJobId={savedJob.id}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* disabled: applications tab is no longer shown
+            {activeTab === 'applications' && (
+              <div>
+                {loadingApplications ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    <p className="mt-2 text-gray-600">Loading applications...</p>
+                  </div>
+                ) : applications.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-600">You haven't applied to any jobs yet.</p>
+                    <button
+                      onClick={() => setActiveTab('for-you')}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Browse Jobs
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {applications.map((application) => (
+                      <div key={application.id} className="bg-white rounded-lg shadow p-6">
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between text-xs mb-2">
+                            <span className={application.status === 'applied' ? 'font-semibold text-blue-600' : 'text-gray-400'}>Applied</span>
+                            <span className={application.status === 'viewed' ? 'font-semibold text-yellow-600' : 'text-gray-400'}>Viewed</span>
+                            <span className={application.status === 'interview' ? 'font-semibold text-purple-600' : 'text-gray-400'}>Interview</span>
+                            <span className={application.status === 'hired' || application.status === 'rejected' ? 
+                              (application.status === 'hired' ? 'font-semibold text-green-600' : 'font-semibold text-red-600') : 
+                              'text-gray-400'}>Decision</span>
+                          </div>
+                          <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                              <div className="w-full border-t border-gray-300"></div>
+                            </div>
+                            <div className="relative flex justify-between">
+                              <div className={`w-3 h-3 rounded-full ${application.status === 'applied' || application.status === 'viewed' || application.status === 'interview' || application.status === 'hired' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+                              <div className={`w-3 h-3 rounded-full ${application.status === 'viewed' || application.status === 'interview' || application.status === 'hired' ? 'bg-yellow-600' : 'bg-gray-300'}`}></div>
+                              <div className={`w-3 h-3 rounded-full ${application.status === 'interview' || application.status === 'hired' ? 'bg-purple-600' : 'bg-gray-300'}`}></div>
+                              <div className={`w-3 h-3 rounded-full ${application.status === 'hired' ? 'bg-green-600' : application.status === 'rejected' ? 'bg-red-600' : 'bg-gray-300'}`}></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              {application.job.title}
+                            </h3>
+                            <p className="text-gray-600 flex items-center gap-2 mt-1">
+                              <BuildingOfficeIcon className="h-4 w-4" />
+                              {application.job.company}
+                            </p>
+                            {application.job.location && (
+                              <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                                <MapPinIcon className="h-4 w-4" />
+                                {application.job.location}
+                              </p>
+                            )}
+                            <p className="text-sm text-gray-500 mt-2">
+                              Applied on {new Date(application.applied_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(application.status)}`}>
+                            {getStatusText(application.status)}
+                          </span>
+                        </div>
+                        
+                        <p className="text-gray-700 mt-4 line-clamp-2">{application.job.description}</p>
+                        
+                        <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <BriefcaseIcon className="h-4 w-4" />
+                            {application.job.industry}
+                          </span>
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
+                            {application.job.job_type}
+                          </span>
+                          {application.job.deadline && (
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className="h-4 w-4" />
+                              Deadline: {new Date(application.job.deadline).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            */}
+
+            {/* deadlines tab with calendar view */}
+            {activeTab === 'deadlines' && (
+              <div>
+                {upcomingDeadlines.length === 0 ? (
+                  <div className="text-center py-12">
+                    <BellIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No upcoming deadlines in the next 7 days.</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Save jobs and set reminders to track important deadlines.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* use the new calendar widget component with working date filtering */}
+                    <DeadlineCalendarWidget 
+                      upcomingDeadlines={upcomingDeadlines}
+                      getDaysUntilDeadline={getDaysUntilDeadline}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* disabled: quick apply modal no longer needed since applications are removed */}
+      {/* disabled: quick apply modal no longer needed */}
       {/* <QuickApplyModal
         isOpen={quickApplyModal.isOpen}
         onClose={() => setQuickApplyModal({ isOpen: false, jobId: '', jobTitle: '', companyName: '' })}
