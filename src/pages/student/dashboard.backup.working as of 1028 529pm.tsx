@@ -73,217 +73,6 @@ interface StudentProfile {
 type DashboardTab = 'for-you' | 'saved' | 'applications' | 'deadlines';
 type ViewMode = 'cards' | 'list' | 'split';
 
-// deadline calendar widget component - handles the clickable calendar functionality  
-interface DeadlineCalendarWidgetProps {
-  upcomingDeadlines: Job[];
-  getDaysUntilDeadline: (deadline: string) => number;
-}
-
-function DeadlineCalendarWidget({ 
-  upcomingDeadlines, 
-  getDaysUntilDeadline 
-}: DeadlineCalendarWidgetProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  
-  // filter deadlines based on selected date
-  const filteredDeadlines = selectedDate 
-    ? upcomingDeadlines.filter(job => {
-        const deadline = new Date(job.deadline);
-        return deadline.toDateString() === selectedDate.toDateString();
-      })
-    : upcomingDeadlines;
-
-  // generate calendar days for the next 30 days
-  const generateCalendarDays = () => {
-    const days = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    // start from sunday of the current week
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - today.getDay());
-    
-    // generate 5 weeks (35 days) to show a full month view
-    for (let i = 0; i < 35; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      days.push(date);
-    }
-    
-    return days;
-  };
-
-  const calendarDays = generateCalendarDays();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return (
-    <>
-      {/* calendar widget with clickable dates */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-gray-900">Deadline Calendar</h3>
-          {selectedDate && (
-            <button
-              onClick={() => setSelectedDate(null)}
-              className="text-sm text-blue-600 hover:text-blue-700"
-            >
-              Clear filter
-            </button>
-          )}
-        </div>
-        
-        <div className="grid grid-cols-7 gap-1 text-center">
-          {/* day headers */}
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="text-xs font-medium text-gray-500 py-2">
-              {day}
-            </div>
-          ))}
-          
-          {/* calendar days - now clickable when they have deadlines */}
-          {calendarDays.map((date, index) => {
-            const hasDeadline = upcomingDeadlines.some(job => {
-              const deadline = new Date(job.deadline);
-              return deadline.toDateString() === date.toDateString();
-            });
-            
-            const isToday = date.toDateString() === today.toDateString();
-            const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-            const isPastDate = date < today;
-            const isFutureMonth = date.getMonth() !== today.getMonth() && date > today;
-            
-            // count how many deadlines are on this date
-            const deadlineCount = upcomingDeadlines.filter(job => {
-              const deadline = new Date(job.deadline);
-              return deadline.toDateString() === date.toDateString();
-            }).length;
-            
-            return (
-              <div
-                key={index}
-                onClick={() => {
-                  // only allow clicking on dates that have deadlines and aren't in the past
-                  if (hasDeadline && !isPastDate) {
-                    setSelectedDate(date);
-                  }
-                }}
-                className={`
-                  relative p-2 rounded transition-colors
-                  ${isPastDate ? 'text-gray-300' : ''}
-                  ${isFutureMonth ? 'text-gray-400' : ''}
-                  ${isToday ? 'bg-blue-50 font-semibold text-blue-600' : ''}
-                  ${isSelected ? 'bg-red-100 ring-2 ring-red-500' : ''}
-                  ${hasDeadline && !isPastDate && !isSelected ? 'cursor-pointer hover:bg-gray-100' : ''}
-                  ${!hasDeadline || isPastDate ? 'cursor-default' : ''}
-                `}
-                title={hasDeadline && !isPastDate ? `${deadlineCount} deadline${deadlineCount > 1 ? 's' : ''} on ${date.toLocaleDateString()}` : ''}
-              >
-                <span className="text-sm">{date.getDate()}</span>
-                {hasDeadline && (
-                  <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
-                    <div className={`w-1.5 h-1.5 ${isPastDate ? 'bg-gray-300' : 'bg-red-500'} rounded-full`}>
-                      {deadlineCount > 1 && !isPastDate && (
-                        <span className="absolute -top-1 -right-1 text-xs text-red-600 font-bold">
-                          {deadlineCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* legend explaining what the colors mean */}
-        <div className="flex gap-4 mt-4 text-xs text-gray-600">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-blue-50 rounded"></div>
-            <span>Today</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-            <span>Has deadline</span>
-          </div>
-          {selectedDate && (
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-red-100 ring-1 ring-red-500 rounded"></div>
-              <span>Selected</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* deadline list - filtered by selected date if one is chosen */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <h3 className="font-semibold text-gray-900 mb-4">
-          {selectedDate 
-            ? `Deadlines for ${selectedDate.toLocaleDateString()}` 
-            : 'All Upcoming Deadlines'}
-        </h3>
-        
-        {filteredDeadlines.length === 0 ? (
-          <p className="text-gray-600 text-center py-4">
-            {selectedDate 
-              ? `No deadlines on ${selectedDate.toLocaleDateString()}`
-              : 'No upcoming deadlines'}
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {filteredDeadlines.map(job => {
-              const daysLeft = getDaysUntilDeadline(job.deadline);
-              const isUrgent = daysLeft <= 2;
-              
-              return (
-                <div 
-                  key={job.id} 
-                  className={`flex justify-between items-center p-3 rounded-lg ${
-                    isUrgent ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
-                  }`}
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{job.title}</h4>
-                    <p className="text-sm text-gray-600">{job.company}</p>
-                    <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                      <span>{job.job_type}</span>
-                      <span>•</span>
-                      <span>{job.industry}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-semibold ${isUrgent ? 'text-red-600' : 'text-yellow-600'}`}>
-                      {daysLeft === 0 ? 'Due Today!' :
-                       daysLeft === 1 ? 'Due Tomorrow!' :
-                       `${daysLeft} days left`}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(job.deadline).toLocaleDateString()}
-                    </p>
-                    <Link href={`/jobs/${job.id}`}>
-                      <button className="mt-2 text-xs text-blue-600 hover:text-blue-700">
-                        View Job →
-                      </button>
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      
-      {/* reminder tip - updated to explain the new clickable functionality */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
-          <strong>Pro Tip:</strong> Click on any date with a red dot to filter deadlines for that specific day. 
-          {selectedDate && ' Click "Clear filter" to see all deadlines again.'}
-        </p>
-      </div>
-    </>
-  );
-}
-
 export default function StudentDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<DashboardTab>('for-you');
@@ -1775,11 +1564,97 @@ export default function StudentDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* use the new calendar widget component with working date filtering */}
-                    <DeadlineCalendarWidget 
-                      upcomingDeadlines={upcomingDeadlines}
-                      getDaysUntilDeadline={getDaysUntilDeadline}
-                    />
+                    {/* mini calendar widget */}
+                    <div className="bg-white rounded-lg shadow p-4">
+                      <h3 className="font-semibold text-gray-900 mb-4">Deadline Calendar</h3>
+                      <div className="grid grid-cols-7 gap-1 text-center">
+                        {/* day headers */}
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                          <div key={day} className="text-xs font-medium text-gray-500 py-2">
+                            {day}
+                          </div>
+                        ))}
+                        {/* calendar days - simplified for the next 7 days */}
+                        {[...Array(7)].map((_, index) => {
+                          const date = new Date();
+                          date.setDate(date.getDate() + index);
+                          const hasDeadline = upcomingDeadlines.some(job => {
+                            const deadline = new Date(job.deadline);
+                            return deadline.toDateString() === date.toDateString();
+                          });
+                          const isToday = index === 0;
+                          
+                          return (
+                            <div
+                              key={index}
+                              className={`relative p-2 rounded ${
+                                isToday ? 'bg-blue-50 font-semibold' : ''
+                              } ${hasDeadline ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                            >
+                              <span className="text-sm">{date.getDate()}</span>
+                              {hasDeadline && (
+                                <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
+                                  <div className="w-1 h-1 bg-red-500 rounded-full"></div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* deadline list */}
+                    <div className="bg-white rounded-lg shadow p-4">
+                      <h3 className="font-semibold text-gray-900 mb-4">Upcoming Deadlines</h3>
+                      <div className="space-y-3">
+                        {upcomingDeadlines.map(job => {
+                          const daysLeft = getDaysUntilDeadline(job.deadline);
+                          const isUrgent = daysLeft <= 2;
+                          
+                          return (
+                            <div 
+                              key={job.id} 
+                              className={`flex justify-between items-center p-3 rounded-lg ${
+                                isUrgent ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900">{job.title}</h4>
+                                <p className="text-sm text-gray-600">{job.company}</p>
+                                <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                                  <span>{job.job_type}</span>
+                                  <span>•</span>
+                                  <span>{job.industry}</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className={`font-semibold ${isUrgent ? 'text-red-600' : 'text-yellow-600'}`}>
+                                  {daysLeft === 0 ? 'Due Today!' :
+                                   daysLeft === 1 ? 'Due Tomorrow!' :
+                                   `${daysLeft} days left`}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(job.deadline).toLocaleDateString()}
+                                </p>
+                                <Link href={`/jobs/${job.id}`}>
+                                  <button className="mt-2 text-xs text-blue-600 hover:text-blue-700">
+                                    View Job →
+                                  </button>
+                                </Link>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* reminder tip */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm text-blue-800">
+                        <strong>Pro Tip:</strong> Set reminders for saved jobs to get notified 24 hours before deadlines. 
+                        Never miss an opportunity!
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
