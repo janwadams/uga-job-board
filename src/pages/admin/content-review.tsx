@@ -1,4 +1,4 @@
-// pages/admin/content-review.tsx - improved weekly review system with dropdown filter
+// pages/admin/content-review.tsx - simplified one-time review system for job postings
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -46,7 +46,7 @@ export default function ContentReview() {
   const [loading, setLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'needs_review' | 'overdue' | 'never' | 'recent'>('needs_review');
+  const [filterType, setFilterType] = useState<'all' | 'needs_review' | 'reviewed'>('needs_review');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   
   // check if user is admin when page loads
@@ -91,12 +91,12 @@ export default function ContentReview() {
     setLoading(true);
     
     try {
-      // get all active jobs sorted by when they were last reviewed
+      // get all active jobs
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('status', 'active')
-        .order('last_reviewed', { ascending: true, nullsFirst: true });
+        .order('created_at', { ascending: false }); // newest first
 
       if (error) throw error;
 
@@ -108,29 +108,24 @@ export default function ContentReview() {
     }
   };
 
-  // calculate how many days since job was reviewed
-  const getDaysSinceReview = (lastReviewed: string | null): number => {
-    if (!lastReviewed) return -1; // never reviewed (using -1 instead of 999 for cleaner logic)
-    const reviewDate = new Date(lastReviewed);
+  // check how old the job posting is
+  const getDaysOld = (createdAt: string): number => {
+    const created = new Date(createdAt);
     const today = new Date();
-    const diffTime = today.getTime() - reviewDate.getTime();
+    const diffTime = today.getTime() - created.getTime();
     return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  // get color based on review status
-  const getReviewStatusColor = (daysSince: number) => {
-    if (daysSince === -1) return 'text-red-600 bg-red-50'; // never reviewed
-    if (daysSince > 14) return 'text-red-600 bg-red-50';   // very overdue
-    if (daysSince > 7) return 'text-yellow-600 bg-yellow-50'; // overdue
-    return 'text-green-600 bg-green-50'; // recently reviewed
-  };
-
-  // get label for review status
-  const getReviewStatusLabel = (daysSince: number) => {
-    if (daysSince === -1) return 'Never Reviewed';
-    if (daysSince === 0) return 'Reviewed Today';
-    if (daysSince === 1) return 'Reviewed Yesterday';
-    return `Reviewed ${daysSince} days ago`;
+  // get review status display
+  const getReviewStatus = (job: Job) => {
+    if (!job.last_reviewed) {
+      const daysOld = getDaysOld(job.created_at);
+      if (daysOld === 0) return { text: 'New Today', color: 'text-blue-600 bg-blue-50' };
+      if (daysOld === 1) return { text: 'Posted Yesterday', color: 'text-yellow-600 bg-yellow-50' };
+      if (daysOld <= 3) return { text: `${daysOld} days old`, color: 'text-yellow-600 bg-yellow-50' };
+      return { text: `${daysOld} days old - Needs Review`, color: 'text-red-600 bg-red-50' };
+    }
+    return { text: 'Reviewed ✓', color: 'text-green-600 bg-green-50' };
   };
 
   // check for potential issues with job posting
@@ -215,23 +210,13 @@ export default function ContentReview() {
     }
   };
 
-  // filter jobs based on review status - IMPROVED LOGIC
+  // filter jobs based on review status - SIMPLIFIED
   const filteredJobs = jobs.filter(job => {
-    const daysSince = getDaysSinceReview(job.last_reviewed);
-    
     switch (filterType) {
       case 'needs_review':
-        // Jobs that need review: never reviewed OR overdue (>7 days)
-        return daysSince === -1 || daysSince > 7;
-      case 'overdue':
-        // Only jobs that HAVE been reviewed but are overdue (>7 days)
-        return daysSince > 7 && daysSince !== -1;
-      case 'never':
-        // Only jobs that have NEVER been reviewed
-        return daysSince === -1;
-      case 'recent':
-        // Jobs reviewed in the last 7 days
-        return daysSince >= 0 && daysSince <= 7;
+        return !job.last_reviewed;
+      case 'reviewed':
+        return !!job.last_reviewed;
       case 'all':
       default:
         return true;
@@ -242,27 +227,14 @@ export default function ContentReview() {
   const getFilterLabel = () => {
     const counts = {
       all: jobs.length,
-      needs_review: jobs.filter(j => {
-        const days = getDaysSinceReview(j.last_reviewed);
-        return days === -1 || days > 7;
-      }).length,
-      overdue: jobs.filter(j => {
-        const days = getDaysSinceReview(j.last_reviewed);
-        return days > 7 && days !== -1;
-      }).length,
-      never: jobs.filter(j => getDaysSinceReview(j.last_reviewed) === -1).length,
-      recent: jobs.filter(j => {
-        const days = getDaysSinceReview(j.last_reviewed);
-        return days >= 0 && days <= 7;
-      }).length,
+      needs_review: jobs.filter(j => !j.last_reviewed).length,
+      reviewed: jobs.filter(j => !!j.last_reviewed).length,
     };
 
     const labels = {
       all: 'All Active Jobs',
       needs_review: 'Needs Review',
-      overdue: 'Overdue Only',
-      never: 'Never Reviewed',
-      recent: 'Recently Reviewed'
+      reviewed: 'Already Reviewed'
     };
 
     return `${labels[filterType]} (${counts[filterType]})`;
@@ -290,44 +262,29 @@ export default function ContentReview() {
             </button>
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Content Review Dashboard</h1>
-          <p className="text-gray-600 mt-2">Review job postings for quality and compliance</p>
+          <p className="text-gray-600 mt-2">Review new job postings for quality and compliance</p>
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <DocumentMagnifyingGlassIcon className="h-8 sm:h-10 w-8 sm:w-10 text-blue-500 mr-3" />
               <div>
                 <p className="text-xl sm:text-2xl font-bold">{jobs.length}</p>
-                <p className="text-gray-600 text-xs sm:text-sm">Total Active</p>
+                <p className="text-gray-600 text-xs sm:text-sm">Total Active Jobs</p>
               </div>
             </div>
           </div>
           
           <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
-              <ExclamationTriangleIcon className="h-8 sm:h-10 w-8 sm:w-10 text-red-500 mr-3" />
+              <ExclamationTriangleIcon className="h-8 sm:h-10 w-8 sm:w-10 text-yellow-500 mr-3" />
               <div>
                 <p className="text-xl sm:text-2xl font-bold">
-                  {jobs.filter(j => getDaysSinceReview(j.last_reviewed) === -1).length}
+                  {jobs.filter(j => !j.last_reviewed).length}
                 </p>
-                <p className="text-gray-600 text-xs sm:text-sm">Never Reviewed</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-            <div className="flex items-center">
-              <ClockIcon className="h-8 sm:h-10 w-8 sm:w-10 text-yellow-500 mr-3" />
-              <div>
-                <p className="text-xl sm:text-2xl font-bold">
-                  {jobs.filter(j => {
-                    const days = getDaysSinceReview(j.last_reviewed);
-                    return days > 7 && days !== -1;
-                  }).length}
-                </p>
-                <p className="text-gray-600 text-xs sm:text-sm">Overdue Review</p>
+                <p className="text-gray-600 text-xs sm:text-sm">Needs Review</p>
               </div>
             </div>
           </div>
@@ -337,18 +294,15 @@ export default function ContentReview() {
               <CheckCircleIcon className="h-8 sm:h-10 w-8 sm:w-10 text-green-500 mr-3" />
               <div>
                 <p className="text-xl sm:text-2xl font-bold">
-                  {jobs.filter(j => {
-                    const days = getDaysSinceReview(j.last_reviewed);
-                    return days >= 0 && days <= 7;
-                  }).length}
+                  {jobs.filter(j => !!j.last_reviewed).length}
                 </p>
-                <p className="text-gray-600 text-xs sm:text-sm">Recently Reviewed</p>
+                <p className="text-gray-600 text-xs sm:text-sm">Reviewed & Approved</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filter Dropdown - Better for Mobile */}
+        {/* Filter Dropdown - Mobile Friendly */}
         <div className="bg-white rounded-lg shadow mb-6 p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h2 className="text-lg font-semibold text-gray-900">Job Listings</h2>
@@ -365,43 +319,22 @@ export default function ContentReview() {
               {showFilterDropdown && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                   <button
+                    onClick={() => { setFilterType('needs_review'); setShowFilterDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'needs_review' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                  >
+                    Needs Review ({jobs.filter(j => !j.last_reviewed).length})
+                  </button>
+                  <button
+                    onClick={() => { setFilterType('reviewed'); setShowFilterDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'reviewed' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                  >
+                    Already Reviewed ({jobs.filter(j => !!j.last_reviewed).length})
+                  </button>
+                  <button
                     onClick={() => { setFilterType('all'); setShowFilterDropdown(false); }}
                     className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'all' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
                   >
                     All Active Jobs ({jobs.length})
-                  </button>
-                  <button
-                    onClick={() => { setFilterType('needs_review'); setShowFilterDropdown(false); }}
-                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'needs_review' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
-                  >
-                    Needs Review ({jobs.filter(j => {
-                      const days = getDaysSinceReview(j.last_reviewed);
-                      return days === -1 || days > 7;
-                    }).length})
-                  </button>
-                  <button
-                    onClick={() => { setFilterType('never'); setShowFilterDropdown(false); }}
-                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'never' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
-                  >
-                    Never Reviewed ({jobs.filter(j => getDaysSinceReview(j.last_reviewed) === -1).length})
-                  </button>
-                  <button
-                    onClick={() => { setFilterType('overdue'); setShowFilterDropdown(false); }}
-                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'overdue' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
-                  >
-                    Overdue Only ({jobs.filter(j => {
-                      const days = getDaysSinceReview(j.last_reviewed);
-                      return days > 7 && days !== -1;
-                    }).length})
-                  </button>
-                  <button
-                    onClick={() => { setFilterType('recent'); setShowFilterDropdown(false); }}
-                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 ${filterType === 'recent' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
-                  >
-                    Recently Reviewed ({jobs.filter(j => {
-                      const days = getDaysSinceReview(j.last_reviewed);
-                      return days >= 0 && days <= 7;
-                    }).length})
                   </button>
                 </div>
               )}
@@ -409,24 +342,22 @@ export default function ContentReview() {
           </div>
         </div>
 
-        {/* List of jobs to review */}
+        {/* List of jobs */}
         <div className="bg-white rounded-lg shadow">
           {filteredJobs.length === 0 ? (
             <div className="text-center py-12">
               <CheckCircleIcon className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <p className="text-gray-600">
-                {filterType === 'needs_review' ? 'All jobs have been reviewed recently!' :
-                 filterType === 'never' ? 'No jobs waiting for initial review!' :
-                 filterType === 'overdue' ? 'No overdue reviews!' :
-                 filterType === 'recent' ? 'No recently reviewed jobs.' :
-                 'No jobs found for this filter.'}
+                {filterType === 'needs_review' ? 'All jobs have been reviewed!' :
+                 filterType === 'reviewed' ? 'No reviewed jobs yet.' :
+                 'No active jobs found.'}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
               {filteredJobs.map(job => {
-                const daysSince = getDaysSinceReview(job.last_reviewed);
                 const flags = getContentFlags(job);
+                const status = getReviewStatus(job);
                 
                 return (
                   <div key={job.id} className="p-4 sm:p-6 hover:bg-gray-50">
@@ -434,8 +365,8 @@ export default function ContentReview() {
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReviewStatusColor(daysSince)}`}>
-                            {getReviewStatusLabel(daysSince)}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                            {status.text}
                           </span>
                         </div>
                         
@@ -472,25 +403,37 @@ export default function ContentReview() {
                           </div>
                         )}
 
-                        {/* Show previous review notes if any */}
+                        {/* Show review notes if any */}
                         {job.review_notes && (
                           <div className="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-600">
-                            <strong>Last Review Notes:</strong> {job.review_notes}
+                            <strong>Review Notes:</strong> {job.review_notes}
                           </div>
                         )}
                       </div>
 
                       {/* Action buttons - stack on mobile */}
                       <div className="flex sm:flex-col gap-2">
-                        <button
-                          onClick={() => {
-                            setSelectedJob(job);
-                            setReviewNotes(job.review_notes || '');
-                          }}
-                          className="flex-1 sm:flex-initial px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                        >
-                          Review
-                        </button>
+                        {!job.last_reviewed ? (
+                          <button
+                            onClick={() => {
+                              setSelectedJob(job);
+                              setReviewNotes('');
+                            }}
+                            className="flex-1 sm:flex-initial px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                          >
+                            Review
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedJob(job);
+                              setReviewNotes(job.review_notes || '');
+                            }}
+                            className="flex-1 sm:flex-initial px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                          >
+                            Edit Review
+                          </button>
+                        )}
                         <Link href={`/admin/view/${job.id}`} className="flex-1 sm:flex-initial">
                           <button className="w-full px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700">
                             View
@@ -517,7 +460,9 @@ export default function ContentReview() {
         {selectedJob && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-              <h2 className="text-xl font-semibold mb-4">Review Job: {selectedJob.title}</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                {selectedJob.last_reviewed ? 'Edit Review' : 'Review Job'}: {selectedJob.title}
+              </h2>
               
               <div className="mb-4 p-4 bg-gray-50 rounded">
                 <p className="text-sm text-gray-600 mb-2">
@@ -529,8 +474,12 @@ export default function ContentReview() {
                 <p className="text-sm text-gray-600 mb-2">
                   <strong>Location:</strong> {selectedJob.location || 'Not specified'}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 mb-2">
                   <strong>Deadline:</strong> {new Date(selectedJob.deadline).toLocaleDateString()}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Posted:</strong> {new Date(selectedJob.created_at).toLocaleDateString()} 
+                  ({getDaysOld(selectedJob.created_at)} days ago)
                 </p>
               </div>
 
@@ -561,7 +510,7 @@ export default function ContentReview() {
                   onClick={() => markAsReviewed(selectedJob.id, reviewNotes)}
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
-                  Mark as Reviewed
+                  {selectedJob.last_reviewed ? 'Update Review' : 'Approve Job'}
                 </button>
               </div>
             </div>
