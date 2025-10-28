@@ -744,3 +744,106 @@ select {
     opacity: 1;
   }
 }
+
+
+
+/* Additional Admin Dashboard Fixes for mobile */
+@media (max-width: 768px) {
+  /* Fix the admin dashboard colored buttons to prevent overflow */
+  /* Target the specific container with the 5 admin action buttons */
+  .flex.space-x-4:has(a[href="/admin/analytics"]) {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+    space-between: 0 !important;
+  }
+  
+  .flex.space-x-4:has(a[href="/admin/analytics"]) > a {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  
+  .flex.space-x-4:has(a[href="/admin/analytics"]) button {
+    width: 100% !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Fix the user table Edit/Disable/Delete buttons - stack them vertically */
+  td .flex.gap-2:has(button:contains("Edit")) {
+    flex-direction: column !important;
+    gap: 0.25rem !important;
+  }
+  
+  td .flex.gap-2 > button {
+    width: 100% !important;
+    min-width: unset !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Mobile card view for user table */
+@media (max-width: 640px) {
+  /* Hide table headers on mobile */
+  .divide-y.divide-gray-200 thead {
+    display: none;
+  }
+
+  /* Convert table rows to cards */
+  .divide-y.divide-gray-200 tbody tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    background: white;
+  }
+
+  /* Stack table cells */
+  .divide-y.divide-gray-200 tbody td {
+    display: block;
+    padding: 0.25rem 0;
+    border: none;
+    text-align: left;
+  }
+
+  /* Style user info (first cell) */
+  .divide-y.divide-gray-200 tbody td:first-child {
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Add labels for better mobile readability */
+  .divide-y.divide-gray-200 tbody td:nth-child(2):before {
+    content: "Role: ";
+    font-weight: 500;
+    color: #6b7280;
+  }
+
+  .divide-y.divide-gray-200 tbody td:nth-child(3):before {
+    content: "Status: ";
+    font-weight: 500;
+    color: #6b7280;
+  }
+
+  /* Style the action buttons section */
+  .divide-y.divide-gray-200 tbody td:last-child {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  /* Stack action buttons vertically */
+  .divide-y.divide-gray-200 tbody td:last-child .flex {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .divide-y.divide-gray-200 tbody td:last-child button {
+    width: 100% !important;
+    padding: 0.5rem !important;
+    font-size: 0.875rem !important;
+  }
+}
