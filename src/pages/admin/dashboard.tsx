@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// initialize supabase
+// initialize supabase client for database access
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -43,165 +43,183 @@ interface Job {
 
 // main admin dashboard component
 export default function AdminDashboard() {
-  // which tab is active
+  // which tab is active (users, jobs, or archived)
   const [activeTab, setActiveTab] = useState<'users' | 'jobs' | 'archived'>('users');
 
-  // data storage
+  // data storage for users and jobs
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [archivedJobs, setArchivedJobs] = useState<Job[]>([]);
+  
+  // loading states to show spinners
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(true);
-
-  // filter for jobs
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  
+  // filters for different tabs
+  const [statusFilter, setStatusFilter] = useState<string>(''); // filter for jobs tab
   const [archivedFilter, setArchivedFilter] = useState<string>(''); // filter for archived tab
-
-  // modals
+  
+  // modal states for editing users and creating admins
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [showCreateAdmin, setShowCreateAdmin] = useState(false);
 
-  // fetch users from api
-  const fetchUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const response = await fetch('/api/admin/list-users');
-      const data = await response.json();
-      if (response.ok) {
-        setUsers(data.users);
-      } else {
-        console.error('Failed to fetch admin users:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
-  // fetch active and pending jobs (actually all non-expired jobs)
-  const fetchJobs = async () => {
-    setLoadingJobs(true);
-    
-    // get today's date to compare
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const { data, error } = await supabase
-      .from('jobs')
-      .select('*')
-      .gte('deadline', today.toISOString()); // only get non-expired jobs
-
-    if (error) {
-      console.error('Error fetching jobs:', error);
-      setJobs([]);
-    } else if (data) {
-      setJobs(data as Job[]);
-    }
-    setLoadingJobs(false);
-  };
-
-  // fetch archived (expired) jobs
-  const fetchArchivedJobs = async () => {
-    setLoadingArchived(true);
-    
-    // get today's date to compare
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const { data, error } = await supabase
-      .from('jobs')
-      .select('*')
-      .lt('deadline', today.toISOString()) // only get expired jobs
-      .order('deadline', { ascending: false }); // newest expired first
-
-    if (error) {
-      console.error('Error fetching archived jobs:', error);
-      setArchivedJobs([]);
-    } else if (data) {
-      // mark them as archived for display purposes
-      const archived = data.map(job => ({
-        ...job,
-        status: 'archived' as const
-      }));
-      setArchivedJobs(archived);
-    }
-    setLoadingArchived(false);
-  };
-
-  // load data when component mounts
+  // fetch all data when component loads
   useEffect(() => {
     fetchUsers();
     fetchJobs();
     fetchArchivedJobs();
   }, []);
 
-  // handle user status toggle
-  const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
+  // get all users from the database
+  async function fetchUsers() {
+    setLoadingUsers(true);
     try {
-      const response = await fetch('/api/admin/update-user-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, isActive: !currentStatus }),
-      });
-      if (response.ok) fetchUsers();
-      else alert('Failed to update user status.');
+      const { data: userData, error } = await supabase
+        .from('user_profiles')
+        .select(`
+          user_id,
+          first_name,
+          last_name,
+          is_active,
+          created_at,
+          company_name
+        `);
+
+      if (error) throw error;
+
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      const { data: authData, error: authError } = await supabase
+        .from('auth.users')
+        .select('id, email, last_sign_in_at');
+
+      if (authError) {
+        console.error('Error fetching auth data:', authError);
+      }
+
+      // combine all the data into one user object
+      const combinedUsers = userData?.map(user => {
+        const roleInfo = rolesData?.find(r => r.user_id === user.user_id);
+        const authInfo = authData?.find(a => a.id === user.user_id);
+        return {
+          ...user,
+          role: roleInfo?.role || 'unknown',
+          email: authInfo?.email || null,
+          last_sign_in_at: authInfo?.last_sign_in_at || null,
+          jobs_posted: 0 // will be calculated separately if needed
+        };
+      }) || [];
+
+      setUsers(combinedUsers);
     } catch (error) {
-      console.error('Error updating status:', error);
+      console.error('Error fetching users:', error);
     }
-  };
+    setLoadingUsers(false);
+  }
 
-  // handle job status changes
-  const handleJobAction = async (jobId: string, newStatus: Job['status']) => {
-    let rejectionNote = null;
-    if (newStatus === 'rejected') {
-      rejectionNote = prompt("Provide a rejection note (optional):");
-      if (rejectionNote === null) return; // user cancelled
-    }
-
+  // get all active and pending jobs from the database
+  async function fetchJobs() {
+    setLoadingJobs(true);
     try {
-      const response = await fetch('/api/admin/manage-job-posting', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, status: newStatus, rejectionNote }),
-      });
-      if (response.ok) {
-        fetchJobs();
-        fetchArchivedJobs(); // refresh both lists
-      } else {
-        alert('Failed to update job status.');
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .in('status', ['active', 'pending'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setJobs(data || []);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    }
+    setLoadingJobs(false);
+  }
+
+  // get all archived jobs (past deadline)
+  async function fetchArchivedJobs() {
+    setLoadingArchived(true);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .lte('deadline', today.toISOString())
+        .order('deadline', { ascending: false });
+
+      if (error) throw error;
+      setArchivedJobs(data || []);
+    } catch (error) {
+      console.error('Error fetching archived jobs:', error);
+    }
+    setLoadingArchived(false);
+  }
+
+  // toggle user active/inactive status
+  async function handleStatusToggle(userId: string, currentStatus: boolean) {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ is_active: !currentStatus })
+        .eq('user_id', userId);
+
+      if (!error) {
+        setUsers(users.map(u => 
+          u.user_id === userId ? { ...u, is_active: !currentStatus } : u
+        ));
       }
     } catch (error) {
-      console.error('Error updating job status:', error);
+      console.error('Error toggling status:', error);
     }
-  };
+  }
 
-  // reactivate an archived job (admin can extend deadline)
-  const handleReactivateJob = async (jobId: string) => {
-    const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
-    if (!newDeadline) return;
-
+  // handle job status changes (approve, reject, remove)
+  async function handleJobAction(jobId: string, newStatus: string) {
     try {
       const { error } = await supabase
         .from('jobs')
+        .update({ status: newStatus })
+        .eq('id', jobId);
+
+      if (!error) {
+        fetchJobs(); // refresh the list
+      }
+    } catch (error) {
+      console.error('Error updating job:', error);
+    }
+  }
+
+  // reactivate an archived job (set new deadline 30 days out)
+  async function handleReactivateJob(jobId: string) {
+    try {
+      const newDeadline = new Date();
+      newDeadline.setDate(newDeadline.getDate() + 30); // 30 days from now
+      
+      const { error } = await supabase
+        .from('jobs')
         .update({ 
-          deadline: newDeadline,
-          status: 'active' 
+          deadline: newDeadline.toISOString(),
+          status: 'active'
         })
         .eq('id', jobId);
 
       if (!error) {
-        alert('Job reactivated successfully!');
-        fetchJobs();
-        fetchArchivedJobs();
+        fetchArchivedJobs(); // refresh archived list
+        fetchJobs(); // refresh active jobs list
+        alert('Job reactivated with new deadline set 30 days from today.');
       }
     } catch (error) {
       console.error('Error reactivating job:', error);
       alert('Failed to reactivate job.');
     }
-  };
+  }
 
   // calculate days since job expired
   const getDaysSinceExpired = (deadline: string): number => {
@@ -212,7 +230,7 @@ export default function AdminDashboard() {
     return diffDays;
   };
 
-  // handle saving edited user
+  // handle saving edited user details
   const handleSaveUser = async (updatedUser: AdminUser) => {
     try {
       const response = await fetch('/api/admin/update-user-details', {
@@ -233,41 +251,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // handle create admin form submission
-  const handleCreateAdmin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    
-    try {
-      const response = await fetch('/api/admin/create-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.get('email'),
-          password: formData.get('password'),
-          first_name: formData.get('first_name'),
-          last_name: formData.get('last_name'),
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        alert('Admin user created successfully!');
-        setShowCreateAdmin(false);
-        fetchUsers(); // refresh the user list
-        form.reset();
-      } else {
-        alert(data.error || 'Failed to create admin user.');
-      }
-    } catch (error) {
-      console.error('Error creating admin:', error);
-      alert('An error occurred while creating the admin user.');
-    }
-  };
-
-  // prepare filtered jobs with creator info
+  // prepare jobs with creator info for display
   const jobsWithCreatorInfo = useMemo(() => {
     return jobs.map(job => {
       const creator = users.find(u => u.user_id === job.created_by);
@@ -280,9 +264,9 @@ export default function AdminDashboard() {
     });
   }, [jobs, users]);
 
-  // prepare archived jobs with creator info
+  // prepare archived jobs with creator info and apply filter
   const archivedWithCreatorInfo = useMemo(() => {
-    return archivedJobs.map(job => {
+    const jobsWithInfo = archivedJobs.map(job => {
       const creator = users.find(u => u.user_id === job.created_by);
       return {
         ...job,
@@ -291,14 +275,20 @@ export default function AdminDashboard() {
         creator_name: creator ? `${creator.first_name} ${creator.last_name}` : 'Unknown'
       };
     });
-  }, [archivedJobs, users]);
+    
+    // apply the role filter if one is selected
+    if (archivedFilter) {
+      return jobsWithInfo.filter(job => job.role === archivedFilter);
+    }
+    return jobsWithInfo;
+  }, [archivedJobs, users, archivedFilter]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-uga-red mb-8">Admin Dashboard</h1>
 
-        {/* IMPROVED: Admin action buttons - properly responsive grid */}
+        {/* admin action buttons - responsive grid layout */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
           <Link href="/admin/analytics" className="w-full">
             <button className="w-full px-4 py-3 bg-uga-red text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
@@ -328,7 +318,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Tab Navigation - scrollable on mobile */}
+        {/* tab navigation - scrollable on mobile */}
         <div className="flex space-x-1 mb-6 overflow-x-auto">
           <button onClick={() => setActiveTab('users')} className={`px-4 py-2 font-medium rounded-t-lg whitespace-nowrap ${activeTab === 'users' ? 'bg-white text-uga-red border-b-2 border-uga-red' : 'bg-gray-100 text-gray-600'}`}>
             Users ({users.length})
@@ -341,7 +331,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Tab Content */}
+        {/* tab content area */}
         <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           {activeTab === 'users' && (
             <UserManagementPanel 
@@ -373,7 +363,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* modals for editing users and creating admins */}
       {isModalOpen && editingUser && (
         <EditUserModal 
           user={editingUser} 
@@ -381,202 +371,236 @@ export default function AdminDashboard() {
           onSave={handleSaveUser}
         />
       )}
-
+      
+      {/* modal for creating new admin - properly formatted with password visibility */}
       {showCreateAdmin && (
         <CreateAdminModal 
           onClose={() => setShowCreateAdmin(false)}
-          onSubmit={handleCreateAdmin}
+          onSuccess={() => {
+            setShowCreateAdmin(false);
+            fetchUsers();
+          }}
         />
       )}
     </div>
   );
 }
 
-// IMPROVED: User Management Panel with mobile card view
+// user management panel - shows all users with filters
 function UserManagementPanel({ users, loading, onStatusToggle, onEditUser }: { 
   users: AdminUser[], 
   loading: boolean, 
-  onStatusToggle: (id: string, status: boolean) => void,
-  onEditUser: (user: AdminUser) => void
+  onStatusToggle: (userId: string, currentStatus: boolean) => void,
+  onEditUser: (user: AdminUser) => void 
 }) {
-  // Filter state
-  const [roleFilter, setRoleFilter] = useState<string>('');
-  const [statusFilterLocal, setStatusFilterLocal] = useState<string>('');
-
-  // Apply filters
-  const filteredUsers = users.filter(user => {
-    if (roleFilter && user.role !== roleFilter) return false;
-    if (statusFilterLocal === 'active' && !user.is_active) return false;
-    if (statusFilterLocal === 'inactive' && user.is_active) return false;
-    return true;
+  const [filters, setFilters] = useState({
+    search: '',
+    role: '',
+    status: '',
   });
+
+  // filter users based on search and filters
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = !filters.search || 
+      user.email?.toLowerCase().includes(filters.search.toLowerCase()) ||
+      user.first_name.toLowerCase().includes(filters.search.toLowerCase()) ||
+      user.last_name.toLowerCase().includes(filters.search.toLowerCase());
+    
+    const matchesRole = !filters.role || user.role === filters.role;
+    const matchesStatus = !filters.status || 
+      (filters.status === 'active' ? user.is_active : !user.is_active);
+    
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  const handleRoleFilterChange = (role: string) => {
+    setFilters(prev => ({ ...prev, role: prev.role === role ? '' : role }));
+  };
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Manage Users</h2>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <select 
-            value={statusFilterLocal} 
-            onChange={(e) => setStatusFilterLocal(e.target.value)} 
-            className="px-3 py-2 border rounded-lg text-sm"
-          >
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-          <select 
-            value={roleFilter} 
-            onChange={(e) => setRoleFilter(e.target.value)} 
-            className="px-3 py-2 border rounded-lg text-sm"
-          >
-            <option value="">All Roles</option>
-            <option value="student">Students</option>
-            <option value="faculty">Faculty</option>
-           
-            <option value="rep">Company Reps</option>
-            <option value="admin">Admins</option>
-          </select>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-700 mb-4">User Management</h2>
+      
+      {/* search and filter controls - responsive layout */}
+      <div className="mb-4 space-y-3">
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          className="w-full p-2 border rounded"
+          value={filters.search}
+          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+        />
+        
+        {/* filter controls for role and status */}
+        <div className="flex flex-wrap gap-2">
+          <div className="space-y-2">
+            <label className="font-medium text-sm">Role:</label>
+            <div className="flex flex-wrap gap-2">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filters.role === 'faculty'}
+                  onChange={() => handleRoleFilterChange('faculty')}
+                />
+                <span>Faculty</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filters.role === 'rep'}
+                  onChange={() => handleRoleFilterChange('rep')}
+                />
+                <span>Company Rep</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filters.role === 'student'}
+                  onChange={() => handleRoleFilterChange('student')}
+                />
+                <span>Student</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filters.role === 'admin'}
+                  onChange={() => handleRoleFilterChange('admin')}
+                />
+                <span>Admin</span>
+              </label>
+            </div>
+          </div>
+          
+          <div className="space-y-2 ml-auto">
+            <label className="font-medium text-sm">Status:</label>
+            <select 
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="p-2 border rounded"
+            >
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <h3 className="text-lg font-semibold mb-4">All Platform Users</h3>
-
       {loading ? (
         <p>Loading users...</p>
-      ) : filteredUsers.length === 0 ? (
-        <p className="text-gray-600">No users found{roleFilter || statusFilterLocal ? ' for selected filters' : ''}.</p>
-      ) : (
-        <>
-          {/* Desktop table view */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NAME</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ROLE</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LAST SIGN IN</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JOBS POSTED</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
-                  <tr key={user.user_id}>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{user.first_name} {user.last_name}</div>
-                      <div className="text-xs text-gray-500">{user.email}</div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {user.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Never'}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{user.jobs_posted || 0}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <div className="flex gap-2 justify-center">
-                        <button onClick={() => onEditUser(user)} className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">
-                          Edit
-                        </button>
-                        <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-xs ${user.is_active ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'}`}>
-                          {user.is_active ? 'Disable' : 'Enable'}
-                        </button>
-                        <button className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800">
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* IMPROVED: Mobile card view */}
-          <div className="md:hidden space-y-3">
-            {filteredUsers.map((user) => (
-              <div key={user.user_id} className="bg-white border border-gray-200 rounded-lg p-4">
-                <div className="mb-3">
-                  <div className="font-medium text-gray-900">{user.first_name} {user.last_name}</div>
-                  <div className="text-sm text-gray-600">{user.email}</div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs text-gray-500 capitalize">{user.role}</span>
-                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Action buttons - stacked vertically on mobile */}
-                <div className="flex flex-col gap-2">
-                  <button onClick={() => onEditUser(user)} className="w-full px-3 py-2 bg-purple-600 text-white rounded text-sm">
-                    Edit
-                  </button>
-                  <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`w-full px-3 py-2 rounded text-sm ${user.is_active ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
-                    {user.is_active ? 'Disable' : 'Enable'}
-                  </button>
-                  <button className="w-full px-3 py-2 bg-gray-700 text-white rounded text-sm">
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// Jobs panel remains similar with minor responsive improvements
-function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }: { 
-  jobs: Job[], 
-  loading: boolean, 
-  statusFilter: string, 
-  setStatusFilter: (filter: string) => void,
-  onJobAction: (id: string, status: Job['status']) => void
-}) {
-  // Filter jobs
-  const filteredJobs = jobs.filter(job => !statusFilter || job.status === statusFilter);
-
-  return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Active Job Postings</h2>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
-          <option value="">All Status</option>
-          <option value="active">Active</option>
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-
-      {loading ? (
-        <p>Loading jobs...</p>
-      ) : filteredJobs.length === 0 ? (
-        <p className="text-gray-600">No jobs found{statusFilter ? ' for selected status' : ''}.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Status</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Email</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Company</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredJobs.map((job) => (
+              {filteredUsers.map(user => (
+                <tr key={user.user_id}>
+                  <td className="px-3 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {user.first_name} {user.last_name}
+                    </div>
+                    {/* show email on mobile under name */}
+                    <div className="text-xs text-gray-500 sm:hidden">{user.email}</div>
+                  </td>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                    {user.email}
+                  </td>
+                  <td className="px-3 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 
+                      user.role === 'faculty' ? 'bg-blue-100 text-blue-800' :
+                      user.role === 'rep' ? 'bg-green-100 text-green-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
+                    {user.company_name || '-'}
+                  </td>
+                  <td className="px-3 py-4 whitespace-nowrap text-center">
+                    <button 
+                      onClick={() => onStatusToggle(user.user_id, user.is_active)}
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                  </td>
+                  <td className="px-3 py-4 whitespace-nowrap text-center">
+                    <button 
+                      onClick={() => onEditUser(user)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// jobs panel - shows active and pending jobs
+function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }: { 
+  jobs: Job[], 
+  loading: boolean, 
+  statusFilter: string, 
+  setStatusFilter: (filter: string) => void,
+  onJobAction: (jobId: string, action: string) => void
+}) {
+  const filteredJobs = statusFilter 
+    ? jobs.filter(job => job.status === statusFilter)
+    : jobs;
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Job Postings</h2>
+        <div className="w-full sm:w-auto">
+          <label className="mr-2 font-medium text-sm">Status:</label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="p-2 border rounded w-full sm:w-auto">
+            <option value="">All</option>
+            <option value="pending">Pending Review</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <p>Loading jobs...</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Status</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredJobs.map(job => (
                 <tr key={job.id}>
-                  <td className="px-3 py-4 text-sm">
-                    <div className="font-medium text-gray-900">{job.title}</div>
+                  <td className="px-3 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{job.title}</div>
+                    {/* show company on mobile */}
                     <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
                   </td>
                   <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
@@ -619,7 +643,7 @@ function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }
   );
 }
 
-// Archived jobs panel - already has mobile improvements from original
+// archived jobs panel - shows jobs past their deadline with filter
 function ArchivedJobsPanel({ 
   jobs, 
   loading, 
@@ -643,7 +667,7 @@ function ArchivedJobsPanel({
           <label className="mr-2 font-medium text-sm">Posted by:</label>
           <select value={filter} onChange={(e) => setFilter(e.target.value)} className="p-2 border rounded w-full sm:w-auto">
             <option value="">All Users</option>
-            <option value="faculty">Faculty/Staff Only</option>
+            <option value="faculty">Faculty Only</option>
             <option value="rep">Company Reps Only</option>
           </select>
         </div>
@@ -652,34 +676,35 @@ function ArchivedJobsPanel({
       {loading ? (
         <p>Loading archived jobs...</p>
       ) : jobs.length === 0 ? (
-        <div className="text-center py-8 bg-gray-50 rounded-lg">
-          <p className="text-gray-600">No archived jobs found{filter && ' for selected filter'}.</p>
-        </div>
+        <p className="text-gray-500">No archived jobs found{filter && ' for the selected filter'}.</p>
       ) : (
-        <div className="border border-gray-200 rounded-lg overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Role</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Type</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Role</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Type</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Expired</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Days Ago</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {jobs.map((job) => {
+              {jobs.map(job => {
                 const daysAgo = getDaysSinceExpired(job.deadline);
                 return (
-                  <tr key={job.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-4 text-sm font-medium text-gray-900">
-                      <div>{job.title}</div>
-                      {/* show company and days expired on mobile */}
-                      <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
-                      <div className="text-xs text-gray-400 sm:hidden">Expired {daysAgo} days ago</div>
+                  <tr key={job.id}>
+                    <td className="px-3 py-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {job.title}
+                      </div>
+                      {/* mobile: show company and days */}
+                      <div className="text-xs text-gray-500 sm:hidden">
+                        {job.company} • {daysAgo} days ago
+                      </div>
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">
                       {job.company}
@@ -687,16 +712,16 @@ function ArchivedJobsPanel({
                     <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
                       {job.creator_name}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden lg:table-cell">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        job.role === 'faculty' || job.role === 'staff' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-green-100 text-green-800'
+                    <td className="px-3 py-4 hidden lg:table-cell text-center">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        job.role === 'faculty' ? 'bg-blue-100 text-blue-800' :
+                        job.role === 'rep' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
                       }`}>
-                        {job.role}
+                        {job.role === 'faculty' ? 'Faculty' : job.role === 'rep' ? 'Rep' : 'Unknown'}
                       </span>
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden xl:table-cell">
                       {job.job_type || 'N/A'}
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
@@ -797,34 +822,185 @@ function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: ()
   );
 }
 
-// Create admin modal component
-function CreateAdminModal({ onClose, onSubmit }: { onClose: () => void, onSubmit: (e: React.FormEvent<HTMLFormElement>) => void }) {
+// create admin modal component with password visibility toggle
+function CreateAdminModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    // validate password length
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // call the correct api endpoint
+      const response = await fetch('/api/admin/create-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Admin account created successfully!');
+        onSuccess();
+      } else {
+        setError(data.error || 'Failed to create admin account.');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // eye icon components for showing/hiding passwords
+  const EyeIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  );
+
+  const EyeOffIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    </svg>
+  );
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 sm:p-8 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4">Create New Admin User</h2>
-        <form onSubmit={onSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-              <input type="email" name="email" id="email" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-              <input type="password" name="password" id="password" required minLength={8} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-            </div>
-            <div>
-              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
-              <input type="text" name="first_name" id="first_name" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-            </div>
-            <div>
-              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
-              <input type="text" name="last_name" id="last_name" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-red-800">Create New Admin User</h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* first name and last name side by side */}
+          <div className="flex gap-4">
+            <input
+              name="firstName"
+              type="text"
+              placeholder="First Name"
+              value={formData.firstName}
+              onChange={handleChange}
+              required
+              className="w-full border p-2 rounded"
+            />
+            <input
+              name="lastName"
+              type="text"
+              placeholder="Last Name"
+              value={formData.lastName}
+              onChange={handleChange}
+              required
+              className="w-full border p-2 rounded"
+            />
           </div>
-          <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
-            <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
-            <button type="submit" className="w-full sm:w-auto px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800">Create Admin</button>
+          
+          {/* email field */}
+          <input
+            name="email"
+            type="email"
+            placeholder="Email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full border p-2 rounded"
+          />
+          
+          {/* password field with visibility toggle */}
+          <div className="relative">
+            <input
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full border p-2 rounded pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 px-3 flex items-center"
+              aria-label="Toggle password visibility"
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+          
+          {/* confirm password field with visibility toggle */}
+          <div className="relative">
+            <input
+              name="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Confirm Password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              className="w-full border p-2 rounded pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute inset-y-0 right-0 px-3 flex items-center"
+              aria-label="Toggle confirm password visibility"
+            >
+              {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </div>
+
+          {/* error message display */}
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+
+          {/* buttons */}
+          <div className="flex justify-end space-x-4 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 disabled:bg-gray-400"
+            >
+              {loading ? 'Creating...' : 'Create Admin'}
+            </button>
           </div>
         </form>
       </div>
