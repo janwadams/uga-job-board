@@ -160,7 +160,8 @@ export default function AdminDashboard() {
         const response = await fetch('/api/admin/delete-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.user_id })
+          body: JSON.stringify({ userToDelete: user })
+		  
         });
 
         if (response.ok) {
