@@ -95,9 +95,9 @@ export default function LoginPage() {
   };
 
   return (
-    // changed max-w-md to max-w-lg to make the login box wider so text doesn't get cut off
-    // max-w-lg = 512px instead of 448px, giving more room for the placeholder text
-    <div className="max-w-lg mx-auto mt-20 p-8 border rounded shadow bg-white">
+    // changed to max-w-xl to make the login box even wider so full placeholder text shows
+    // max-w-xl = 576px which gives plenty of room for the full email placeholder
+    <div className="max-w-xl mx-auto mt-20 p-8 border rounded shadow bg-white">
       <h1 className="text-2xl font-bold mb-6 text-center text-red-700">UGA Job Board Login</h1>
 
       <form onSubmit={handleLogin} className="space-y-4">
