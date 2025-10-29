@@ -95,33 +95,35 @@ export default function LoginPage() {
   };
 
   return (
-    // changed to max-w-xl to make the login box even wider so full placeholder text shows
-    // max-w-xl = 576px which gives plenty of room for the full email placeholder
-    <div className="max-w-xl mx-auto mt-20 p-8 border rounded shadow bg-white">
-      <h1 className="text-2xl font-bold mb-6 text-center text-red-700">UGA Job Board Login</h1>
+    // made the login box much wider - max-w-2xl = 672px (was 448px before)
+    // also increased padding from p-8 to p-10 to make the whole box bigger
+    <div className="max-w-2xl mx-auto mt-20 p-10 border rounded shadow bg-white">
+      {/* made the title bigger - changed from text-2xl to text-3xl */}
+      <h1 className="text-3xl font-bold mb-8 text-center text-red-700">UGA Job Board Login</h1>
 
-      <form onSubmit={handleLogin} className="space-y-4">
-        {/* increased padding to p-3 to make input fields taller and more spacious */}
+      {/* increased spacing between form elements from space-y-4 to space-y-6 */}
+      <form onSubmit={handleLogin} className="space-y-6">
+        {/* increased padding to p-4 and text size to text-lg to make input field much bigger */}
         <input
           type="email"
           placeholder="Email (e.g., student@demo.edu)"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full border p-3 rounded text-base"
+          className="w-full border p-4 rounded text-lg"
         />
 
         {/* password input container with toggle button */}
         <div style={{ position: 'relative', width: '100%' }}>
-          {/* increased padding to p-3 to make password field taller and match email field */}
+          {/* increased padding to p-4 and text size to text-lg to make password field much bigger */}
           <input
             type={showPassword ? 'text' : 'password'}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full border p-3 rounded text-base"
-            style={{ paddingRight: '45px' }}  // make room for the eye icon on the right
+            className="w-full border p-4 rounded text-lg"
+            style={{ paddingRight: '50px' }}  // increased space for the eye icon
           />
           <button
             type="button"
@@ -129,10 +131,10 @@ export default function LoginPage() {
             onClick={() => setShowPassword(!showPassword)}
             style={{
               position: 'absolute',
-              right: '8px',  // position from the right edge
-              left: 'auto',  // explicitly unset left positioning
-              top: '50%',  // center vertically
-              transform: 'translateY(-50%)',  // center vertically
+              right: '12px',  // moved further from edge since input is bigger
+              left: 'auto',
+              top: '50%',
+              transform: 'translateY(-50%)',
               background: 'none',
               border: 'none',
               padding: '4px',
@@ -140,7 +142,7 @@ export default function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 999  // much higher z-index to ensure it stays on top
+              zIndex: 999
             }}
             aria-label="Toggle password visibility"
           >
@@ -150,20 +152,20 @@ export default function LoginPage() {
 
         {errorMsg && <p className="text-red-600 text-sm">{errorMsg}</p>}
 
-        {/* increased padding to py-3 to make login button taller and match input fields */}
+        {/* increased padding to py-4 and text size to text-lg to make button much bigger */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-red-700 hover:bg-red-800 text-white font-semibold py-3 px-4 rounded text-base"
+          className="w-full bg-red-700 hover:bg-red-800 text-white font-semibold py-4 px-4 rounded text-lg"
         >
           {loading ? 'Logging in...' : 'Log In'}
         </button>
       </form>
 
-      {/* forgot password link */}
-      <div className="mt-4 text-center">
+      {/* forgot password link - increased spacing and text size */}
+      <div className="mt-6 text-center">
         <Link href="/forgot-password">
-          <span className="text-sm text-red-600 hover:text-red-800 hover:underline cursor-pointer">
+          <span className="text-base text-red-600 hover:text-red-800 hover:underline cursor-pointer">
             Forgot your password?
           </span>
         </Link>
