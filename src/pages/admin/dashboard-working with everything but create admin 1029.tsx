@@ -1,0 +1,833 @@
+// admin dashboard with mobile-responsive improvements
+// includes all expired jobs from all users
+
+import { useEffect, useState, useMemo } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import Link from 'next/link';
+
+// initialize supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// data types for our users and jobs
+interface AdminUser {
+  user_id: string;
+  role: string;
+  is_active: boolean;
+  email: string | null;
+  last_sign_in_at: string | null;
+  jobs_posted: number;
+  first_name: string;
+  last_name: string;
+  company_name: string | null;
+}
+
+interface Job {
+  id: string;
+  title: string;
+  company: string;
+  status: 'active' | 'pending' | 'removed' | 'rejected' | 'archived';
+  created_at: string;
+  created_by: string;
+  deadline: string;
+  job_type?: string;
+  location?: string;
+  industry?: string;
+  // added after fetching
+  role?: string;
+  email?: string;
+  creator_name?: string;
+}
+
+// main admin dashboard component
+export default function AdminDashboard() {
+  // which tab is active
+  const [activeTab, setActiveTab] = useState<'users' | 'jobs' | 'archived'>('users');
+
+  // data storage
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [archivedJobs, setArchivedJobs] = useState<Job[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [loadingArchived, setLoadingArchived] = useState(true);
+
+  // filter for jobs
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [archivedFilter, setArchivedFilter] = useState<string>(''); // filter for archived tab
+
+  // modals
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+
+  // fetch users from api
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await fetch('/api/admin/list-users');
+      const data = await response.json();
+      if (response.ok) {
+        setUsers(data.users);
+      } else {
+        console.error('Failed to fetch admin users:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // fetch active and pending jobs (actually all non-expired jobs)
+  const fetchJobs = async () => {
+    setLoadingJobs(true);
+    
+    // get today's date to compare
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .gte('deadline', today.toISOString()); // only get non-expired jobs
+
+    if (error) {
+      console.error('Error fetching jobs:', error);
+      setJobs([]);
+    } else if (data) {
+      setJobs(data as Job[]);
+    }
+    setLoadingJobs(false);
+  };
+
+  // fetch archived (expired) jobs
+  const fetchArchivedJobs = async () => {
+    setLoadingArchived(true);
+    
+    // get today's date to compare
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .lt('deadline', today.toISOString()) // only get expired jobs
+      .order('deadline', { ascending: false }); // newest expired first
+
+    if (error) {
+      console.error('Error fetching archived jobs:', error);
+      setArchivedJobs([]);
+    } else if (data) {
+      // mark them as archived for display purposes
+      const archived = data.map(job => ({
+        ...job,
+        status: 'archived' as const
+      }));
+      setArchivedJobs(archived);
+    }
+    setLoadingArchived(false);
+  };
+
+  // load data when component mounts
+  useEffect(() => {
+    fetchUsers();
+    fetchJobs();
+    fetchArchivedJobs();
+  }, []);
+
+  // handle user status toggle
+  const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch('/api/admin/update-user-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, isActive: !currentStatus }),
+      });
+      if (response.ok) fetchUsers();
+      else alert('Failed to update user status.');
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  // handle job status changes
+  const handleJobAction = async (jobId: string, newStatus: Job['status']) => {
+    let rejectionNote = null;
+    if (newStatus === 'rejected') {
+      rejectionNote = prompt("Provide a rejection note (optional):");
+      if (rejectionNote === null) return; // user cancelled
+    }
+
+    try {
+      const response = await fetch('/api/admin/manage-job-posting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, status: newStatus, rejectionNote }),
+      });
+      if (response.ok) {
+        fetchJobs();
+        fetchArchivedJobs(); // refresh both lists
+      } else {
+        alert('Failed to update job status.');
+      }
+    } catch (error) {
+      console.error('Error updating job status:', error);
+    }
+  };
+
+  // reactivate an archived job (admin can extend deadline)
+  const handleReactivateJob = async (jobId: string) => {
+    const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
+    if (!newDeadline) return;
+
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ 
+          deadline: newDeadline,
+          status: 'active' 
+        })
+        .eq('id', jobId);
+
+      if (!error) {
+        alert('Job reactivated successfully!');
+        fetchJobs();
+        fetchArchivedJobs();
+      }
+    } catch (error) {
+      console.error('Error reactivating job:', error);
+      alert('Failed to reactivate job.');
+    }
+  };
+
+  // calculate days since job expired
+  const getDaysSinceExpired = (deadline: string): number => {
+    const deadlineDate = new Date(deadline);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - deadlineDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  // handle saving edited user
+  const handleSaveUser = async (updatedUser: AdminUser) => {
+    try {
+      const response = await fetch('/api/admin/update-user-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser),
+      });
+      
+      if (response.ok) {
+        fetchUsers();
+        setIsModalOpen(false);
+        setEditingUser(null);
+      } else {
+        alert('Failed to update user details.');
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  };
+
+  // handle create admin form submission
+  const handleCreateAdmin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    
+    try {
+      const response = await fetch('/api/admin/create-admin-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.get('email'),
+          password: formData.get('password'),
+          first_name: formData.get('first_name'),
+          last_name: formData.get('last_name'),
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        alert('Admin user created successfully!');
+        setShowCreateAdmin(false);
+        fetchUsers(); // refresh the user list
+        form.reset();
+      } else {
+        alert(data.error || 'Failed to create admin user.');
+      }
+    } catch (error) {
+      console.error('Error creating admin:', error);
+      alert('An error occurred while creating the admin user.');
+    }
+  };
+
+  // prepare filtered jobs with creator info
+  const jobsWithCreatorInfo = useMemo(() => {
+    return jobs.map(job => {
+      const creator = users.find(u => u.user_id === job.created_by);
+      return {
+        ...job,
+        role: creator?.role || 'unknown',
+        email: creator?.email || 'N/A',
+        creator_name: creator ? `${creator.first_name} ${creator.last_name}` : 'Unknown'
+      };
+    });
+  }, [jobs, users]);
+
+  // prepare archived jobs with creator info
+  const archivedWithCreatorInfo = useMemo(() => {
+    return archivedJobs.map(job => {
+      const creator = users.find(u => u.user_id === job.created_by);
+      return {
+        ...job,
+        role: creator?.role || 'unknown',
+        email: creator?.email || 'N/A',
+        creator_name: creator ? `${creator.first_name} ${creator.last_name}` : 'Unknown'
+      };
+    });
+  }, [archivedJobs, users]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-uga-red mb-8">Admin Dashboard</h1>
+
+        {/* IMPROVED: Admin action buttons - properly responsive grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
+          <Link href="/admin/analytics" className="w-full">
+            <button className="w-full px-4 py-3 bg-uga-red text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
+              View Analytics
+            </button>
+          </Link>
+          <Link href="/admin/content-review" className="w-full">
+            <button className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+              Content Review
+            </button>
+          </Link>
+          <Link href="/admin/archive-reports" className="w-full">
+            <button className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors">
+              Archive Reports
+            </button>
+          </Link>
+          <Link href="/admin/platform-effectiveness" className="w-full">
+            <button className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors">
+              Platform Health
+            </button>
+          </Link>
+          <button 
+            onClick={() => setShowCreateAdmin(true)}
+            className="w-full px-4 py-3 bg-green-700 text-white rounded-lg font-medium hover:bg-green-800 transition-colors"
+          >
+            + Create Admin
+          </button>
+        </div>
+
+        {/* Tab Navigation - scrollable on mobile */}
+        <div className="flex space-x-1 mb-6 overflow-x-auto">
+          <button onClick={() => setActiveTab('users')} className={`px-4 py-2 font-medium rounded-t-lg whitespace-nowrap ${activeTab === 'users' ? 'bg-white text-uga-red border-b-2 border-uga-red' : 'bg-gray-100 text-gray-600'}`}>
+            Users ({users.length})
+          </button>
+          <button onClick={() => setActiveTab('jobs')} className={`px-4 py-2 font-medium rounded-t-lg whitespace-nowrap ${activeTab === 'jobs' ? 'bg-white text-uga-red border-b-2 border-uga-red' : 'bg-gray-100 text-gray-600'}`}>
+            Active Jobs ({jobs.length})
+          </button>
+          <button onClick={() => setActiveTab('archived')} className={`px-4 py-2 font-medium rounded-t-lg whitespace-nowrap ${activeTab === 'archived' ? 'bg-white text-uga-red border-b-2 border-uga-red' : 'bg-gray-100 text-gray-600'}`}>
+            Archived ({archivedJobs.length})
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          {activeTab === 'users' && (
+            <UserManagementPanel 
+              users={users} 
+              loading={loadingUsers} 
+              onStatusToggle={handleStatusToggle}
+              onEditUser={(user) => { setEditingUser(user); setIsModalOpen(true); }}
+            />
+          )}
+          {activeTab === 'jobs' && (
+            <JobsPanel 
+              jobs={jobsWithCreatorInfo} 
+              loading={loadingJobs} 
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              onJobAction={handleJobAction}
+            />
+          )}
+          {activeTab === 'archived' && (
+            <ArchivedJobsPanel 
+              jobs={archivedWithCreatorInfo}
+              loading={loadingArchived}
+              filter={archivedFilter}
+              setFilter={setArchivedFilter}
+              onReactivate={handleReactivateJob}
+              getDaysSinceExpired={getDaysSinceExpired}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      {isModalOpen && editingUser && (
+        <EditUserModal 
+          user={editingUser} 
+          onClose={() => { setIsModalOpen(false); setEditingUser(null); }}
+          onSave={handleSaveUser}
+        />
+      )}
+
+      {showCreateAdmin && (
+        <CreateAdminModal 
+          onClose={() => setShowCreateAdmin(false)}
+          onSubmit={handleCreateAdmin}
+        />
+      )}
+    </div>
+  );
+}
+
+// IMPROVED: User Management Panel with mobile card view
+function UserManagementPanel({ users, loading, onStatusToggle, onEditUser }: { 
+  users: AdminUser[], 
+  loading: boolean, 
+  onStatusToggle: (id: string, status: boolean) => void,
+  onEditUser: (user: AdminUser) => void
+}) {
+  // Filter state
+  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [statusFilterLocal, setStatusFilterLocal] = useState<string>('');
+
+  // Apply filters
+  const filteredUsers = users.filter(user => {
+    if (roleFilter && user.role !== roleFilter) return false;
+    if (statusFilterLocal === 'active' && !user.is_active) return false;
+    if (statusFilterLocal === 'inactive' && user.is_active) return false;
+    return true;
+  });
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Manage Users</h2>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <select 
+            value={statusFilterLocal} 
+            onChange={(e) => setStatusFilterLocal(e.target.value)} 
+            className="px-3 py-2 border rounded-lg text-sm"
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <select 
+            value={roleFilter} 
+            onChange={(e) => setRoleFilter(e.target.value)} 
+            className="px-3 py-2 border rounded-lg text-sm"
+          >
+            <option value="">All Roles</option>
+            <option value="student">Students</option>
+            <option value="faculty">Faculty</option>
+           
+            <option value="rep">Company Reps</option>
+            <option value="admin">Admins</option>
+          </select>
+        </div>
+      </div>
+
+      <h3 className="text-lg font-semibold mb-4">All Platform Users</h3>
+
+      {loading ? (
+        <p>Loading users...</p>
+      ) : filteredUsers.length === 0 ? (
+        <p className="text-gray-600">No users found{roleFilter || statusFilterLocal ? ' for selected filters' : ''}.</p>
+      ) : (
+        <>
+          {/* Desktop table view */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NAME</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ROLE</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LAST SIGN IN</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JOBS POSTED</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers.map((user) => (
+                  <tr key={user.user_id}>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{user.first_name} {user.last_name}</div>
+                      <div className="text-xs text-gray-500">{user.email}</div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{user.role}</td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Never'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{user.jobs_posted || 0}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                      <div className="flex gap-2 justify-center">
+                        <button onClick={() => onEditUser(user)} className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">
+                          Edit
+                        </button>
+                        <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-xs ${user.is_active ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'}`}>
+                          {user.is_active ? 'Disable' : 'Enable'}
+                        </button>
+                        <button className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800">
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* IMPROVED: Mobile card view */}
+          <div className="md:hidden space-y-3">
+            {filteredUsers.map((user) => (
+              <div key={user.user_id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="mb-3">
+                  <div className="font-medium text-gray-900">{user.first_name} {user.last_name}</div>
+                  <div className="text-sm text-gray-600">{user.email}</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-gray-500 capitalize">{user.role}</span>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Action buttons - stacked vertically on mobile */}
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => onEditUser(user)} className="w-full px-3 py-2 bg-purple-600 text-white rounded text-sm">
+                    Edit
+                  </button>
+                  <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`w-full px-3 py-2 rounded text-sm ${user.is_active ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
+                    {user.is_active ? 'Disable' : 'Enable'}
+                  </button>
+                  <button className="w-full px-3 py-2 bg-gray-700 text-white rounded text-sm">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Jobs panel remains similar with minor responsive improvements
+function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }: { 
+  jobs: Job[], 
+  loading: boolean, 
+  statusFilter: string, 
+  setStatusFilter: (filter: string) => void,
+  onJobAction: (id: string, status: Job['status']) => void
+}) {
+  // Filter jobs
+  const filteredJobs = jobs.filter(job => !statusFilter || job.status === statusFilter);
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Active Job Postings</h2>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <p>Loading jobs...</p>
+      ) : filteredJobs.length === 0 ? (
+        <p className="text-gray-600">No jobs found{statusFilter ? ' for selected status' : ''}.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Status</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredJobs.map((job) => (
+                <tr key={job.id}>
+                  <td className="px-3 py-4 text-sm">
+                    <div className="font-medium text-gray-900">{job.title}</div>
+                    <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
+                  </td>
+                  <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
+                  <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">{job.creator_name}</td>
+                  <td className="px-3 py-4 hidden lg:table-cell">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      job.status === 'active' ? 'bg-green-100 text-green-800' : 
+                      job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {job.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4 text-center">
+                    <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 sm:justify-center">
+                      {job.status === 'pending' && (
+                        <>
+                          <button onClick={() => onJobAction(job.id, 'active')} className="px-2 py-1 bg-green-600 text-white rounded text-xs">
+                            Approve
+                          </button>
+                          <button onClick={() => onJobAction(job.id, 'rejected')} className="px-2 py-1 bg-red-600 text-white rounded text-xs">
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {job.status === 'active' && (
+                        <button onClick={() => onJobAction(job.id, 'removed')} className="px-2 py-1 bg-red-600 text-white rounded text-xs">
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Archived jobs panel - already has mobile improvements from original
+function ArchivedJobsPanel({ 
+  jobs, 
+  loading, 
+  filter, 
+  setFilter, 
+  onReactivate,
+  getDaysSinceExpired 
+}: { 
+  jobs: Job[], 
+  loading: boolean, 
+  filter: string, 
+  setFilter: (filter: string) => void,
+  onReactivate: (jobId: string) => void,
+  getDaysSinceExpired: (deadline: string) => number
+}) {
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Archived Jobs (Past Deadline)</h2>
+        <div className="w-full sm:w-auto">
+          <label className="mr-2 font-medium text-sm">Posted by:</label>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="p-2 border rounded w-full sm:w-auto">
+            <option value="">All Users</option>
+            <option value="faculty">Faculty/Staff Only</option>
+            <option value="rep">Company Reps Only</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <p>Loading archived jobs...</p>
+      ) : jobs.length === 0 ? (
+        <div className="text-center py-8 bg-gray-50 rounded-lg">
+          <p className="text-gray-600">No archived jobs found{filter && ' for selected filter'}.</p>
+        </div>
+      ) : (
+        <div className="border border-gray-200 rounded-lg overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Role</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Type</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Expired</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Days Ago</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {jobs.map((job) => {
+                const daysAgo = getDaysSinceExpired(job.deadline);
+                return (
+                  <tr key={job.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                      <div>{job.title}</div>
+                      {/* show company and days expired on mobile */}
+                      <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
+                      <div className="text-xs text-gray-400 sm:hidden">Expired {daysAgo} days ago</div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">
+                      {job.company}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
+                      {job.creator_name}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden lg:table-cell">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        job.role === 'faculty' || job.role === 'staff' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {job.role}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
+                      {job.job_type || 'N/A'}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
+                      {new Date(job.deadline).toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-4 text-center hidden sm:table-cell">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        daysAgo <= 7 ? 'bg-yellow-100 text-yellow-800' :
+                        daysAgo <= 30 ? 'bg-orange-100 text-orange-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {daysAgo} {daysAgo === 1 ? 'day' : 'days'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-center text-sm">
+                      {/* mobile: vertical stack to prevent overflow */}
+                      <div className="flex flex-col gap-1 sm:hidden">
+                        <button 
+                          onClick={() => onReactivate(job.id)}
+                          className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                        >
+                          Reactivate
+                        </button>
+                        <Link href={`/admin/view/${job.id}`}>
+                          <button className="w-full px-2 py-1 bg-gray-600 text-white rounded text-xs">
+                            View
+                          </button>
+                        </Link>
+                      </div>
+                      {/* desktop: horizontal row */}
+                      <div className="hidden sm:flex gap-2 justify-center">
+                        <button 
+                          onClick={() => onReactivate(job.id)}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                        >
+                          Reactivate
+                        </button>
+                        <Link href={`/admin/view/${job.id}`}>
+                          <button className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700">
+                            View
+                          </button>
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// component for edit user modal
+function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: () => void, onSave: (user: AdminUser) => void }) {
+  const [formData, setFormData] = useState(user);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+      <div className="bg-white p-6 sm:p-8 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4">Edit User: {user.email}</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
+              <input type="text" name="first_name" id="first_name" value={formData.first_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
+              <input type="text" name="last_name" id="last_name" value={formData.last_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            {user.role === 'rep' && (
+              <div>
+                <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
+                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              </div>
+            )}
+          </div>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
+            <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
+            <button type="submit" className="w-full sm:w-auto px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Create admin modal component
+function CreateAdminModal({ onClose, onSubmit }: { onClose: () => void, onSubmit: (e: React.FormEvent<HTMLFormElement>) => void }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+      <div className="bg-white p-6 sm:p-8 rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4">Create New Admin User</h2>
+        <form onSubmit={onSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <input type="email" name="email" id="email" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <input type="password" name="password" id="password" required minLength={8} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
+              <input type="text" name="first_name" id="first_name" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div>
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
+              <input type="text" name="last_name" id="last_name" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+          </div>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
+            <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
+            <button type="submit" className="w-full sm:w-auto px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800">Create Admin</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
