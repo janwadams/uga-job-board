@@ -153,30 +153,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // handle user deletion
-  const handleDeleteUser = async (user: AdminUser) => {
-    if (window.confirm(`Are you sure you want to delete ${user.email}? This action cannot be undone.`)) {
-      try {
-        const response = await fetch('/api/admin/delete-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.user_id })
-        });
-
-        if (response.ok) {
-          alert('User deleted successfully');
-          fetchUsers();
-        } else {
-          const data = await response.json();
-          alert(data.error || 'Failed to delete user');
-        }
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('An error occurred while deleting the user');
-      }
-    }
-  };
-
   // handle job status changes
   const handleJobAction = async (jobId: string, newStatus: Job['status']) => {
     let rejectionNote = null;
@@ -373,7 +349,6 @@ export default function AdminDashboard() {
               loading={loadingUsers} 
               onStatusToggle={handleStatusToggle}
               onEditUser={(user) => { setEditingUser(user); setIsModalOpen(true); }}
-              onDeleteUser={handleDeleteUser}
             />
           )}
           {activeTab === 'jobs' && (
@@ -418,12 +393,11 @@ export default function AdminDashboard() {
 }
 
 // IMPROVED: User Management Panel with mobile card view
-function UserManagementPanel({ users, loading, onStatusToggle, onEditUser, onDeleteUser }: { 
+function UserManagementPanel({ users, loading, onStatusToggle, onEditUser }: { 
   users: AdminUser[], 
   loading: boolean, 
   onStatusToggle: (id: string, status: boolean) => void,
-  onEditUser: (user: AdminUser) => void,
-  onDeleteUser: (user: AdminUser) => void
+  onEditUser: (user: AdminUser) => void
 }) {
   // Filter state
   const [roleFilter, setRoleFilter] = useState<string>('');
@@ -512,7 +486,7 @@ function UserManagementPanel({ users, loading, onStatusToggle, onEditUser, onDel
                         <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-xs ${user.is_active ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'}`}>
                           {user.is_active ? 'Disable' : 'Enable'}
                         </button>
-                        <button onClick={() => onDeleteUser(user)} className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800">
+                        <button className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800">
                           Delete
                         </button>
                       </div>
@@ -546,7 +520,7 @@ function UserManagementPanel({ users, loading, onStatusToggle, onEditUser, onDel
                   <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`w-full px-3 py-2 rounded text-sm ${user.is_active ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
                     {user.is_active ? 'Disable' : 'Enable'}
                   </button>
-                  <button onClick={() => onDeleteUser(user)} className="w-full px-3 py-2 bg-gray-700 text-white rounded text-sm">
+                  <button className="w-full px-3 py-2 bg-gray-700 text-white rounded text-sm">
                     Delete
                   </button>
                 </div>
