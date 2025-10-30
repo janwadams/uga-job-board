@@ -57,22 +57,15 @@ export default function LoginPage() {
       return;
     }
 
-    // fetch user role and active status from 'user_roles' table
+    // fetch user role from 'user_roles' table
     const { data: userData, error: userError } = await supabase
       .from('user_roles')
-      .select('role, is_active')
+      .select('role')
       .eq('user_id', userId)
       .single();
 
     if (userError || !userData) {
       setErrorMsg('Could not retrieve user role.');
-      setLoading(false);
-      return;
-    }
-
-    // check if the account is active
-    if (!userData.is_active) {
-      setErrorMsg('Your account has been disabled. Please contact an administrator.');
       setLoading(false);
       return;
     }
