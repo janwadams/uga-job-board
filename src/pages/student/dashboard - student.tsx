@@ -1262,18 +1262,6 @@ export default function StudentDashboard() {
                 Edit Profile
               </button>
             </Link>
-			
-			{/* NEW button for account settings */}
-			 <Link href="/profile/settings">
-				<button className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2">
-				  <UserCircleIcon className="h-5 w-5" />
-				  Account Settings
-				</button>
-			 </Link>
-			
-			
-			
-			
           </div>
         </div>
         {/* overview stats cards - removed applications count */}
