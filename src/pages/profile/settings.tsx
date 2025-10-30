@@ -39,10 +39,7 @@ interface ProfileData {
   company_name?: string;
   job_title?: string;
   company_website?: string;
-  // faculty fields
-  department?: string;
-  office_location?: string;
-  office_hours?: string;
+  
 }
 
 export default function ProfileSettings() {
@@ -70,9 +67,7 @@ export default function ProfileSettings() {
     company_name: '',
     job_title: '',
     company_website: '',
-    department: '',
-    office_location: '',
-    office_hours: '',
+ 
   });
 
   // check if user is logged in and load their profile data
@@ -120,9 +115,7 @@ export default function ProfileSettings() {
           company_name: roleData.company_name || '',
           job_title: roleData.job_title || '',
           company_website: roleData.company_website || '',
-          department: roleData.department || '',
-          office_location: roleData.office_location || '',
-          office_hours: roleData.office_hours || '',
+        
         });
 
         setLoading(false);
@@ -503,59 +496,7 @@ export default function ProfileSettings() {
             </div>
           )}
 
-          {/* faculty-specific fields */}
-          {profileData.role === 'faculty' && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <BriefcaseIcon className="h-6 w-6 text-red-700" />
-                <h2 className="text-xl font-bold text-gray-900">Faculty Information</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    department
-                  </label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={profileData.department}
-                    onChange={handleChange}
-                    placeholder="e.g., computer science"
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    office location
-                  </label>
-                  <input
-                    type="text"
-                    name="office_location"
-                    value={profileData.office_location}
-                    onChange={handleChange}
-                    placeholder="e.g., boyd graduate studies 123"
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    office hours
-                  </label>
-                  <textarea
-                    name="office_hours"
-                    value={profileData.office_hours}
-                    onChange={handleChange}
-                    rows={3}
-                    placeholder="e.g., monday & wednesday 2-4pm, or by appointment"
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+          
 
           {/* save button */}
           <div className="flex justify-end gap-4">

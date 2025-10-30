@@ -59,10 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         job_title: profileData.job_title,
         company_website: profileData.company_website,
         company_name: profileData.company_name,
-        // faculty-specific fields
-        department: profileData.department,
-        office_location: profileData.office_location,
-        office_hours: profileData.office_hours,
+      
       })
       .eq('user_id', userId);
 
