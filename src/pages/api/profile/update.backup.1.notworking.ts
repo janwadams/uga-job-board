@@ -1,12 +1,18 @@
-// pages/api/auth/update.ts - api endpoint to update user profile information
+// pages/api/profile/update.ts - api endpoint to update user profile information
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
-// initialize supabase admin client with service role key for all operations
+// initialize supabase admin client with service role key for auth updates
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// initialize regular supabase client for user_roles updates
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -34,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // step 2: update profile data in user_roles table using admin client
-    const { error: profileError } = await supabaseAdmin
+    // step 2: update profile data in user_roles table
+    const { error: profileError } = await supabase
       .from('user_roles')
       .update({
         first_name: profileData.first_name,
@@ -53,6 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         job_title: profileData.job_title,
         company_website: profileData.company_website,
         company_name: profileData.company_name,
+      
       })
       .eq('user_id', userId);
 
