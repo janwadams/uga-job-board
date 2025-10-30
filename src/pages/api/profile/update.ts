@@ -46,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // student-specific fields
         major: profileData.major,
         graduation_year: profileData.graduation_year,
-        gpa: profileData.gpa,
+        gpa: profileData.gpa ? parseFloat(profileData.gpa) : null,
         resume_url: profileData.resume_url,
         linkedin_url: profileData.linkedin_url,
         // rep-specific fields
