@@ -1,4 +1,4 @@
-//src/pages/rep/dashboard.tsx - complete file with link clicks tracking
+//src/pages/rep/dashboard.tsx - complete updated file with link clicks instead of applications
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -6,8 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { 
   CursorArrowRaysIcon,
-  ChartBarIcon,
-  UserCircleIcon
+  ChartBarIcon 
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -159,7 +158,7 @@ export default function RepDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [userRole, setUserRole] = useState<string | null>(null);
   
-  // state for tracking how many times students clicked on job application links
+  // updated state for link clicks count instead of applications
   const [linkClicksCount, setLinkClicksCount] = useState(0);
 
   useEffect(() => {
@@ -191,96 +190,120 @@ export default function RepDashboard() {
   }, [router]);
 
   // function to fetch link clicks count for this rep's jobs
-  const fetchLinkClicks = async (userId: string) => {
-    // get all job ids created by this rep
-    const { data: repJobs, error: jobsError } = await supabase
-      .from('jobs')
-      .select('id')
-      .eq('created_by', userId);
-
-    if (jobsError || !repJobs) {
-      console.error('error fetching rep jobs for link clicks:', jobsError);
-      return;
+  const fetchLinkClicksCount = async () => {
+    if (!session) return;
+    
+    try {
+      const { data: jobs } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('created_by', session.user.id);
+      
+      if (jobs && jobs.length > 0) {
+        const { count } = await supabase
+          .from('job_link_clicks')
+          .select('*', { count: 'exact', head: true })
+          .in('job_id', jobs.map(j => j.id));
+        
+        setLinkClicksCount(count || 0);
+      } else {
+        setLinkClicksCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching link clicks count:', error);
     }
-
-    const jobIds = repJobs.map(job => job.id);
-
-    if (jobIds.length === 0) {
-      setLinkClicksCount(0);
-      return;
-    }
-
-    // count total link clicks for all these jobs
-    const { data: clicks, error: clicksError } = await supabase
-      .from('job_link_clicks')
-      .select('id', { count: 'exact' })
-      .in('job_id', jobIds);
-
-    if (clicksError) {
-      console.error('error fetching link clicks count:', clicksError);
-      return;
-    }
-
-    // set the total count of link clicks
-    setLinkClicksCount(clicks?.length || 0);
   };
 
-  // fetch active jobs (not archived, not fully removed/rejected)
+  // fetch active jobs (not expired, not rejected)
   useEffect(() => {
-    if (!session) return;
-
     const fetchJobs = async () => {
+      if (!session?.user) {
+        setLoading(false);
+        return;
+      }
+      
       const userId = session.user.id;
+      setLoading(true);
 
-      const { data, error } = await supabase
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let query = supabase
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .neq('status', 'archived')
+        .gte('deadline', today.toISOString())
+        .neq('status', 'rejected')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('error fetching jobs:', error);
-      } else {
-        setJobs(data || []);
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
       }
+      
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching jobs:', error);
+        setJobs([]);
+      } else {
+        setJobs(data as Job[] || []);
+      }
+
       setLoading(false);
     };
 
-    fetchJobs();
-  }, [session]);
+    if (session) {
+      fetchJobs();
+      fetchLinkClicksCount(); // fetch link clicks count when session is ready
+    }
+  }, [session, statusFilter]);
 
-  // fetch archived jobs (jobs past their deadline)
+  // fetch archived jobs (expired ones)
   useEffect(() => {
-    if (!session) return;
-
     const fetchArchivedJobs = async () => {
+      if (!session?.user) {
+        setLoadingArchived(false);
+        return;
+      }
+      
       const userId = session.user.id;
+      setLoadingArchived(true);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .eq('status', 'archived')
+        .lt('deadline', today.toISOString())
         .order('deadline', { ascending: false });
 
       if (error) {
-        console.error('error fetching archived jobs:', error);
+        console.error('Error fetching archived jobs:', error);
+        setArchivedJobs([]);
       } else {
-        setArchivedJobs(data || []);
+        setArchivedJobs(data as Job[] || []);
       }
+
       setLoadingArchived(false);
     };
 
-    fetchArchivedJobs();
+    if (session) {
+      fetchArchivedJobs();
+    }
   }, [session]);
 
-  // fetch rejected jobs (jobs that admin rejected)
+  // fetch rejected jobs
   useEffect(() => {
-    if (!session) return;
-
     const fetchRejectedJobs = async () => {
+      if (!session?.user) {
+        setLoadingRejected(false);
+        return;
+      }
+      
       const userId = session.user.id;
+      setLoadingRejected(true);
 
       const { data, error } = await supabase
         .from('jobs')
@@ -290,26 +313,24 @@ export default function RepDashboard() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('error fetching rejected jobs:', error);
+        console.error('Error fetching rejected jobs:', error);
+        setRejectedJobs([]);
       } else {
-        setRejectedJobs(data || []);
+        setRejectedJobs(data as Job[] || []);
       }
+
       setLoadingRejected(false);
     };
 
-    fetchRejectedJobs();
+    if (session) {
+      fetchRejectedJobs();
+    }
   }, [session]);
 
-  // fetch link clicks count when session is available
-  useEffect(() => {
-    if (!session) return;
-    fetchLinkClicks(session.user.id);
-  }, [session]);
-
-  // function to remove a job (change status to removed)
   const handleRemove = async (jobId: string) => {
-    const confirmRemove = confirm('are you sure you want to remove this job posting?');
-    if (!confirmRemove) return;
+    if (!confirm('Are you sure you want to remove this posting? This action is permanent.')) {
+      return;
+    }
 
     const { error } = await supabase
       .from('jobs')
@@ -317,33 +338,64 @@ export default function RepDashboard() {
       .eq('id', jobId);
 
     if (error) {
-      alert('error removing job: ' + error.message);
+      alert('Failed to remove job.');
     } else {
-      alert('job removed successfully');
-      setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, status: 'removed' } : job)));
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === jobId ? { ...job, status: 'removed' as Job['status'] } : job
+        )
+      );
     }
   };
 
-  // function to reactivate an archived job
   const handleReactivate = async (jobId: string) => {
-    router.push(`/rep/reactivate/${jobId}`);
+    const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
+    if (!newDeadline) return;
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(newDeadline)) {
+      alert('Please enter date in YYYY-MM-DD format');
+      return;
+    }
+
+    const selectedDate = new Date(newDeadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (selectedDate <= today) {
+      alert('Please select a future date');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ 
+          deadline: newDeadline,
+          status: 'pending'
+        })
+        .eq('id', jobId);
+
+      if (!error) {
+        alert('Job reactivated successfully! It will need admin approval.');
+        window.location.reload();
+      } else {
+        alert('Failed to reactivate job.');
+      }
+    } catch (error) {
+      console.error('Error reactivating job:', error);
+      alert('An error occurred while reactivating the job.');
+    }
   };
 
-  // function to revise a rejected job
-  const handleRevise = async (jobId: string) => {
+  const handleRevise = (jobId: string) => {
     router.push(`/rep/edit/${jobId}`);
   };
-
-  // filter jobs based on status filter
-  const filteredJobs = useMemo(() => {
-    if (!statusFilter) return jobs;
-    return jobs.filter((job) => job.status === statusFilter);
-  }, [jobs, statusFilter]);
-
-  // calculate metrics for the dashboard cards
-  const totalJobs = jobs.length;
-  const activeJobs = jobs.filter(job => job.status === 'active').length;
-  const pendingJobs = jobs.filter(job => job.status === 'pending').length;
+  
+  const totalJobs = jobs.length + archivedJobs.length + rejectedJobs.length;
+  const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
+  const pendingJobs = useMemo(() => jobs.filter(j => j.status === 'pending').length, [jobs]);
+  const totalArchived = archivedJobs.length;
   const totalRejected = rejectedJobs.length;
 
   if (!session || !userRole) {
@@ -356,23 +408,13 @@ export default function RepDashboard() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-red-800">💼 Rep Dashboard</h1>
           <div className="flex gap-3">
-            {/* button to view analytics page */}
+            {/* Updated buttons - removed applications view */}
             <Link href="/rep/analytics">
               <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
                 <ChartBarIcon className="h-5 w-5" />
                 View Analytics
               </button>
             </Link>
-            
-            {/* button to access profile settings page */}
-            <Link href="/profile/settings">
-              <button className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow-sm flex items-center gap-2">
-                <UserCircleIcon className="h-5 w-5" />
-                Account Settings
-              </button>
-            </Link>
-            
-            {/* button to create a new job posting */}
             <Link href="/rep/create">
               <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
                 + Post a New Job
@@ -381,7 +423,7 @@ export default function RepDashboard() {
           </div>
         </div>
 
-        {/* metrics cards showing job statistics */}
+        {/* metrics cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Total Posted</h3>
@@ -399,7 +441,7 @@ export default function RepDashboard() {
             <h3 className="text-gray-500 font-semibold">Rejected</h3>
             <p className="text-4xl font-bold text-red-600 mt-2">{totalRejected}</p>
           </div>
-          {/* card showing total student engagement via link clicks */}
+          {/* Updated card showing link clicks */}
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 border-l-4 border-l-purple-500">
             <div className="flex items-center justify-between">
               <div>
@@ -412,7 +454,7 @@ export default function RepDashboard() {
           </div>
         </div>
 
-        {/* tabs to switch between active, rejected, and archived jobs */}
+        {/* tabs */}
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button 
@@ -451,7 +493,7 @@ export default function RepDashboard() {
           </nav>
         </div>
 
-        {/* tab content - shows different job lists based on selected tab */}
+        {/* tab content */}
         {activeTab === 'active' ? (
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="flex justify-between items-center mb-6">
