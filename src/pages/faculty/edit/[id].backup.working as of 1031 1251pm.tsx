@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { supabase } from '../../../utils/supabaseClient';
 import Link from 'next/link';
 
+// A predefined list of industries for the dropdown
 const industries = [
   'Technology',
   'Healthcare',
@@ -22,6 +23,7 @@ const industries = [
   'Other',
 ];
 
+// Common skills for quick selection
 const commonSkills = [
   'Communication',
   'Teamwork',
@@ -57,9 +59,10 @@ export default function EditJobPosting() {
     description: '',
     requirements: '',
     deadline: '',
-    apply_method: '',
+    apply_method: '', // Using apply_method to match database
   });
 
+  // Skills as array for better management
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState('');
 
@@ -68,8 +71,10 @@ export default function EditJobPosting() {
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // For rich text description (basic formatting)
   const [descriptionLength, setDescriptionLength] = useState(0);
   
+  // Store original creator to verify ownership
   const [originalCreator, setOriginalCreator] = useState<string | null>(null);
 
   useEffect(() => {
@@ -77,37 +82,38 @@ export default function EditJobPosting() {
 
     const fetchJob = async () => {
       try {
-        // get the user's session and auth token
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // First check if user is authenticated
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
         
-        if (sessionError || !session) {
+        if (userError || !user) {
           router.push('/login');
           return;
         }
 
-        // call our secure api to fetch the job
-        const response = await fetch(`/api/faculty/jobs/${id}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
+        // Fetch the job data
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('id', id)
+          .single();
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          // if api returned an error (like 404 or 403)
-          setError(result.error || 'Job not found.');
+        if (error || !data) {
+          setError('Job not found.');
           setLoading(false);
           return;
         }
 
-        const data = result.job;
-
-        // store the original creator for reference
+        // Store the original creator
         setOriginalCreator(data.created_by);
 
-        // fill in the form with the job's current data
+        // Check if current user is the creator (faculty can only edit their own posts)
+        if (data.created_by !== user.id) {
+          setError('You are not authorized to edit this job posting.');
+          setLoading(false);
+          return;
+        }
+
+        // Populate the form with existing data
         setFormData({
           title: data.title || '',
           company: data.company || '',
@@ -120,20 +126,20 @@ export default function EditJobPosting() {
             ? data.requirements.join('\n') 
             : '',
           deadline: data.deadline || '',
-          apply_method: data.apply_method || '',
+          apply_method: data.apply_method || '', // Using apply_method
         });
 
-        // set the skills that are already selected
+        // Set selected skills
         if (Array.isArray(data.skills)) {
           setSelectedSkills(data.skills);
         }
 
-        // track how long the description is
+        // Set description length
         setDescriptionLength((data.description || '').length);
 
         setLoading(false);
       } catch (err) {
-        console.error('error fetching job:', err);
+        console.error('Error fetching job:', err);
         setError('An error occurred while loading the job.');
         setLoading(false);
       }
@@ -181,7 +187,7 @@ export default function EditJobPosting() {
     setError(null);
     setSuccess(false);
 
-    // make sure all required fields are filled in
+    // Validation
     if (!formData.title || !formData.company || !formData.industry || 
         !formData.job_type || !formData.description || !formData.location || 
         !formData.deadline || !formData.apply_method) {
@@ -190,91 +196,60 @@ export default function EditJobPosting() {
       return;
     }
 
-    // need at least one skill
     if (selectedSkills.length === 0) {
       setError('Please select at least one required skill.');
       setIsSubmitting(false);
       return;
     }
 
-    // description needs to be long enough
     if (formData.description.length < 100) {
       setError('Job description must be at least 100 characters.');
       setIsSubmitting(false);
       return;
     }
 
-    // get the user's auth token
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError || !session) {
-      setError('User not authenticated. Please log in again.');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // split requirements by line breaks into an array
+    // Parse requirements into array (split by newline)
     const requirementsArray = formData.requirements
       .split('\n')
       .map(req => req.trim())
       .filter(Boolean);
 
-    // prepare the updated job data
-    const updatedJob = {
-      title: formData.title,
-      company: formData.company,
-      industry: formData.industry,
-      job_type: formData.job_type,
-      location: formData.location,
-      salary_range: formData.salary_range || null,
-      description: formData.description,
-      requirements: requirementsArray,
-      skills: selectedSkills,
-      deadline: formData.deadline,
-      apply_method: formData.apply_method,
-    };
+    const { error: updateError } = await supabase
+      .from('jobs')
+      .update({
+        title: formData.title,
+        company: formData.company,
+        industry: formData.industry,
+        job_type: formData.job_type,
+        location: formData.location,
+        salary_range: formData.salary_range || null,
+        description: formData.description,
+        requirements: requirementsArray,
+        skills: selectedSkills,
+        deadline: formData.deadline,
+        apply_method: formData.apply_method, // Use correct field name
+        // Don't update created_by or status - keep original values
+      })
+      .eq('id', id);
 
-    try {
-      // call our secure api to update the job
-      const response = await fetch(`/api/faculty/jobs/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(updatedJob)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        // if the api returned an error
-        throw new Error(result.error || 'Failed to update job');
-      }
-
-      // job was updated successfully
+    if (updateError) {
+      console.error('Update error:', updateError);
+      setError('Failed to update job. Please try again.');
+    } else {
       setSuccess(true);
-      
-      // scroll to top so user sees the success message
+      // Scroll to top to show success message
       window.scrollTo(0, 0);
-      
-      // wait 2 seconds then go back to dashboard
       setTimeout(() => {
         router.push('/faculty/dashboard');
       }, 2000);
-
-    } catch (err: any) {
-      console.error('error updating job:', err);
-      setError(err.message || 'Failed to update job. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-red-700"></div>
           <p className="mt-4 text-gray-600">Loading job details...</p>
         </div>
@@ -283,50 +258,50 @@ export default function EditJobPosting() {
   }
 
   if (error && !formData.title) {
+    // Show error if we couldn't load the job
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
-          <p className="text-red-700">{error}</p>
-          <Link href="/faculty/dashboard">
-            <button className="mt-4 px-4 py-2 bg-red-700 text-white rounded hover:bg-red-800">
-              Back to Dashboard
-            </button>
-          </Link>
+      <div className="p-6 max-w-4xl mx-auto">
+        <Link href="/faculty/dashboard">
+          <span className="text-red-700 underline hover:text-red-900 cursor-pointer mb-6 inline-block">
+            ← Back to Faculty Dashboard
+          </span>
+        </Link>
+        <div className="bg-red-50 border border-red-300 text-red-800 p-4 rounded">
+          {error}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Edit Job Posting</h1>
-        <p className="text-gray-600 mt-2">
-          Update the job posting details below
-        </p>
-      </div>
+    <div className="p-6 max-w-4xl mx-auto">
+      <Link href="/faculty/dashboard">
+        <span className="text-red-700 underline hover:text-red-900 cursor-pointer mb-6 inline-block">
+          ← Back to Faculty Dashboard
+        </span>
+      </Link>
+
+      <h1 className="text-3xl font-bold text-red-700 mb-6">Edit Job Posting</h1>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800 font-medium">Error: {error}</p>
+        <div className="bg-red-50 border border-red-300 text-red-800 p-4 rounded mb-4">
+          ⚠️ {error}
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-medium">
-            ✓ Job updated successfully! Redirecting to dashboard...
-          </p>
+        <div className="bg-green-100 text-green-800 p-4 rounded mb-4 border border-green-300">
+          ✅ Job updated successfully! Redirecting to dashboard...
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Job Title <span className="text-red-500">*</span>
               </label>
@@ -343,12 +318,12 @@ export default function EditJobPosting() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Company Name <span className="text-red-500">*</span>
+                Company <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 name="company"
-                placeholder="e.g., Acme Corporation"
+                placeholder="e.g., ABC Corporation"
                 value={formData.company}
                 onChange={handleChange}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-red-500 focus:border-transparent"
@@ -425,6 +400,7 @@ export default function EditJobPosting() {
           </div>
         </div>
 
+        {/* Job Description Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Job Details</h2>
           
@@ -465,12 +441,14 @@ export default function EditJobPosting() {
           </div>
         </div>
 
+        {/* Skills Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Required Skills <span className="text-red-500">*</span>
           </h2>
           
           <div className="space-y-4">
+            {/* Common Skills Grid */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Select from common skills:</p>
               <div className="flex flex-wrap gap-2">
@@ -491,6 +469,7 @@ export default function EditJobPosting() {
               </div>
             </div>
 
+            {/* Add Custom Skill */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Add custom skills:</p>
               <div className="flex gap-2">
@@ -512,6 +491,7 @@ export default function EditJobPosting() {
               </div>
             </div>
 
+            {/* Selected Skills Display */}
             {selectedSkills.length > 0 && (
               <div>
                 <p className="text-sm text-gray-600 mb-2">Selected skills ({selectedSkills.length}):</p>
@@ -537,6 +517,7 @@ export default function EditJobPosting() {
           </div>
         </div>
 
+        {/* Application Details Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Application Details</h2>
           
@@ -575,13 +556,14 @@ export default function EditJobPosting() {
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex items-center gap-4 pt-4">
           <button
             type="submit"
             disabled={isSubmitting}
             className="w-full bg-red-700 text-white px-4 py-3 rounded-lg font-semibold hover:bg-red-800 disabled:bg-gray-400 transition-colors"
           >
-            {isSubmitting ? 'Updating Job...' : 'Update Job Posting'}
+            {isSubmitting ? 'Updating Job...' : 'Update Job'}
           </button>
           <Link href="/faculty/dashboard" className="w-full">
             <button
