@@ -63,11 +63,6 @@ export default function AdminDashboard() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [showCreateAdmin, setShowCreateAdmin] = useState(false);
 
-  // state for faculty posting permission toggle
-  const [facultyCanPost, setFacultyCanPost] = useState(true);
-  const [updatingToggle, setUpdatingToggle] = useState(false);
-  const [toggleMessage, setToggleMessage] = useState('');
-
   // fetch users from api
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -136,89 +131,11 @@ export default function AdminDashboard() {
     setLoadingArchived(false);
   };
 
-  // get the current setting for whether faculty can post jobs or not
-  const fetchFacultyPermission = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('app_settings')
-        .select('setting_value')
-        .eq('setting_key', 'faculty_can_post_jobs')
-        .single();
-
-      if (error) {
-        console.error('error fetching permission:', error);
-        return;
-      }
-
-      if (data) {
-        setFacultyCanPost(data.setting_value);
-      }
-    } catch (error) {
-      console.error('error fetching faculty permission:', error);
-    }
-  };
-
-  // handle when admin clicks the toggle button
-  const handleToggleChange = async () => {
-    setUpdatingToggle(true);
-    setToggleMessage('');
-
-    try {
-      // flip the current setting (true becomes false, false becomes true)
-      const newValue = !facultyCanPost;
-
-      // get the current user's session token so we can prove we're logged in
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        setToggleMessage('not authenticated. please log in again.');
-        setUpdatingToggle(false);
-        return;
-      }
-
-      // call the api endpoint to update the setting
-      const response = await fetch('/api/admin/toggle-posting', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ 
-          settingKey: 'faculty_can_post_jobs',
-          enabled: newValue 
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'failed to update permission');
-      }
-
-      // update what we show on screen
-      setFacultyCanPost(newValue);
-      setToggleMessage(
-        newValue 
-          ? 'faculty members can now post jobs' 
-          : 'faculty members cannot post jobs anymore'
-      );
-
-      // clear the message after 3 seconds
-      setTimeout(() => setToggleMessage(''), 3000);
-    } catch (error) {
-      console.error('error updating permission:', error);
-      setToggleMessage('failed to update permission. please try again.');
-    } finally {
-      setUpdatingToggle(false);
-    }
-  };
-
   // load data when component mounts
   useEffect(() => {
     fetchUsers();
     fetchJobs();
     fetchArchivedJobs();
-    fetchFacultyPermission();
   }, []);
 
   // handle user status toggle
@@ -406,63 +323,6 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-uga-red mb-8">Admin Dashboard</h1>
 
-        {/* toggle control for faculty posting permission */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                faculty job posting permission
-              </h2>
-              <p className="text-sm text-gray-600">
-                {facultyCanPost 
-                  ? 'faculty members can currently post new jobs' 
-                  : 'faculty members cannot post new jobs (button is hidden)'}
-              </p>
-            </div>
-
-            {/* the actual toggle switch button */}
-            <button
-              onClick={handleToggleChange}
-              disabled={updatingToggle}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 flex-shrink-0 ${
-                updatingToggle 
-                  ? 'bg-gray-300 cursor-not-allowed' 
-                  : facultyCanPost 
-                    ? 'bg-green-600' 
-                    : 'bg-gray-400'
-              }`}
-            >
-              {/* the sliding circle part of the toggle */}
-              <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                  facultyCanPost ? 'translate-x-7' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* message that appears after toggle is clicked */}
-          {toggleMessage && (
-            <div className={`mt-4 p-3 rounded ${
-              toggleMessage.includes('failed') || toggleMessage.includes('error')
-                ? 'bg-red-50 text-red-700'
-                : 'bg-green-50 text-green-700'
-            }`}>
-              <p className="text-sm">{toggleMessage}</p>
-            </div>
-          )}
-
-          {/* extra info about what the toggle does */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-xs text-gray-500">
-              <strong>current status:</strong> {facultyCanPost ? 'enabled ✓' : 'disabled ✗'}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              when disabled, the "post a new job" button will be hidden from all faculty dashboards.
-            </p>
-          </div>
-        </div>
-
         {/* IMPROVED: Admin action buttons - properly responsive grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
           <Link href="/admin/analytics" className="w-full">
@@ -644,13 +504,19 @@ function UserManagementPanel({ users, loading, onStatusToggle, onEditUser, onDel
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                       {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Never'}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{user.jobs_posted}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className="text-indigo-600 hover:text-indigo-900 mr-3">
-                        {user.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button onClick={() => onEditUser(user)} className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                      <button onClick={() => onDeleteUser(user)} className="text-red-600 hover:text-red-900">Delete</button>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{user.jobs_posted || 0}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-center">
+                      <div className="flex gap-2 justify-center">
+                        <button onClick={() => onEditUser(user)} className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">
+                          Edit
+                        </button>
+                        <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`px-3 py-1 rounded text-xs ${user.is_active ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'}`}>
+                          {user.is_active ? 'Disable' : 'Enable'}
+                        </button>
+                        <button onClick={() => onDeleteUser(user)} className="px-3 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800">
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -658,30 +524,32 @@ function UserManagementPanel({ users, loading, onStatusToggle, onEditUser, onDel
             </table>
           </div>
 
-          {/* Mobile card view */}
-          <div className="md:hidden space-y-4">
+          {/* IMPROVED: Mobile card view */}
+          <div className="md:hidden space-y-3">
             {filteredUsers.map((user) => (
-              <div key={user.user_id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-semibold text-gray-900">{user.first_name} {user.last_name}</p>
-                    <p className="text-sm text-gray-500">{user.email}</p>
-                    <p className="text-xs text-gray-400 capitalize mt-1">{user.role}</p>
+              <div key={user.user_id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="mb-3">
+                  <div className="font-medium text-gray-900">{user.first_name} {user.last_name}</div>
+                  <div className="text-sm text-gray-600">{user.email}</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-gray-500 capitalize">{user.role}</span>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {user.is_active ? 'Active' : 'Inactive'}
-                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
-                  <div><span className="font-medium">Last Sign In:</span> {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Never'}</div>
-                  <div><span className="font-medium">Jobs Posted:</span> {user.jobs_posted}</div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className="flex-1 px-3 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
-                    {user.is_active ? 'Deactivate' : 'Activate'}
+                
+                {/* Action buttons - stacked vertically on mobile */}
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => onEditUser(user)} className="w-full px-3 py-2 bg-purple-600 text-white rounded text-sm">
+                    Edit
                   </button>
-                  <button onClick={() => onEditUser(user)} className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Edit</button>
-                  <button onClick={() => onDeleteUser(user)} className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700">Delete</button>
+                  <button onClick={() => onStatusToggle(user.user_id, user.is_active)} className={`w-full px-3 py-2 rounded text-sm ${user.is_active ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
+                    {user.is_active ? 'Disable' : 'Enable'}
+                  </button>
+                  <button onClick={() => onDeleteUser(user)} className="w-full px-3 py-2 bg-gray-700 text-white rounded text-sm">
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
@@ -692,253 +560,233 @@ function UserManagementPanel({ users, loading, onStatusToggle, onEditUser, onDel
   );
 }
 
-// Jobs Panel Component
-function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }: {
-  jobs: Job[],
-  loading: boolean,
-  statusFilter: string,
+// Jobs panel remains similar with minor responsive improvements
+function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }: { 
+  jobs: Job[], 
+  loading: boolean, 
+  statusFilter: string, 
   setStatusFilter: (filter: string) => void,
-  onJobAction: (jobId: string, status: Job['status']) => void
+  onJobAction: (id: string, status: Job['status']) => void
 }) {
-  // Apply filter
-  const filteredJobs = statusFilter ? jobs.filter(job => job.status === statusFilter) : jobs;
+  // Filter jobs
+  const filteredJobs = jobs.filter(job => !statusFilter || job.status === statusFilter);
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Manage Jobs</h2>
-        <select 
-          value={statusFilter} 
-          onChange={(e) => setStatusFilter(e.target.value)} 
-          className="px-3 py-2 border rounded-lg text-sm"
-        >
-          <option value="">All Statuses</option>
-          <option value="pending">Pending Approval</option>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Active Job Postings</h2>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-sm">
+          <option value="">All Status</option>
           <option value="active">Active</option>
+          <option value="pending">Pending</option>
           <option value="rejected">Rejected</option>
-          <option value="removed">Removed</option>
         </select>
       </div>
 
       {loading ? (
         <p>Loading jobs...</p>
       ) : filteredJobs.length === 0 ? (
-        <p className="text-gray-600">No jobs found{statusFilter ? ' for this status' : ''}.</p>
+        <p className="text-gray-600">No jobs found{statusFilter ? ' for selected status' : ''}.</p>
       ) : (
-        <>
-          {/* Desktop table view */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JOB TITLE</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">COMPANY</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POSTED BY</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DEADLINE</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredJobs.map((job) => (
-                  <tr key={job.id}>
-                    <td className="px-4 py-4">
-                      <Link href={`/admin/view/${job.id}`} className="text-blue-600 hover:underline">
-                        <div className="text-sm font-medium">{job.title}</div>
-                      </Link>
-                      <div className="text-xs text-gray-500">{job.job_type}</div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{job.company}</td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{job.creator_name}</div>
-                      <div className="text-xs text-gray-500 capitalize">{job.role}</div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        job.status === 'active' ? 'bg-green-100 text-green-800' :
-                        job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        job.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(job.deadline).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Status</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredJobs.map((job) => (
+                <tr key={job.id}>
+                  <td className="px-3 py-4 text-sm">
+                    <div className="font-medium text-gray-900">{job.title}</div>
+                    <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
+                  </td>
+                  <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
+                  <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">{job.creator_name}</td>
+                  <td className="px-3 py-4 hidden lg:table-cell">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      job.status === 'active' ? 'bg-green-100 text-green-800' : 
+                      job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {job.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4 text-center">
+                    <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 sm:justify-center">
                       {job.status === 'pending' && (
                         <>
-                          <button onClick={() => onJobAction(job.id, 'active')} className="text-green-600 hover:text-green-900 mr-3">Approve</button>
-                          <button onClick={() => onJobAction(job.id, 'rejected')} className="text-red-600 hover:text-red-900">Reject</button>
+                          <button onClick={() => onJobAction(job.id, 'active')} className="px-2 py-1 bg-green-600 text-white rounded text-xs">
+                            Approve
+                          </button>
+                          <button onClick={() => onJobAction(job.id, 'rejected')} className="px-2 py-1 bg-red-600 text-white rounded text-xs">
+                            Reject
+                          </button>
                         </>
                       )}
                       {job.status === 'active' && (
-                        <button onClick={() => onJobAction(job.id, 'removed')} className="text-red-600 hover:text-red-900">Remove</button>
+                        <button onClick={() => onJobAction(job.id, 'removed')} className="px-2 py-1 bg-red-600 text-white rounded text-xs">
+                          Remove
+                        </button>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile card view */}
-          <div className="md:hidden space-y-4">
-            {filteredJobs.map((job) => (
-              <div key={job.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <Link href={`/admin/view/${job.id}`} className="text-blue-600 hover:underline">
-                  <h3 className="font-semibold text-gray-900 mb-1">{job.title}</h3>
-                </Link>
-                <p className="text-sm text-gray-600 mb-2">{job.company}</p>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-xs text-gray-500">
-                    <div>Posted by: {job.creator_name}</div>
-                    <div className="capitalize">{job.role}</div>
-                  </div>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    job.status === 'active' ? 'bg-green-100 text-green-800' :
-                    job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    job.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
-                  </span>
-                </div>
-                <div className="text-xs text-gray-500 mb-3">
-                  Deadline: {new Date(job.deadline).toLocaleDateString()}
-                </div>
-                {job.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <button onClick={() => onJobAction(job.id, 'active')} className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700">Approve</button>
-                    <button onClick={() => onJobAction(job.id, 'rejected')} className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700">Reject</button>
-                  </div>
-                )}
-                {job.status === 'active' && (
-                  <button onClick={() => onJobAction(job.id, 'removed')} className="w-full px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700">Remove</button>
-                )}
-              </div>
-            ))}
-          </div>
-        </>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
 }
 
-// Archived Jobs Panel Component
-function ArchivedJobsPanel({ jobs, loading, filter, setFilter, onReactivate, getDaysSinceExpired }: {
-  jobs: Job[],
-  loading: boolean,
-  filter: string,
+// Archived jobs panel - already has mobile improvements from original
+function ArchivedJobsPanel({ 
+  jobs, 
+  loading, 
+  filter, 
+  setFilter, 
+  onReactivate,
+  getDaysSinceExpired 
+}: { 
+  jobs: Job[], 
+  loading: boolean, 
+  filter: string, 
   setFilter: (filter: string) => void,
   onReactivate: (jobId: string) => void,
   getDaysSinceExpired: (deadline: string) => number
 }) {
-  // Apply filter
-  const filteredJobs = filter ? jobs.filter(job => job.status === filter) : jobs;
-
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Archived Jobs</h2>
-        <select 
-          value={filter} 
-          onChange={(e) => setFilter(e.target.value)} 
-          className="px-3 py-2 border rounded-lg text-sm"
-        >
-          <option value="">All Archived</option>
-          <option value="rejected">Rejected</option>
-          <option value="removed">Removed</option>
-        </select>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-700">Archived Jobs (Past Deadline)</h2>
+        <div className="w-full sm:w-auto">
+          <label className="mr-2 font-medium text-sm">Posted by:</label>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="p-2 border rounded w-full sm:w-auto">
+            <option value="">All Users</option>
+            <option value="faculty">Faculty/Staff Only</option>
+            <option value="rep">Company Reps Only</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
         <p>Loading archived jobs...</p>
-      ) : filteredJobs.length === 0 ? (
-        <p className="text-gray-600">No archived jobs found{filter ? ' for this filter' : ''}.</p>
+      ) : jobs.length === 0 ? (
+        <div className="text-center py-8 bg-gray-50 rounded-lg">
+          <p className="text-gray-600">No archived jobs found{filter && ' for selected filter'}.</p>
+        </div>
       ) : (
-        <>
-          {/* Desktop table view */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JOB TITLE</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">COMPANY</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POSTED BY</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EXPIRED</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredJobs.map((job) => {
-                  const daysExpired = getDaysSinceExpired(job.deadline);
-                  return (
-                    <tr key={job.id}>
-                      <td className="px-4 py-4">
-                        <Link href={`/admin/view/${job.id}`} className="text-blue-600 hover:underline">
-                          <div className="text-sm font-medium">{job.title}</div>
+        <div className="border border-gray-200 rounded-lg overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Role</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Type</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Expired</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Days Ago</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {jobs.map((job) => {
+                const daysAgo = getDaysSinceExpired(job.deadline);
+                return (
+                  <tr key={job.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-4 text-sm font-medium text-gray-900">
+                      <div>{job.title}</div>
+                      {/* show company and days expired on mobile */}
+                      <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
+                      <div className="text-xs text-gray-400 sm:hidden">Expired {daysAgo} days ago</div>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">
+                      {job.company}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
+                      {job.creator_name}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden lg:table-cell">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        job.role === 'faculty' || job.role === 'staff' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {job.role}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
+                      {job.job_type || 'N/A'}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
+                      {new Date(job.deadline).toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-4 text-center hidden sm:table-cell">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        daysAgo <= 7 ? 'bg-yellow-100 text-yellow-800' :
+                        daysAgo <= 30 ? 'bg-orange-100 text-orange-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {daysAgo} {daysAgo === 1 ? 'day' : 'days'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4 text-center text-sm">
+                      {/* mobile: vertical stack to prevent overflow */}
+                      <div className="flex flex-col gap-1 sm:hidden">
+                        <button 
+                          onClick={() => onReactivate(job.id)}
+                          className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                        >
+                          Reactivate
+                        </button>
+                        <Link href={`/admin/view/${job.id}`}>
+                          <button className="w-full px-2 py-1 bg-gray-600 text-white rounded text-xs">
+                            View
+                          </button>
                         </Link>
-                        <div className="text-xs text-gray-500">{job.job_type}</div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{job.company}</td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{job.creator_name}</div>
-                        <div className="text-xs text-gray-500 capitalize">{job.role}</div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {daysExpired} day{daysExpired !== 1 ? 's' : ''} ago
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <button onClick={() => onReactivate(job.id)} className="text-blue-600 hover:text-blue-900 mr-3">Reactivate</button>
-                        <Link href={`/admin/view/${job.id}`} className="text-gray-600 hover:text-gray-900">View</Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile card view */}
-          <div className="md:hidden space-y-4">
-            {filteredJobs.map((job) => {
-              const daysExpired = getDaysSinceExpired(job.deadline);
-              return (
-                <div key={job.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <Link href={`/admin/view/${job.id}`} className="text-blue-600 hover:underline">
-                    <h3 className="font-semibold text-gray-900 mb-1">{job.title}</h3>
-                  </Link>
-                  <p className="text-sm text-gray-600 mb-2">{job.company}</p>
-                  <div className="text-xs text-gray-500 mb-3">
-                    <div>Posted by: {job.creator_name}</div>
-                    <div className="capitalize">{job.role}</div>
-                    <div className="mt-1">Expired {daysExpired} day{daysExpired !== 1 ? 's' : ''} ago</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => onReactivate(job.id)} className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">Reactivate</button>
-                    <Link href={`/admin/view/${job.id}`} className="flex-1">
-                      <button className="w-full px-3 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700">View</button>
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
+                      </div>
+                      {/* desktop: horizontal row */}
+                      <div className="hidden sm:flex gap-2 justify-center">
+                        <button 
+                          onClick={() => onReactivate(job.id)}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                        >
+                          Reactivate
+                        </button>
+                        <Link href={`/admin/view/${job.id}`}>
+                          <button className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700">
+                            View
+                          </button>
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
 }
 
-// Edit User Modal
-function EditUserModal({ user, onClose, onSave }: { 
-  user: AdminUser, 
-  onClose: () => void, 
-  onSave: (user: AdminUser) => void 
-}) {
-  const [formData, setFormData] = useState<AdminUser>(user);
+// component for edit user modal
+function EditUserModal({ user, onClose, onSave }: { user: AdminUser, onClose: () => void, onSave: (user: AdminUser) => void }) {
+  const [formData, setFormData] = useState(user);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -952,38 +800,23 @@ function EditUserModal({ user, onClose, onSave }: {
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">First Name</label>
-              <input 
-                type="text" 
-                value={formData.first_name} 
-                onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
+              <input type="text" name="first_name" id="first_name" value={formData.first_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Last Name</label>
-              <input 
-                type="text" 
-                value={formData.last_name} 
-                onChange={(e) => setFormData({...formData, last_name: e.target.value})}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
+              <input type="text" name="last_name" id="last_name" value={formData.last_name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
-            {formData.role === 'rep' && (
+            {user.role === 'rep' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Company Name</label>
-                <input 
-                  type="text" 
-                  value={formData.company_name || ''} 
-                  onChange={(e) => setFormData({...formData, company_name: e.target.value})}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                />
+                <label htmlFor="company_name" className="block text-sm font-medium text-gray-700">Company Name</label>
+                <input type="text" name="company_name" id="company_name" value={formData.company_name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
             )}
           </div>
           <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
             <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
-            <button type="submit" className="w-full sm:w-auto px-4 py-2 bg-uga-red text-white rounded-md hover:bg-red-700">Save Changes</button>
+            <button type="submit" className="w-full sm:w-auto px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800">Save Changes</button>
           </div>
         </form>
       </div>
@@ -991,11 +824,8 @@ function EditUserModal({ user, onClose, onSave }: {
   );
 }
 
-// Create Admin Modal  
-function CreateAdminModal({ onClose, onSubmit }: { 
-  onClose: () => void, 
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void 
-}) {
+// create admin modal component with password visibility toggle  
+function CreateAdminModal({ onClose, onSubmit }: { onClose: () => void, onSubmit: (e: React.FormEvent<HTMLFormElement>) => void }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -1019,23 +849,27 @@ function CreateAdminModal({ onClose, onSubmit }: {
         <h2 className="text-xl sm:text-2xl font-bold mb-4">Create New Admin User</h2>
         <form onSubmit={onSubmit}>
           <div className="space-y-4">
+            {/* first name and last name fields come first */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">First Name</label>
-              <input type="text" name="first_name" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">First Name</label>
+              <input type="text" name="first_name" id="first_name" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Last Name</label>
-              <input type="text" name="last_name" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Last Name</label>
+              <input type="text" name="last_name" id="last_name" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
+            {/* then email field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input type="email" name="email" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <input type="email" name="email" id="email" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
             </div>
+            {/* password field with visibility toggle */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
               <input 
                 type={showPassword ? 'text' : 'password'} 
                 name="password" 
+                id="password" 
                 required 
                 minLength={8} 
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 pr-10" 
@@ -1044,15 +878,18 @@ function CreateAdminModal({ onClose, onSubmit }: {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 px-3 flex items-center top-6"
+                aria-label="Toggle password visibility"
               >
                 {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
+            {/* confirm password field with visibility toggle */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
+              <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700">Confirm Password</label>
               <input 
                 type={showConfirmPassword ? 'text' : 'password'} 
                 name="confirm_password" 
+                id="confirm_password" 
                 required 
                 minLength={8} 
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 pr-10" 
@@ -1061,6 +898,7 @@ function CreateAdminModal({ onClose, onSubmit }: {
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute inset-y-0 right-0 px-3 flex items-center top-6"
+                aria-label="Toggle confirm password visibility"
               >
                 {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
