@@ -140,9 +140,9 @@ export default function AdminDashboard() {
   const fetchFacultyPermission = async () => {
     try {
       const { data, error } = await supabase
-        .from('role_permissions')
-        .select('can_post_jobs')
-        .eq('role', 'faculty')
+        .from('app_settings')
+        .select('setting_value')
+        .eq('setting_key', 'faculty_can_post_jobs')
         .single();
 
       if (error) {
@@ -151,7 +151,7 @@ export default function AdminDashboard() {
       }
 
       if (data) {
-        setFacultyCanPost(data.can_post_jobs);
+        setFacultyCanPost(data.setting_value);
       }
     } catch (error) {
       console.error('error fetching faculty permission:', error);
@@ -167,16 +167,21 @@ export default function AdminDashboard() {
       // flip the current setting (true becomes false, false becomes true)
       const newValue = !facultyCanPost;
 
-      // update the database with the new setting
-      const { error } = await supabase
-        .from('role_permissions')
-        .update({ 
-          can_post_jobs: newValue,
-          updated_at: new Date().toISOString()
-        })
-        .eq('role', 'faculty');
+      // call the api endpoint to update the setting
+      const response = await fetch('/api/admin/toggle-posting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          settingKey: 'faculty_can_post_jobs',
+          enabled: newValue 
+        }),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'failed to update permission');
+      }
 
       // update what we show on screen
       setFacultyCanPost(newValue);
