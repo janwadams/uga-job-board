@@ -35,7 +35,7 @@ export default function ViewJobPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [isExpired, setIsExpired] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
@@ -74,40 +74,28 @@ export default function ViewJobPage() {
 
   const fetchJobDetails = async (jobId: string) => {
     try {
-      setLoading(true);
-      setError(null);
+      // fetch job details
+      const { data: jobData, error: jobError } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
 
-      // get the access token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('Not authenticated');
-        return;
-      }
-
-      const response = await fetch(`/api/faculty/jobs/${jobId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to fetch job details');
-        return;
-      }
-
-      setJob(data.job);
+      if (jobError) throw jobError;
+      
+      setJob(jobData);
 
       // check if job is expired
-      const deadline = new Date(data.job.deadline);
+      const deadline = new Date(jobData.deadline);
       const today = new Date();
       setIsExpired(deadline < today);
 
+      // check if current user owns this job
+      if (session) {
+        setIsOwner(jobData.created_by === session.user.id);
+      }
     } catch (error) {
       console.error('Error fetching job details:', error);
-      setError('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -135,37 +123,22 @@ export default function ViewJobPage() {
     }
 
     try {
-      // get the access token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        alert('Not authenticated');
-        return;
-      }
-
-      const response = await fetch(`/api/faculty/jobs/${job.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from('jobs')
+        .update({ 
           deadline: newDeadline,
-          status: 'active'
-        }),
-      });
+          status: 'active' 
+        })
+        .eq('id', job.id);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.error || 'Failed to reactivate job');
-        return;
+      if (!error) {
+        alert('Job reactivated successfully!');
+        router.push('/faculty/dashboard');
+      } else {
+        alert('Failed to reactivate job.');
       }
-
-      alert('Job reactivated successfully!');
-      router.push('/faculty/dashboard');
     } catch (error) {
       console.error('Error reactivating job:', error);
-      alert('An unexpected error occurred');
     }
   };
 
@@ -173,32 +146,19 @@ export default function ViewJobPage() {
     if (!job || !window.confirm('Are you sure you want to permanently delete this job posting? This action cannot be undone.')) return;
 
     try {
-      // get the access token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        alert('Not authenticated');
-        return;
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', job.id);
+
+      if (!error) {
+        alert('Job deleted successfully!');
+        router.push('/faculty/dashboard');
+      } else {
+        alert('Failed to delete job.');
       }
-
-      const response = await fetch(`/api/faculty/jobs/${job.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.error || 'Failed to delete job');
-        return;
-      }
-
-      alert('Job deleted successfully!');
-      router.push('/faculty/dashboard');
     } catch (error) {
       console.error('Error deleting job:', error);
-      alert('An unexpected error occurred');
     }
   };
 
@@ -226,10 +186,10 @@ export default function ViewJobPage() {
     );
   }
 
-  if (error) {
+  if (!job) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen">
-        <div className="text-lg mb-4">{error}</div>
+        <div className="text-lg mb-4">Job not found</div>
         <Link href="/faculty/dashboard">
           <button className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-800">
             Back to Dashboard
@@ -239,10 +199,11 @@ export default function ViewJobPage() {
     );
   }
 
-  if (!job) {
+  // check if user owns this job
+  if (!isOwner) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen">
-        <div className="text-lg mb-4">Job not found</div>
+        <div className="text-lg mb-4">You don't have permission to view this job</div>
         <Link href="/faculty/dashboard">
           <button className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-800">
             Back to Dashboard
