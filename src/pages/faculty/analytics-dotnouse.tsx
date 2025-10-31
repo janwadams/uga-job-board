@@ -1,5 +1,5 @@
 // /pages/faculty/analytics.tsx
-// updated analytics dashboard for faculty to track job posting engagement (link clicks instead of applications)
+// analytics dashboard for faculty to track job posting engagement with link clicks and views
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -13,20 +13,20 @@ const supabase = createClient(
 
 interface AnalyticsOverview {
   totalJobs: number;
-  totalLinkClicks: number; // changed from totalApplications
-  averageClicksPerJob: string; // changed from averageApplicationsPerJob
+  totalLinkClicks: number;
+  averageClicksPerJob: string;
   totalViews: number;
-  engagementRate: string; // changed from conversionRate
+  engagementRate: string;
   activeJobs: number;
   expiredJobs: number;
-  averageDaysToClick: string; // changed from averageDaysToApply
-  clickThroughRate: string; // changed from studentSuccessRate
+  averageDaysToClick: string;
+  clickThroughRate: string;
   engagementScore: string;
 }
 
 interface TrendData {
   date: string;
-  clicks: number; // changed from applications
+  clicks: number;
   views: number;
   postings: number;
 }
@@ -35,17 +35,17 @@ interface JobTypeData {
   name: string;
   value: number;
   percentage: string;
-  clicks: number; // changed from applications
-  avgClicksPerJob: string; // changed from avgApplicationsPerJob
+  clicks: number;
+  avgClicksPerJob: string;
 }
 
 interface TopJob {
   id: string;
   title: string;
   company: string;
-  clicks: number; // changed from applications
+  clicks: number;
   views: number;
-  engagementRate: string; // changed from conversionRate
+  engagementRate: string;
   status: string;
   daysActive: number;
   deadline: string;
@@ -54,17 +54,17 @@ interface TopJob {
 interface SkillDemand {
   skill: string;
   count: number;
-  clicks: number; // changed from applications
-  avgClicksPerJob: string; // changed from avgApplicationsPerJob
-  engagementRate: string; // changed from hireRate
+  clicks: number;
+  avgClicksPerJob: string;
+  engagementRate: string;
 }
 
 interface IndustryData {
   industry: string;
-  clicks: number; // changed from applications
+  clicks: number;
   jobs: number;
   avgPerJob: string;
-  engagementRate: string; // changed from successRate
+  engagementRate: string;
 }
 
 interface StatusBreakdown {
@@ -90,9 +90,9 @@ interface DepartmentComparison {
 
 interface TimePattern {
   dayOfWeek: string;
-  clicks: number; // changed from applications
+  clicks: number;
   views: number;
-  engagementRate: string; // changed from conversionRate
+  engagementRate: string;
 }
 
 export default function FacultyAnalytics() {
@@ -146,7 +146,7 @@ export default function FacultyAnalytics() {
 
     const { data: userData } = await supabase
       .from('user_roles')
-      .select('role, first_name, last_name')
+      .select('role')
       .eq('user_id', session.user.id)
       .single();
 
@@ -156,8 +156,7 @@ export default function FacultyAnalytics() {
     }
 
     setSession(session);
-    setFacultyName(`${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Faculty Member');
-    setDepartment('Computer Science'); // placeholder
+    setDepartment('computer science');
   };
 
   const fetchAnalyticsData = async () => {
@@ -165,47 +164,70 @@ export default function FacultyAnalytics() {
     
     setLoading(true);
     try {
-      const userId = session.user.id;
-      
-      // fetch all jobs with link clicks and views
-      const { data: jobs, error: jobsError } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          job_link_clicks (
-            id,
-            clicked_at,
-            user_id
-          ),
-          job_views (
-            id,
-            created_at,
-            user_id
-          )
-        `)
-        .eq('created_by', userId);
+      // get current session token
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) return;
 
-      if (jobsError) throw jobsError;
+      // fetch detailed analytics data from api
+      const response = await fetch(`/api/faculty/analytics-detailed?days=${dateRange}`, {
+        headers: {
+          'Authorization': `Bearer ${currentSession.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('error fetching analytics:', data.error);
+        return;
+      }
+
+      // set faculty name from api response
+      setFacultyName(data.facultyName);
+
+      const jobs = data.jobs || [];
+      const linkClicks = data.linkClicks || [];
+      const views = data.views || [];
+
+      // organize link clicks and views by job id for easier access
+      const clicksByJobId: { [key: string]: any[] } = {};
+      const viewsByJobId: { [key: string]: any[] } = {};
+
+      linkClicks.forEach((click: any) => {
+        if (!clicksByJobId[click.job_id]) {
+          clicksByJobId[click.job_id] = [];
+        }
+        clicksByJobId[click.job_id].push(click);
+      });
+
+      views.forEach((view: any) => {
+        if (!viewsByJobId[view.job_id]) {
+          viewsByJobId[view.job_id] = [];
+        }
+        viewsByJobId[view.job_id].push(view);
+      });
+
+      // attach clicks and views to jobs for easier processing
+      const jobsWithMetrics = jobs.map((job: any) => ({
+        ...job,
+        job_link_clicks: clicksByJobId[job.id] || [],
+        job_views: viewsByJobId[job.id] || []
+      }));
 
       // calculate overview metrics
-      const totalJobs = jobs?.length || 0;
+      const totalJobs = jobsWithMetrics.length;
       const today = new Date();
       
-      const activeJobs = jobs?.filter(job => 
+      const activeJobs = jobsWithMetrics.filter((job: any) => 
         job.status === 'active' && new Date(job.deadline) > today
-      ).length || 0;
+      ).length;
       
-      const expiredJobs = jobs?.filter(job => 
+      const expiredJobs = jobsWithMetrics.filter((job: any) => 
         new Date(job.deadline) <= today
-      ).length || 0;
+      ).length;
 
-      const totalLinkClicks = jobs?.reduce((sum, job) => 
-        sum + (job.job_link_clicks?.length || 0), 0
-      ) || 0;
-      
-      const totalViews = jobs?.reduce((sum, job) => 
-        sum + (job.job_views?.length || 0), 0
-      ) || 0;
+      const totalLinkClicks = linkClicks.length;
+      const totalViews = views.length;
 
       const averageClicksPerJob = totalJobs > 0 
         ? (totalLinkClicks / totalJobs).toFixed(1) 
@@ -219,9 +241,9 @@ export default function FacultyAnalytics() {
       let totalDaysToClick = 0;
       let jobsWithClicks = 0;
       
-      jobs?.forEach(job => {
+      jobsWithMetrics.forEach((job: any) => {
         if (job.job_link_clicks && job.job_link_clicks.length > 0) {
-          const sortedClicks = [...job.job_link_clicks].sort((a, b) => 
+          const sortedClicks = [...job.job_link_clicks].sort((a: any, b: any) => 
             new Date(a.clicked_at).getTime() - new Date(b.clicked_at).getTime()
           );
           const firstClick = sortedClicks[0];
@@ -241,9 +263,9 @@ export default function FacultyAnalytics() {
         : '0';
 
       // calculate click-through rate (percentage of jobs that got clicks)
-      const jobsWithClicksCount = jobs?.filter(job => 
+      const jobsWithClicksCount = jobsWithMetrics.filter((job: any) => 
         job.job_link_clicks && job.job_link_clicks.length > 0
-      ).length || 0;
+      ).length;
       
       const clickThroughRate = totalJobs > 0
         ? ((jobsWithClicksCount / totalJobs) * 100).toFixed(1)
@@ -281,7 +303,7 @@ export default function FacultyAnalytics() {
         trendMap[dateKey] = { clicks: 0, views: 0, postings: 0 };
       }
       
-      jobs?.forEach(job => {
+      jobsWithMetrics.forEach((job: any) => {
         const postDate = new Date(job.created_at);
         if (postDate >= startDate) {
           const postDateKey = postDate.toISOString().split('T')[0];
@@ -290,7 +312,7 @@ export default function FacultyAnalytics() {
           }
         }
         
-        job.job_link_clicks?.forEach(click => {
+        job.job_link_clicks?.forEach((click: any) => {
           const clickDate = new Date(click.clicked_at);
           if (clickDate >= startDate) {
             const dateKey = clickDate.toISOString().split('T')[0];
@@ -300,8 +322,8 @@ export default function FacultyAnalytics() {
           }
         });
         
-        job.job_views?.forEach(view => {
-          const viewDate = new Date(view.created_at);
+        job.job_views?.forEach((view: any) => {
+          const viewDate = new Date(view.viewed_at);
           if (viewDate >= startDate) {
             const dateKey = viewDate.toISOString().split('T')[0];
             if (trendMap[dateKey]) {
@@ -322,7 +344,7 @@ export default function FacultyAnalytics() {
 
       // job type distribution with clicks
       const typeData: { [key: string]: { count: number; clicks: number } } = {};
-      jobs?.forEach(job => {
+      jobsWithMetrics.forEach((job: any) => {
         if (!typeData[job.job_type]) {
           typeData[job.job_type] = { count: 0, clicks: 0 };
         }
@@ -344,8 +366,8 @@ export default function FacultyAnalytics() {
       const statusCounts: { [key: string]: number } = {
         active: activeJobs,
         expired: expiredJobs,
-        draft: jobs?.filter(job => job.status === 'draft').length || 0,
-        removed: jobs?.filter(job => job.status === 'removed').length || 0
+        draft: jobsWithMetrics.filter((job: any) => job.status === 'draft').length,
+        removed: jobsWithMetrics.filter((job: any) => job.status === 'removed').length
       };
 
       const statuses = Object.entries(statusCounts).map(([status, count]) => ({
@@ -361,7 +383,7 @@ export default function FacultyAnalytics() {
       setStatusBreakdown(statuses);
 
       // top performing jobs
-      const topJobs = jobs?.map(job => ({
+      const topJobs = jobsWithMetrics.map((job: any) => ({
         id: job.id,
         title: job.title,
         company: job.company,
@@ -374,16 +396,16 @@ export default function FacultyAnalytics() {
         daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)),
         deadline: job.deadline
       }))
-      .filter(job => job.status === 'active')
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 5) || [];
+      .filter((job: any) => job.status === 'active')
+      .sort((a: any, b: any) => b.clicks - a.clicks)
+      .slice(0, 5);
 
       setTopPerformingJobs(topJobs);
 
       // skills analysis with engagement
       const skillData: { [key: string]: { count: number; clicks: number } } = {};
       
-      jobs?.forEach(job => {
+      jobsWithMetrics.forEach((job: any) => {
         job.skills?.forEach((skill: string) => {
           if (!skillData[skill]) {
             skillData[skill] = { count: 0, clicks: 0 };
@@ -399,7 +421,7 @@ export default function FacultyAnalytics() {
           count: data.count,
           clicks: data.clicks,
           avgClicksPerJob: data.count > 0 ? (data.clicks / data.count).toFixed(1) : '0',
-          engagementRate: data.clicks > 0 ? '25.0' : '0' // placeholder engagement rate
+          engagementRate: data.clicks > 0 ? '25.0' : '0'
         }))
         .sort((a, b) => b.clicks - a.clicks)
         .slice(0, 10);
@@ -409,7 +431,7 @@ export default function FacultyAnalytics() {
       // clicks by industry
       const industryData: { [key: string]: { clicks: number; jobs: number } } = {};
       
-      jobs?.forEach(job => {
+      jobsWithMetrics.forEach((job: any) => {
         const clickCount = job.job_link_clicks?.length || 0;
         
         if (!industryData[job.industry]) {
@@ -425,7 +447,7 @@ export default function FacultyAnalytics() {
           clicks: data.clicks,
           jobs: data.jobs,
           avgPerJob: (data.clicks / data.jobs).toFixed(1),
-          engagementRate: '15.0' // placeholder engagement rate
+          engagementRate: '15.0'
         }))
         .sort((a, b) => b.clicks - a.clicks)
         .slice(0, 5);
@@ -435,26 +457,26 @@ export default function FacultyAnalytics() {
       // engagement metrics
       const engagementMetrics: EngagementStatus[] = [
         {
-          metric: 'High Engagement',
-          count: jobs?.filter(j => (j.job_link_clicks?.length || 0) > 10).length || 0,
+          metric: 'high engagement',
+          count: jobsWithMetrics.filter((j: any) => (j.job_link_clicks?.length || 0) > 10).length,
           percentage: '25',
           trend: 'up'
         },
         {
-          metric: 'Medium Engagement',
-          count: jobs?.filter(j => (j.job_link_clicks?.length || 0) >= 5 && (j.job_link_clicks?.length || 0) <= 10).length || 0,
+          metric: 'medium engagement',
+          count: jobsWithMetrics.filter((j: any) => (j.job_link_clicks?.length || 0) >= 5 && (j.job_link_clicks?.length || 0) <= 10).length,
           percentage: '50',
           trend: 'stable'
         },
         {
-          metric: 'Low Engagement',
-          count: jobs?.filter(j => (j.job_link_clicks?.length || 0) > 0 && (j.job_link_clicks?.length || 0) < 5).length || 0,
+          metric: 'low engagement',
+          count: jobsWithMetrics.filter((j: any) => (j.job_link_clicks?.length || 0) > 0 && (j.job_link_clicks?.length || 0) < 5).length,
           percentage: '20',
           trend: 'down'
         },
         {
-          metric: 'No Engagement',
-          count: jobs?.filter(j => (j.job_link_clicks?.length || 0) === 0).length || 0,
+          metric: 'no engagement',
+          count: jobsWithMetrics.filter((j: any) => (j.job_link_clicks?.length || 0) === 0).length,
           percentage: '5',
           trend: 'stable'
         }
@@ -465,28 +487,28 @@ export default function FacultyAnalytics() {
       // department comparison
       const comparison: DepartmentComparison[] = [
         {
-          metric: 'Clicks per Job',
+          metric: 'clicks per job',
           yourValue: averageClicksPerJob,
           departmentAvg: '8.5',
           performance: parseFloat(averageClicksPerJob) > 8.5 ? 'above' : 
                       parseFloat(averageClicksPerJob) < 8.5 ? 'below' : 'equal'
         },
         {
-          metric: 'Click-Through Rate',
+          metric: 'click-through rate',
           yourValue: `${clickThroughRate}%`,
           departmentAvg: '65%',
           performance: parseFloat(clickThroughRate) > 65 ? 'above' : 
                       parseFloat(clickThroughRate) < 65 ? 'below' : 'equal'
         },
         {
-          metric: 'Engagement Rate',
+          metric: 'engagement rate',
           yourValue: `${engagementRate}%`,
           departmentAvg: '12%',
           performance: parseFloat(engagementRate) > 12 ? 'above' : 
                       parseFloat(engagementRate) < 12 ? 'below' : 'equal'
         },
         {
-          metric: 'Engagement Score',
+          metric: 'engagement score',
           yourValue: engagementScore,
           departmentAvg: '60',
           performance: parseFloat(engagementScore) > 60 ? 'above' : 
@@ -498,16 +520,16 @@ export default function FacultyAnalytics() {
 
       // analyze best posting times
       const dayStats: { [key: string]: { clicks: number; views: number; posts: number } } = {
-        'Monday': { clicks: 0, views: 0, posts: 0 },
-        'Tuesday': { clicks: 0, views: 0, posts: 0 },
-        'Wednesday': { clicks: 0, views: 0, posts: 0 },
-        'Thursday': { clicks: 0, views: 0, posts: 0 },
-        'Friday': { clicks: 0, views: 0, posts: 0 }
+        'monday': { clicks: 0, views: 0, posts: 0 },
+        'tuesday': { clicks: 0, views: 0, posts: 0 },
+        'wednesday': { clicks: 0, views: 0, posts: 0 },
+        'thursday': { clicks: 0, views: 0, posts: 0 },
+        'friday': { clicks: 0, views: 0, posts: 0 }
       };
 
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       
-      jobs?.forEach(job => {
+      jobsWithMetrics.forEach((job: any) => {
         const postDay = dayNames[new Date(job.created_at).getDay()];
         if (dayStats[postDay] !== undefined) {
           dayStats[postDay].posts++;
@@ -531,7 +553,7 @@ export default function FacultyAnalytics() {
       setBestPostingTimes(timePatterns);
 
     } catch (error) {
-      console.error('Error fetching analytics:', error);
+      console.error('error fetching analytics:', error);
     } finally {
       setLoading(false);
     }
@@ -543,7 +565,7 @@ export default function FacultyAnalytics() {
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-center items-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-700"></div>
-            <div className="ml-4 text-lg">Loading analytics...</div>
+            <div className="ml-4 text-lg">loading analytics...</div>
           </div>
         </div>
       </div>
@@ -556,8 +578,8 @@ export default function FacultyAnalytics() {
         {/* header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-red-800">📊 Faculty Analytics</h1>
-            <p className="text-gray-600 mt-1">{department} Department • {facultyName}</p>
+            <h1 className="text-3xl font-bold text-red-800">📊 faculty analytics</h1>
+            <p className="text-gray-600 mt-1">{department} department • {facultyName}</p>
           </div>
           <div className="flex items-center gap-4">
             <select
@@ -565,47 +587,47 @@ export default function FacultyAnalytics() {
               onChange={(e) => setDateRange(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
             >
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="365">Last year</option>
+              <option value="7">last 7 days</option>
+              <option value="30">last 30 days</option>
+              <option value="90">last 90 days</option>
+              <option value="365">last year</option>
             </select>
             <Link href="/faculty/dashboard">
               <button className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
-                Back to Dashboard
+                back to dashboard
               </button>
             </Link>
           </div>
         </div>
 
-        {/* updated overview metrics */}
+        {/* overview metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Total Link Clicks</h3>
+            <h3 className="text-gray-500 font-semibold text-sm">total link clicks</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{overview.totalLinkClicks}</p>
             <p className="text-sm text-gray-600 mt-1">
-              Avg: {overview.averageClicksPerJob} per job
+              avg: {overview.averageClicksPerJob} per job
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Total Views</h3>
+            <h3 className="text-gray-500 font-semibold text-sm">total views</h3>
             <p className="text-4xl font-bold text-blue-600 mt-2">{overview.totalViews}</p>
             <p className="text-sm text-gray-600 mt-1">
-              Engagement: {overview.engagementRate}%
+              engagement: {overview.engagementRate}%
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Click-Through</h3>
+            <h3 className="text-gray-500 font-semibold text-sm">click-through</h3>
             <p className="text-4xl font-bold text-green-600 mt-2">{overview.clickThroughRate}%</p>
             <p className="text-sm text-gray-600 mt-1">
-              Jobs with clicks
+              jobs with clicks
             </p>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Active Jobs</h3>
+            <h3 className="text-gray-500 font-semibold text-sm">active jobs</h3>
             <p className="text-4xl font-bold text-purple-600 mt-2">{overview.activeJobs}</p>
             <p className="text-sm text-gray-600 mt-1">
               of {overview.totalJobs} total
@@ -613,17 +635,17 @@ export default function FacultyAnalytics() {
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Engagement Score</h3>
+            <h3 className="text-gray-500 font-semibold text-sm">engagement score</h3>
             <p className="text-4xl font-bold text-orange-600 mt-2">{overview.engagementScore}</p>
             <p className="text-sm text-gray-600 mt-1">
-              Out of 100
+              out of 100
             </p>
           </div>
         </div>
 
         {/* job status overview */}
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">📋 Job Status Overview</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">📋 job status overview</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {statusBreakdown.map((status, index) => (
               <div key={index} className="text-center">
@@ -649,9 +671,9 @@ export default function FacultyAnalytics() {
           </div>
         </div>
 
-        {/* activity trends - updated labels */}
+        {/* activity trends */}
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">📈 Engagement Trends</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">📈 engagement trends</h2>
           <div className="overflow-x-auto">
             <div className="min-w-[600px] h-64 flex items-end justify-between gap-2">
               {clickTrends.map((day, index) => (
@@ -689,48 +711,42 @@ export default function FacultyAnalytics() {
             <div className="flex items-center gap-4 mt-4 justify-center">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-red-600 rounded"></div>
-                <span className="text-sm text-gray-600">Link Clicks</span>
+                <span className="text-sm text-gray-600">link clicks</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-blue-600 rounded"></div>
-                <span className="text-sm text-gray-600">Views</span>
+                <span className="text-sm text-gray-600">views</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-green-600 rounded"></div>
-                <span className="text-sm text-gray-600">New Postings</span>
+                <span className="text-sm text-gray-600">new postings</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Continue with remaining sections using the same pattern of replacing applications with clicks... */}
-        
-        {/* The rest of the component continues with similar replacements */}
-        {/* I'll skip the repetitive parts but all "applications" become "clicks" */}
-        {/* and "conversion" becomes "engagement" throughout */}
-
-        {/* personalized tips - updated */}
+        {/* personalized tips */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">💡 Performance Insights</h3>
+          <h3 className="text-lg font-semibold text-blue-900 mb-2">💡 performance insights</h3>
           <ul className="space-y-2 text-sm text-blue-800">
-            <li>• Your engagement score is {overview.engagementScore}/100 - {
+            <li>• your engagement score is {overview.engagementScore}/100 - {
               parseFloat(overview.engagementScore) > 70 
-                ? "Excellent! Students are highly engaged with your postings" 
+                ? "excellent! students are highly engaged with your postings" 
                 : parseFloat(overview.engagementScore) > 50
-                ? "Good engagement. Consider adding more detail to job descriptions"
-                : "Room for improvement. Try posting at peak student times (Mon-Wed)"
+                ? "good engagement. consider adding more detail to job descriptions"
+                : "room for improvement. try posting at peak student times (mon-wed)"
             }</li>
-            <li>• Click-through rate: {overview.clickThroughRate}% - {
+            <li>• click-through rate: {overview.clickThroughRate}% - {
               parseFloat(overview.clickThroughRate) > 70
-                ? "Great job! Most of your postings are getting student interest"
-                : "Consider making your job titles more compelling"
+                ? "great job! most of your postings are getting student interest"
+                : "consider making your job titles more compelling"
             }</li>
-            <li>• Best posting days based on your data: {
+            <li>• best posting days based on your data: {
               bestPostingTimes.length > 0 
                 ? bestPostingTimes.slice(0, 2).map(t => t.dayOfWeek).join(' and ')
-                : "Post more jobs to identify patterns"
+                : "post more jobs to identify patterns"
             }</li>
-            <li>• Jobs with clear application links get {overview.engagementRate}% more clicks on average</li>
+            <li>• jobs with clear application links get {overview.engagementRate}% more clicks on average</li>
           </ul>
         </div>
       </div>
