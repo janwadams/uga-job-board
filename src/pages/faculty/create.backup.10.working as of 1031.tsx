@@ -1,8 +1,11 @@
+//create job posting for rep/faculty/create.tsx - fixed version with dynamic routing
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
 import Link from 'next/link';
 
+// A predefined list of industries for the dropdown
 const industries = [
   'Technology',
   'Healthcare',
@@ -20,6 +23,7 @@ const industries = [
   'Other',
 ];
 
+// Common skills for quick selection
 const commonSkills = [
   'Communication',
   'Teamwork',
@@ -58,6 +62,7 @@ export default function CreateJobPosting() {
     apply_method: '',
   });
 
+  // Skills as array for better management
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState('');
 
@@ -65,8 +70,10 @@ export default function CreateJobPosting() {
   const [success, setSuccess] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   
+  // For rich text description (basic formatting)
   const [descriptionLength, setDescriptionLength] = useState(0);
 
+  // Helper function to get the dashboard path based on role
   const getDashboardPath = (role: string) => {
     switch(role) {
       case 'faculty':
@@ -76,7 +83,7 @@ export default function CreateJobPosting() {
       case 'staff':
         return '/staff/dashboard';
       default:
-        return '/dashboard';
+        return '/dashboard'; // fallback
     }
   };
 
@@ -149,16 +156,15 @@ export default function CreateJobPosting() {
     setError(null);
     setSuccess(false);
 
-    // get the current user and their session token
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (sessionError || !session) {
+    if (userError || !user) {
         setError('User not authenticated. Please log in again.');
         setLoading(false);
         return;
     }
 
-    // check that all required fields are filled in
+    // Validation
     if (!formData.title || !formData.company || !formData.industry || 
         !formData.job_type || !formData.description || !formData.location || 
         !formData.deadline || !formData.apply_method) {
@@ -167,27 +173,24 @@ export default function CreateJobPosting() {
       return;
     }
 
-    // make sure at least one skill is selected
     if (selectedSkills.length === 0) {
       setError('Please select at least one required skill.');
       setLoading(false);
       return;
     }
 
-    // job description needs to be at least 100 characters long
     if (formData.description.length < 100) {
       setError('Job description must be at least 100 characters.');
       setLoading(false);
       return;
     }
 
-    // split requirements by line breaks into an array
+    // Parse requirements into array (split by newline)
     const requirementsArray = formData.requirements
       .split('\n')
       .map(req => req.trim())
       .filter(Boolean);
 
-    // prepare the job data to send to the api
     const newJob = {
       title: formData.title,
       company: formData.company,
@@ -199,31 +202,19 @@ export default function CreateJobPosting() {
       requirements: requirementsArray,
       skills: selectedSkills,
       deadline: formData.deadline,
-      application_link: formData.apply_method,
+      apply_method: formData.apply_method,
+      created_by: user.id,
+      status: userRole === 'faculty' ? 'active' : 'pending', // Faculty posts are auto-approved
     };
     
-    try {
-      // call our secure api endpoint to create the job
-      const response = await fetch('/api/faculty/jobs/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(newJob)
-      });
+    const { error: insertError } = await supabase.from('jobs').insert([newJob]);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        // if the api returned an error, show it to the user
-        throw new Error(result.error || 'Failed to create job posting');
-      }
-
-      // job was created successfully
+    if (insertError) {
+      console.error('Supabase insert error:', insertError.message, insertError.details);
+      setError('Failed to create job posting. Please try again.');
+    } else {
       setSuccess(true);
-      
-      // clear out the form
+      // Reset form
       setFormData({
         title: '',
         company: '',
@@ -239,51 +230,50 @@ export default function CreateJobPosting() {
       setSelectedSkills([]);
       setDescriptionLength(0);
       
-      // wait 2 seconds then redirect to dashboard
+      // Redirect to the appropriate dashboard based on role after 2 seconds
       setTimeout(() => {
-        const dashPath = getDashboardPath(userRole || '');
-        router.push(dashPath);
+        if (userRole) {
+          router.push(getDashboardPath(userRole));
+        }
       }, 2000);
-
-    } catch (err: any) {
-      console.error('error creating job:', err);
-      setError(err.message || 'Failed to create job posting. Please try again.');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
-  const dashboardPath = getDashboardPath(userRole || '');
+  if (!userRole) return <p className="p-6 text-center">Loading...</p>;
+
+  // Get the appropriate dashboard path for the current user
+  const dashboardPath = getDashboardPath(userRole);
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Create New Job Posting</h1>
-        <p className="text-gray-600 mt-2">
-          Fill out the form below to post a new opportunity for students
-        </p>
-      </div>
+    <div className="p-6 max-w-4xl mx-auto">
+      <Link href={dashboardPath}>
+        <span className="text-red-700 underline hover:text-red-900 cursor-pointer mb-6 inline-block">
+          ← Back to Dashboard
+        </span>
+      </Link>
+      
+      <h1 className="text-3xl font-bold text-red-700 mb-6">Create Job Posting</h1>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800 font-medium">Error: {error}</p>
+        <div className="bg-red-50 border border-red-300 text-red-800 p-4 rounded mb-4">
+          ⚠️ {error}
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-medium">
-            ✓ Job posting created successfully! Redirecting to dashboard...
-          </p>
+        <div className="bg-green-100 text-green-800 p-4 rounded mb-4 border border-green-300">
+          ✅ Job created successfully! {userRole === 'faculty' ? 'Your posting is now live.' : 'Your posting is awaiting review.'} Redirecting...
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Job Title <span className="text-red-500">*</span>
               </label>
@@ -300,12 +290,12 @@ export default function CreateJobPosting() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Company Name <span className="text-red-500">*</span>
+                Company <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 name="company"
-                placeholder="e.g., Acme Corporation"
+                placeholder="e.g., ABC Corporation"
                 value={formData.company}
                 onChange={handleChange}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-red-500 focus:border-transparent"
@@ -382,6 +372,7 @@ export default function CreateJobPosting() {
           </div>
         </div>
 
+        {/* Job Description Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Job Details</h2>
           
@@ -422,12 +413,14 @@ export default function CreateJobPosting() {
           </div>
         </div>
 
+        {/* Skills Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Required Skills <span className="text-red-500">*</span>
           </h2>
           
           <div className="space-y-4">
+            {/* Common Skills Grid */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Select from common skills:</p>
               <div className="flex flex-wrap gap-2">
@@ -448,6 +441,7 @@ export default function CreateJobPosting() {
               </div>
             </div>
 
+            {/* Add Custom Skill */}
             <div>
               <p className="text-sm text-gray-600 mb-2">Add custom skills:</p>
               <div className="flex gap-2">
@@ -469,6 +463,7 @@ export default function CreateJobPosting() {
               </div>
             </div>
 
+            {/* Selected Skills Display */}
             {selectedSkills.length > 0 && (
               <div>
                 <p className="text-sm text-gray-600 mb-2">Selected skills ({selectedSkills.length}):</p>
@@ -494,6 +489,7 @@ export default function CreateJobPosting() {
           </div>
         </div>
 
+        {/* Application Details Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Application Details</h2>
           
@@ -532,6 +528,7 @@ export default function CreateJobPosting() {
           </div>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex items-center gap-4 pt-4">
           <button
             type="submit"
