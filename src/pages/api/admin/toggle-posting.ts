@@ -3,8 +3,6 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,29 +15,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // step 1: verify user is logged in
-    const session = await getServerSession(req, res, authOptions);
-    if (!session?.user?.email) {
-      return res.status(401).json({ error: 'unauthorized' });
+    // step 1: get the authorization token from the request header
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'unauthorized - no token provided' });
     }
 
-    // step 2: get user data from user_roles table
+    const token = authHeader.replace('Bearer ', '');
+
+    // step 2: verify the token and get the user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return res.status(401).json({ error: 'unauthorized - invalid token' });
+    }
+
+    // step 3: get user data from user_roles table
     const { data: userData, error: userError } = await supabase
       .from('user_roles')
       .select('user_id, role, is_active')
-      .eq('email', session.user.email)
+      .eq('user_id', user.id)
       .single();
 
     if (userError || !userData) {
       return res.status(403).json({ error: 'user not found' });
     }
 
-    // step 3: check if user is admin and active
+    // step 4: check if user is admin and active
     if (userData.role !== 'admin' || !userData.is_active) {
       return res.status(403).json({ error: 'admin access required' });
     }
 
-    // step 4: validate request data
+    // step 5: validate request data
     const { settingKey, enabled } = req.body;
 
     if (!settingKey || typeof enabled !== 'boolean') {
@@ -52,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'invalid setting key' });
     }
 
-    // step 5: update the setting in the database
+    // step 6: update the setting in the database
     const { error } = await supabase
       .from('app_settings')
       .update({ 

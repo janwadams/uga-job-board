@@ -167,10 +167,22 @@ export default function AdminDashboard() {
       // flip the current setting (true becomes false, false becomes true)
       const newValue = !facultyCanPost;
 
+      // get the current user's session token so we can prove we're logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setToggleMessage('not authenticated. please log in again.');
+        setUpdatingToggle(false);
+        return;
+      }
+
       // call the api endpoint to update the setting
       const response = await fetch('/api/admin/toggle-posting', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ 
           settingKey: 'faculty_can_post_jobs',
           enabled: newValue 
