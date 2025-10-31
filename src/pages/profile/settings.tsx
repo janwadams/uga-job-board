@@ -254,7 +254,7 @@ export default function ProfileSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  first name *
+                  First Name *
                 </label>
                 <input
                   type="text"
@@ -268,7 +268,7 @@ export default function ProfileSettings() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  last name *
+                  Last Name *
                 </label>
                 <input
                   type="text"
@@ -282,7 +282,7 @@ export default function ProfileSettings() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  email *
+                  Email *
                 </label>
                 <input
                   type="email"
@@ -296,7 +296,7 @@ export default function ProfileSettings() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  phone number
+                  Phone Number
                 </label>
                 <input
                   type="tel"
@@ -311,7 +311,7 @@ export default function ProfileSettings() {
 
             <div className="mt-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                bio / about me
+                Bio / About Me
               </label>
               <textarea
                 name="bio"
@@ -325,7 +325,7 @@ export default function ProfileSettings() {
 
             <div className="mt-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                profile picture url
+                Profile Picture URL
               </label>
               <input
                 type="url"
@@ -336,7 +336,7 @@ export default function ProfileSettings() {
                 className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
               />
               <p className="text-sm text-gray-500 mt-1">
-                paste a link to your profile picture (optional)
+                Paste a link to your profile picture (Optional)
               </p>
             </div>
           </div>
@@ -352,7 +352,7 @@ export default function ProfileSettings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    major
+                    Major
                   </label>
                   <input
                     type="text"
@@ -366,7 +366,7 @@ export default function ProfileSettings() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    expected graduation year
+                    Expected Graduation Year
                   </label>
                   <input
                     type="text"
@@ -380,7 +380,7 @@ export default function ProfileSettings() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    gpa (optional)
+                    GPA (Optional)
                   </label>
                   <input
                     type="number"
@@ -397,7 +397,7 @@ export default function ProfileSettings() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    linkedin profile
+                    LinkedIn Profile
                   </label>
                   <input
                     type="url"
@@ -412,7 +412,7 @@ export default function ProfileSettings() {
 
               <div className="mt-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  resume url
+                  Resume URL
                 </label>
                 <input
                   type="url"
@@ -423,7 +423,7 @@ export default function ProfileSettings() {
                   className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  upload your resume to google drive or dropbox and paste the public link here
+                  Upload your resume to google drive or dropbox and paste the public link here
                 </p>
               </div>
             </div>
