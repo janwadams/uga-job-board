@@ -167,7 +167,7 @@ export default function ProfileSettings() {
         return;
       }
 
-      setSuccessMessage('profile updated successfully!');
+      setSuccessMessage('Profile updated successfully!');
       setSaving(false);
 
       // redirect back to dashboard after 2 seconds
