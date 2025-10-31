@@ -30,18 +30,18 @@ interface Job {
 // types for analytics data
 interface AnalyticsOverview {
   totalJobs: number;
-  totalLinkClicks: number;
-  averageClicksPerJob: string;
+  totalLinkClicks: number; // changed from totalApplications
+  averageClicksPerJob: string; // changed from averageApplicationsPerJob
   totalViews: number;
-  engagementRate: string;
+  engagementRate: string; // changed from conversionRate
   activeJobs: number;
   expiredJobs: number;
-  averageDaysToClick: string;
+  averageDaysToClick: string; // changed from averageDaysToApply
 }
 
 interface TrendData {
   date: string;
-  clicks: number;
+  clicks: number; // changed from applications
   views: number;
 }
 
@@ -49,9 +49,9 @@ interface TopJob {
   id: string;
   title: string;
   company: string;
-  clicks: number;
+  clicks: number; // changed from applications
   views: number;
-  engagementRate: string;
+  engagementRate: string; // changed from conversionRate
   status: string;
   daysActive: number;
 }
@@ -185,180 +185,301 @@ export default function FacultyDashboard() {
   const [clickTrends, setClickTrends] = useState<TrendData[]>([]);
   const [topPerformingJobs, setTopPerformingJobs] = useState<TopJob[]>([]);
 
-  // check authentication and role on mount
+  // check if user is logged in and has faculty role
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error || !session) {
+    const checkSession = async () => {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !sessionData.session) {
         router.push('/login');
         return;
       }
 
-      // verify user is faculty
-      const { data: userData } = await supabase
+      const user = sessionData.session.user;
+      
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .single();
-
-      if (userData?.role !== 'faculty') {
-        router.push('/unauthorized');
-        return;
+        
+      if (roleError || !roleData || roleData.role !== 'faculty') {
+          router.push('/unauthorized');
+          return;
       }
-
-      setSession(session);
-      setUserRole(userData.role);
+      
+      setUserRole(roleData.role);
+      setSession(sessionData.session);
     };
-
-    checkAuth();
+    checkSession();
   }, [router]);
 
-  // fetch active jobs when session is ready
-  useEffect(() => {
-    if (session) {
-      fetchJobs();
-      fetchLinkClicksCount();
-    }
-  }, [session, statusFilter]);
-
-  // fetch archived jobs when switching to archived tab
-  useEffect(() => {
-    if (session && activeTab === 'archived') {
-      fetchArchivedJobs();
-    }
-  }, [session, activeTab]);
-
-  // fetch analytics when switching to analytics tab or changing date range
-  useEffect(() => {
-    if (session && activeTab === 'analytics') {
-      fetchAnalytics();
-    }
-  }, [session, activeTab, dateRange]);
-
-  const fetchJobs = async () => {
-    if (!session) return;
-    
-    setLoading(true);
-    
-    try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) return;
-
-      // build query parameters
-      const params = new URLSearchParams({
-        archived: 'false', // only get non-archived jobs
-      });
-
-      if (statusFilter) {
-        params.append('status', statusFilter);
-      }
-
-      const response = await fetch(`/api/faculty/jobs/list?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${currentSession.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setJobs(data.jobs || []);
-      } else {
-        console.error('Error fetching jobs:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching jobs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchArchivedJobs = async () => {
-    if (!session) return;
-    
-    setLoadingArchived(true);
-    
-    try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) return;
-
-      const response = await fetch(`/api/faculty/jobs/list?archived=true`, {
-        headers: {
-          'Authorization': `Bearer ${currentSession.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setArchivedJobs(data.jobs || []);
-      } else {
-        console.error('Error fetching archived jobs:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching archived jobs:', error);
-    } finally {
-      setLoadingArchived(false);
-    }
-  };
-
+  // function to fetch link clicks count for all faculty's jobs
   const fetchLinkClicksCount = async () => {
     if (!session) return;
     
     try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) return;
-
-      const response = await fetch('/api/faculty/link-clicks-count', {
-        headers: {
-          'Authorization': `Bearer ${currentSession.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setLinkClicksCount(data.count || 0);
+      // get all jobs by this faculty member
+      const { data: jobs } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('created_by', session.user.id);
+      
+      if (jobs && jobs.length > 0) {
+        // count link clicks for these specific jobs only
+        const { count } = await supabase
+          .from('job_link_clicks')
+          .select('*', { count: 'exact', head: true })
+          .in('job_id', jobs.map(j => j.id));
+        
+        setLinkClicksCount(count || 0);
+      } else {
+        setLinkClicksCount(0);
       }
     } catch (error) {
       console.error('Error fetching link clicks count:', error);
     }
   };
 
-  const fetchAnalytics = async () => {
-    if (!session) return;
+  // fetch active jobs when tab changes or filter changes
+  useEffect(() => {
+    const fetchJobs = async () => {
+      if (!session?.user) {
+        setLoading(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      setLoading(true);
+
+      // get today's date to filter out expired jobs
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let query = supabase
+        .from('jobs')
+        .select('*')
+        .eq('created_by', userId)
+        .gte('deadline', today.toISOString()); // only get non-expired jobs
+
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching jobs:', error);
+        setJobs([]);
+      } else {
+        setJobs(data as Job[] || []);
+      }
+
+      setLoading(false);
+    };
+
+    if (session) {
+      fetchJobs();
+      fetchLinkClicksCount(); // fetch link clicks count when session is ready
+    }
+  }, [session, statusFilter]);
+
+  // fetch archived (expired) jobs
+  useEffect(() => {
+    const fetchArchivedJobs = async () => {
+      if (!session?.user) {
+        setLoadingArchived(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      setLoadingArchived(true);
+
+      // get today's date to filter expired jobs
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('created_by', userId)
+        .lt('deadline', today.toISOString()) // only get expired jobs
+        .order('deadline', { ascending: false }); // newest expired first
+
+      if (error) {
+        console.error('Error fetching archived jobs:', error);
+        setArchivedJobs([]);
+      } else {
+        setArchivedJobs(data as Job[] || []);
+      }
+
+      setLoadingArchived(false);
+    };
+
+    if (session) {
+      fetchArchivedJobs();
+    }
+  }, [session]);
+
+  // fetch analytics data when analytics tab is selected or date range changes
+  useEffect(() => {
+    if (activeTab === 'analytics' && session) {
+      fetchAnalyticsData();
+    }
+  }, [activeTab, dateRange, session]);
+
+  // function to fetch all analytics data - updated for link clicks
+  const fetchAnalyticsData = async () => {
+    if (!session?.user) return;
     
     setLoadingAnalytics(true);
-    
     try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) return;
+      const userId = session.user.id;
+      
+      // fetch all jobs with link clicks and views
+      const { data: jobsWithData, error: jobsError } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          job_link_clicks (
+            id,
+            clicked_at,
+            user_id
+          ),
+          job_views (
+            id,
+            created_at,
+            user_id
+          )
+        `)
+        .eq('created_by', userId);
 
-      const response = await fetch(`/api/faculty/analytics?days=${dateRange}`, {
-        headers: {
-          'Authorization': `Bearer ${currentSession.access_token}`,
-        },
+      if (jobsError) throw jobsError;
+
+      // calculate overview metrics
+      const totalJobs = jobsWithData?.length || 0;
+      const today = new Date();
+      
+      const activeJobsCount = jobsWithData?.filter(job => 
+        job.status === 'active' && new Date(job.deadline) > today
+      ).length || 0;
+      
+      const expiredJobsCount = jobsWithData?.filter(job => 
+        new Date(job.deadline) <= today
+      ).length || 0;
+
+      const totalLinkClicks = jobsWithData?.reduce((sum, job) => 
+        sum + (job.job_link_clicks?.length || 0), 0
+      ) || 0;
+      
+      const totalViews = jobsWithData?.reduce((sum, job) => 
+        sum + (job.job_views?.length || 0), 0
+      ) || 0;
+
+      const averageClicksPerJob = totalJobs > 0 
+        ? (totalLinkClicks / totalJobs).toFixed(1) 
+        : '0';
+
+      const engagementRate = totalViews > 0 
+        ? ((totalLinkClicks / totalViews) * 100).toFixed(1)
+        : '0';
+
+      // calculate average days to first click
+      let totalDaysToClick = 0;
+      let jobsWithClicks = 0;
+      
+      jobsWithData?.forEach(job => {
+        if (job.job_link_clicks && job.job_link_clicks.length > 0) {
+          const sortedClicks = [...job.job_link_clicks].sort((a, b) => 
+            new Date(a.clicked_at).getTime() - new Date(b.clicked_at).getTime()
+          );
+          const firstClick = sortedClicks[0];
+          const daysToClick = Math.ceil(
+            (new Date(firstClick.clicked_at).getTime() - new Date(job.created_at).getTime())
+            / (1000 * 60 * 60 * 24)
+          );
+          if (daysToClick > 0) {
+            totalDaysToClick += daysToClick;
+            jobsWithClicks++;
+          }
+        }
       });
 
-      const data = await response.json();
+      const averageDaysToClick = jobsWithClicks > 0
+        ? (totalDaysToClick / jobsWithClicks).toFixed(1)
+        : '0';
 
-      if (response.ok) {
-        setAnalyticsOverview(data.overview || {
-          totalJobs: 0,
-          totalLinkClicks: 0,
-          averageClicksPerJob: '0',
-          totalViews: 0,
-          engagementRate: '0',
-          activeJobs: 0,
-          expiredJobs: 0,
-          averageDaysToClick: '0'
-        });
-        setClickTrends(data.trends || []);
-        setTopPerformingJobs(data.topJobs || []);
-      } else {
-        console.error('Error fetching analytics:', data.error);
+      setAnalyticsOverview({
+        totalJobs,
+        totalLinkClicks,
+        averageClicksPerJob,
+        totalViews,
+        engagementRate,
+        activeJobs: activeJobsCount,
+        expiredJobs: expiredJobsCount,
+        averageDaysToClick
+      });
+
+      // prepare trend data for chart
+      const daysAgo = parseInt(dateRange);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysAgo);
+      
+      const trendMap: { [key: string]: { clicks: number; views: number } } = {};
+      
+      for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
+        const dateKey = d.toISOString().split('T')[0];
+        trendMap[dateKey] = { clicks: 0, views: 0 };
       }
+      
+      jobsWithData?.forEach(job => {
+        job.job_link_clicks?.forEach(click => {
+          const clickDate = new Date(click.clicked_at);
+          if (clickDate >= startDate) {
+            const dateKey = clickDate.toISOString().split('T')[0];
+            if (trendMap[dateKey]) {
+              trendMap[dateKey].clicks++;
+            }
+          }
+        });
+        
+        job.job_views?.forEach(view => {
+          const viewDate = new Date(view.created_at);
+          if (viewDate >= startDate) {
+            const dateKey = viewDate.toISOString().split('T')[0];
+            if (trendMap[dateKey]) {
+              trendMap[dateKey].views++;
+            }
+          }
+        });
+      });
+
+      const trends = Object.entries(trendMap).map(([date, data]) => ({
+        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        clicks: data.clicks,
+        views: data.views
+      }));
+
+      setClickTrends(trends);
+
+      // calculate top performing jobs
+      const topJobs = jobsWithData?.map(job => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        clicks: job.job_link_clicks?.length || 0,
+        views: job.job_views?.length || 0,
+        engagementRate: (job.job_views?.length || 0) > 0 
+          ? (((job.job_link_clicks?.length || 0) / (job.job_views?.length || 0)) * 100).toFixed(1)
+          : '0',
+        status: job.status,
+        daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5) || [];
+
+      setTopPerformingJobs(topJobs);
+
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
@@ -366,49 +487,39 @@ export default function FacultyDashboard() {
     }
   };
 
+  // handle removing a job (soft delete)
   const handleRemove = async (jobId: string) => {
-    if (!window.confirm('Are you sure you want to remove this job posting?')) {
+    if (!confirm('Are you sure you want to remove this posting? This action is permanent.')) {
       return;
     }
 
-    try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) return;
+    const { error } = await supabase
+      .from('jobs')
+      .update({ status: 'removed' })
+      .eq('id', jobId);
 
-      const response = await fetch(`/api/faculty/jobs/${jobId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${currentSession.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Job removed successfully!');
-        fetchJobs(); // refresh the job list
-        fetchLinkClicksCount(); // refresh the count
-      } else {
-        alert(data.error || 'Failed to remove job');
-      }
-    } catch (error) {
-      console.error('Error removing job:', error);
-      alert('An unexpected error occurred');
+    if (error) {
+      alert('Failed to remove job.');
+    } else {
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === jobId ? { ...job, status: 'removed' as Job['status'] } : job
+        )
+      );
     }
   };
 
+  // handle reactivating an expired job with a new deadline
   const handleReactivate = async (jobId: string) => {
     const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
     if (!newDeadline) return;
 
-    // validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(newDeadline)) {
       alert('Please enter date in YYYY-MM-DD format');
       return;
     }
 
-    // check if date is in the future
     const selectedDate = new Date(newDeadline);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -419,169 +530,126 @@ export default function FacultyDashboard() {
     }
 
     try {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) return;
-
-      const response = await fetch(`/api/faculty/jobs/${jobId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${currentSession.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from('jobs')
+        .update({ 
           deadline: newDeadline,
-          status: 'active'
-        }),
-      });
+          status: 'active' 
+        })
+        .eq('id', jobId);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (!error) {
         alert('Job reactivated successfully!');
-        fetchArchivedJobs(); // refresh archived jobs
-        fetchJobs(); // refresh active jobs
+        window.location.reload();
       } else {
-        alert(data.error || 'Failed to reactivate job');
+        alert('Failed to reactivate job.');
       }
     } catch (error) {
       console.error('Error reactivating job:', error);
-      alert('An unexpected error occurred');
+      alert('An error occurred while reactivating the job.');
     }
   };
+  
+  // calculate metrics from the jobs list
+  const totalJobs = jobs.length + archivedJobs.length;
+  const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
+  const totalArchived = archivedJobs.length;
 
-  // calculate statistics from the jobs data
-  const stats = useMemo(() => {
-    const totalJobs = jobs.length;
-    const activeJobs = jobs.filter(j => j.status === 'active').length;
-    const pendingJobs = jobs.filter(j => j.status === 'pending').length;
-    
-    return {
-      totalJobs,
-      activeJobs,
-      pendingJobs,
-      linkClicks: linkClicksCount
-    };
-  }, [jobs, linkClicksCount]);
-
-  if (loading && activeTab === 'active') {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-lg">Loading dashboard...</div>
-      </div>
-    );
+  if (!session || !userRole) {
+    return <p className="p-8 text-center">Loading dashboard...</p>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
-      {/* header section with welcome message and quick stats */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Faculty Dashboard</h1>
-              <p className="text-gray-500 mt-1">Manage your job postings</p>
-            </div>
+    <div className="bg-gray-50 min-h-screen p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-red-800">📚 Faculty Dashboard</h1>
+          <div className="flex gap-4">
+            {/* removed view applications button since faculty can't see applications anymore */}
+            <Link href="/faculty/analytics">
+              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
+                <ChartBarIcon className="h-5 w-5" />
+                Full Analytics
+              </button>
+            </Link>
             <Link href="/faculty/create">
-              <button className="px-6 py-3 bg-red-700 text-white rounded-lg hover:bg-red-800 font-semibold transition-colors shadow-md">
-                + Post New Job
+              <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
+                + Post a New Job
               </button>
             </Link>
           </div>
+        </div>
 
-          {/* quick stats cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-blue-600 font-medium">Total Jobs</p>
-                  <p className="text-3xl font-bold text-blue-900">{stats.totalJobs}</p>
-                </div>
-                <div className="bg-blue-200 p-3 rounded-full">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
+        {/* metrics cards - updated to show link clicks instead of applications */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Total Jobs</h3>
+            <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
+            <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Pending</h3>
+            <p className="text-4xl font-bold text-yellow-600 mt-2">
+              {jobs.filter(j => j.status === 'pending').length}
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Archived</h3>
+            <p className="text-4xl font-bold text-gray-600 mt-2">{totalArchived}</p>
+          </div>
+          
+          {/* updated card showing link clicks instead of applications */}
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 border-l-4 border-l-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-gray-500 font-semibold">Link Clicks</h3>
+                <p className="text-4xl font-bold text-purple-600 mt-2">{linkClicksCount}</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Student engagement
+                </p>
               </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-green-600 font-medium">Active</p>
-                  <p className="text-3xl font-bold text-green-900">{stats.activeJobs}</p>
-                </div>
-                <div className="bg-green-200 p-3 rounded-full">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-lg border border-yellow-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-yellow-600 font-medium">Pending</p>
-                  <p className="text-3xl font-bold text-yellow-900">{stats.pendingJobs}</p>
-                </div>
-                <div className="bg-yellow-200 p-3 rounded-full">
-                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-purple-600 font-medium">Total Link Clicks</p>
-                  <p className="text-3xl font-bold text-purple-900">{stats.linkClicks}</p>
-                </div>
-                <div className="bg-purple-200 p-3 rounded-full">
-                  <CursorArrowRaysIcon className="w-6 h-6 text-purple-600" />
-                </div>
-              </div>
+              <CursorArrowRaysIcon className="h-10 w-10 text-purple-500" />
             </div>
           </div>
         </div>
-      </div>
 
-      {/* main content area with tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        {/* navigation tabs */}
-        <div className="flex gap-2 mb-6 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('active')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'active'
-                ? 'text-red-700 border-b-2 border-red-700'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Active Jobs
-          </button>
-          <button
-            onClick={() => setActiveTab('archived')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'archived'
-                ? 'text-red-700 border-b-2 border-red-700'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Archived Jobs
-          </button>
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`px-6 py-3 font-semibold transition-colors flex items-center gap-2 ${
-              activeTab === 'analytics'
-                ? 'text-red-700 border-b-2 border-red-700'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <ChartBarIcon className="w-5 h-5" />
-            Analytics
-          </button>
+        {/* tabs for switching between active, archived, and analytics */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <button 
+              onClick={() => setActiveTab('active')} 
+              className={`${
+                activeTab === 'active' 
+                  ? 'border-red-700 text-red-800' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
+            >
+              Current Jobs ({jobs.length})
+            </button>
+            <button 
+              onClick={() => setActiveTab('archived')} 
+              className={`${
+                activeTab === 'archived' 
+                  ? 'border-red-700 text-red-800' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
+            >
+              Archived Jobs ({archivedJobs.length})
+            </button>
+            <button 
+              onClick={() => setActiveTab('analytics')} 
+              className={`${
+                activeTab === 'analytics' 
+                  ? 'border-red-700 text-red-800' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
+            >
+              Quick Analytics
+            </button>
+          </nav>
         </div>
 
         {/* content based on active tab */}
@@ -590,31 +658,33 @@ export default function FacultyDashboard() {
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Your Active Job Postings</h2>
-              {/* status filter dropdown */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="pending">Pending Approval</option>
-                <option value="removed">Removed</option>
-                <option value="rejected">Rejected</option>
-              </select>
+              <div>
+                <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
+                <select
+                  id="statusFilter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">All</option>
+                  <option value="active">Active</option>
+                  <option value="removed">Removed</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
             </div>
 
             {loading ? (
-              <p className="text-center text-gray-500 py-10">Loading jobs...</p>
+              <p className="text-center text-gray-500 py-10">Loading your jobs...</p>
             ) : jobs.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <h3 className="text-xl font-semibold text-gray-700">No jobs posted yet.</h3>
-                <p className="text-gray-500 mt-2">Get started by creating your first job posting!</p>
-                <Link href="/faculty/create">
-                  <button className="mt-4 px-6 py-3 bg-red-700 text-white rounded-lg hover:bg-red-800 font-semibold transition-colors">
-                    + Post Your First Job
-                  </button>
-                </Link>
+              <div className="text-center py-10">
+                <h3 className="text-xl font-semibold text-gray-700">No active jobs found.</h3>
+                <p className="text-gray-500 mt-2">
+                  {statusFilter 
+                    ? "Try changing your filter or post a new job."
+                    : "Click the 'Post a New Job' button to get started."}
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -660,7 +730,7 @@ export default function FacultyDashboard() {
             )}
           </div>
         ) : (
-          // analytics section
+          // analytics section - updated labels
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
               <div className="flex justify-between items-center mb-4">
@@ -681,7 +751,7 @@ export default function FacultyDashboard() {
                 <p className="text-center text-gray-500 py-10">Loading analytics...</p>
               ) : (
                 <>
-                  {/* analytics overview cards */}
+                  {/* analytics overview cards - updated labels */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Total Link Clicks</p>
@@ -711,7 +781,7 @@ export default function FacultyDashboard() {
                     </div>
                   </div>
 
-                  {/* simple trend chart */}
+                  {/* simple trend chart - updated labels */}
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold mb-3">Engagement Trends</h3>
                     <div className="overflow-x-auto">
@@ -753,7 +823,7 @@ export default function FacultyDashboard() {
                     </div>
                   </div>
 
-                  {/* top performing jobs table */}
+                  {/* top performing jobs table - updated labels */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3">Top Performing Jobs</h3>
                     <div className="overflow-x-auto">
