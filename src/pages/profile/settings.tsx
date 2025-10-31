@@ -218,7 +218,7 @@ export default function ProfileSettings() {
           <Link href={getDashboardLink()}>
             <button className="flex items-center gap-2 text-white hover:text-gray-200 mb-4">
               <ArrowLeftIcon className="h-5 w-5" />
-              back to dashboard
+              Back To Dashboard
             </button>
           </Link>
           <h1 className="text-3xl font-bold">Profile Settings</h1>
