@@ -1,5 +1,5 @@
 // pages/faculty/dashboard.tsx
-// updated faculty dashboard with link click tracking instead of applications
+// Updated faculty dashboard with link click tracking instead of applications
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -10,7 +10,6 @@ import {
   ChartBarIcon 
 } from '@heroicons/react/24/outline';
 
-// we still need supabase client to get the session token for api calls
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -188,353 +187,508 @@ export default function FacultyDashboard() {
 
   // check if user is logged in and has faculty role
   useEffect(() => {
-    checkAuth();
-  }, []);
+    const checkSession = async () => {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-  // when user changes tabs or date range, load the appropriate data
-  useEffect(() => {
-    if (session && userRole === 'faculty') {
-      if (activeTab === 'active') {
-        fetchJobs();
-      } else if (activeTab === 'archived') {
-        fetchArchivedJobs();
-      } else if (activeTab === 'analytics') {
-        fetchAnalytics();
-      }
-    }
-  }, [session, userRole, activeTab, dateRange]);
-
-  const checkAuth = async () => {
-    try {
-      // get the current session using supabase client
-      const { data: { session: userSession }, error } = await supabase.auth.getSession();
-      
-      if (error || !userSession) {
+      if (sessionError || !sessionData.session) {
         router.push('/login');
         return;
       }
 
-      // verify user has faculty role
+      const user = sessionData.session.user;
+      
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userSession.user.id)
+        .eq('user_id', user.id)
         .single();
+        
+      if (roleError || !roleData || roleData.role !== 'faculty') {
+          router.push('/unauthorized');
+          return;
+      }
+      
+      setUserRole(roleData.role);
+      setSession(sessionData.session);
+    };
+    checkSession();
+  }, [router]);
 
-      if (roleError || roleData?.role !== 'faculty') {
-        router.push('/unauthorized');
+  // function to fetch link clicks count for all faculty's jobs
+  const fetchLinkClicksCount = async () => {
+    if (!session) return;
+    
+    try {
+      // get all jobs by this faculty member
+      const { data: jobs } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('created_by', session.user.id);
+      
+      if (jobs && jobs.length > 0) {
+        // count link clicks for these specific jobs only
+        const { count } = await supabase
+          .from('job_link_clicks')
+          .select('*', { count: 'exact', head: true })
+          .in('job_id', jobs.map(j => j.id));
+        
+        setLinkClicksCount(count || 0);
+      } else {
+        setLinkClicksCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching link clicks count:', error);
+    }
+  };
+
+  // fetch active jobs when tab changes or filter changes
+  useEffect(() => {
+    const fetchJobs = async () => {
+      if (!session?.user) {
+        setLoading(false);
         return;
       }
+      
+      const userId = session.user.id;
+      setLoading(true);
 
-      setSession(userSession);
-      setUserRole(roleData.role);
-    } catch (error) {
-      console.error('error checking auth:', error);
-      router.push('/login');
-    } finally {
-      setLoading(false);
-    }
-  };
+      // get today's date to filter out expired jobs
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-  // fetch active jobs using api route
-  const fetchJobs = async () => {
-    if (!session) return;
-    
-    setLoading(true);
-    try {
-      // call our api route to get active jobs (not archived)
-      const response = await fetch('/api/faculty/jobs/list?archived=false', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
+      let query = supabase
+        .from('jobs')
+        .select('*')
+        .eq('created_by', userId)
+        .gte('deadline', today.toISOString()); // only get non-expired jobs
 
-      if (!response.ok) {
-        throw new Error('failed to fetch jobs');
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching jobs:', error);
+        setJobs([]);
+      } else {
+        setJobs(data as Job[] || []);
       }
 
-      const data = await response.json();
-      setJobs(data.jobs || []);
-    } catch (error) {
-      console.error('error fetching jobs:', error);
-    } finally {
       setLoading(false);
+    };
+
+    if (session) {
+      fetchJobs();
+      fetchLinkClicksCount(); // fetch link clicks count when session is ready
     }
-  };
+  }, [session, statusFilter]);
 
-  // fetch archived jobs (past deadline) using api route
-  const fetchArchivedJobs = async () => {
-    if (!session) return;
-    
-    setLoadingArchived(true);
-    try {
-      // call our api route to get archived jobs (deadline passed)
-      const response = await fetch('/api/faculty/jobs/list?archived=true', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
+  // fetch archived (expired) jobs
+  useEffect(() => {
+    const fetchArchivedJobs = async () => {
+      if (!session?.user) {
+        setLoadingArchived(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      setLoadingArchived(true);
 
-      if (!response.ok) {
-        throw new Error('failed to fetch archived jobs');
+      // get today's date to filter expired jobs
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('created_by', userId)
+        .lt('deadline', today.toISOString()) // only get expired jobs
+        .order('deadline', { ascending: false }); // newest expired first
+
+      if (error) {
+        console.error('Error fetching archived jobs:', error);
+        setArchivedJobs([]);
+      } else {
+        setArchivedJobs(data as Job[] || []);
       }
 
-      const data = await response.json();
-      setArchivedJobs(data.jobs || []);
-    } catch (error) {
-      console.error('error fetching archived jobs:', error);
-    } finally {
       setLoadingArchived(false);
-    }
-  };
+    };
 
-  // fetch analytics data using api route
-  const fetchAnalytics = async () => {
-    if (!session) return;
+    if (session) {
+      fetchArchivedJobs();
+    }
+  }, [session]);
+
+  // fetch analytics data when analytics tab is selected or date range changes
+  useEffect(() => {
+    if (activeTab === 'analytics' && session) {
+      fetchAnalyticsData();
+    }
+  }, [activeTab, dateRange, session]);
+
+  // function to fetch all analytics data - updated for link clicks
+  const fetchAnalyticsData = async () => {
+    if (!session?.user) return;
     
     setLoadingAnalytics(true);
     try {
-      // call our api route to get analytics data
-      const response = await fetch(`/api/faculty/analytics?days=${dateRange}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('failed to fetch analytics');
-      }
-
-      const data = await response.json();
+      const userId = session.user.id;
       
-      // set all the analytics state from the api response
-      setAnalyticsOverview(data.overview || {
-        totalJobs: 0,
-        totalLinkClicks: 0,
-        averageClicksPerJob: '0',
-        totalViews: 0,
-        engagementRate: '0',
-        activeJobs: 0,
-        expiredJobs: 0,
-        averageDaysToClick: '0'
+      // fetch all jobs with link clicks and views
+      const { data: jobsWithData, error: jobsError } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          job_link_clicks (
+            id,
+            clicked_at,
+            user_id
+          ),
+          job_views (
+            id,
+            created_at,
+            user_id
+          )
+        `)
+        .eq('created_by', userId);
+
+      if (jobsError) throw jobsError;
+
+      // calculate overview metrics
+      const totalJobs = jobsWithData?.length || 0;
+      const today = new Date();
+      
+      const activeJobsCount = jobsWithData?.filter(job => 
+        job.status === 'active' && new Date(job.deadline) > today
+      ).length || 0;
+      
+      const expiredJobsCount = jobsWithData?.filter(job => 
+        new Date(job.deadline) <= today
+      ).length || 0;
+
+      const totalLinkClicks = jobsWithData?.reduce((sum, job) => 
+        sum + (job.job_link_clicks?.length || 0), 0
+      ) || 0;
+      
+      const totalViews = jobsWithData?.reduce((sum, job) => 
+        sum + (job.job_views?.length || 0), 0
+      ) || 0;
+
+      const averageClicksPerJob = totalJobs > 0 
+        ? (totalLinkClicks / totalJobs).toFixed(1) 
+        : '0';
+
+      const engagementRate = totalViews > 0 
+        ? ((totalLinkClicks / totalViews) * 100).toFixed(1)
+        : '0';
+
+      // calculate average days to first click
+      let totalDaysToClick = 0;
+      let jobsWithClicks = 0;
+      
+      jobsWithData?.forEach(job => {
+        if (job.job_link_clicks && job.job_link_clicks.length > 0) {
+          const sortedClicks = [...job.job_link_clicks].sort((a, b) => 
+            new Date(a.clicked_at).getTime() - new Date(b.clicked_at).getTime()
+          );
+          const firstClick = sortedClicks[0];
+          const daysToClick = Math.ceil(
+            (new Date(firstClick.clicked_at).getTime() - new Date(job.created_at).getTime())
+            / (1000 * 60 * 60 * 24)
+          );
+          if (daysToClick > 0) {
+            totalDaysToClick += daysToClick;
+            jobsWithClicks++;
+          }
+        }
       });
-      setClickTrends(data.trends || []);
-      setTopPerformingJobs(data.topJobs || []);
+
+      const averageDaysToClick = jobsWithClicks > 0
+        ? (totalDaysToClick / jobsWithClicks).toFixed(1)
+        : '0';
+
+      setAnalyticsOverview({
+        totalJobs,
+        totalLinkClicks,
+        averageClicksPerJob,
+        totalViews,
+        engagementRate,
+        activeJobs: activeJobsCount,
+        expiredJobs: expiredJobsCount,
+        averageDaysToClick
+      });
+
+      // prepare trend data for chart
+      const daysAgo = parseInt(dateRange);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysAgo);
+      
+      const trendMap: { [key: string]: { clicks: number; views: number } } = {};
+      
+      for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
+        const dateKey = d.toISOString().split('T')[0];
+        trendMap[dateKey] = { clicks: 0, views: 0 };
+      }
+      
+      jobsWithData?.forEach(job => {
+        job.job_link_clicks?.forEach(click => {
+          const clickDate = new Date(click.clicked_at);
+          if (clickDate >= startDate) {
+            const dateKey = clickDate.toISOString().split('T')[0];
+            if (trendMap[dateKey]) {
+              trendMap[dateKey].clicks++;
+            }
+          }
+        });
+        
+        job.job_views?.forEach(view => {
+          const viewDate = new Date(view.created_at);
+          if (viewDate >= startDate) {
+            const dateKey = viewDate.toISOString().split('T')[0];
+            if (trendMap[dateKey]) {
+              trendMap[dateKey].views++;
+            }
+          }
+        });
+      });
+
+      const trends = Object.entries(trendMap).map(([date, data]) => ({
+        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        clicks: data.clicks,
+        views: data.views
+      }));
+
+      setClickTrends(trends);
+
+      // calculate top performing jobs
+      const topJobs = jobsWithData?.map(job => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        clicks: job.job_link_clicks?.length || 0,
+        views: job.job_views?.length || 0,
+        engagementRate: (job.job_views?.length || 0) > 0 
+          ? (((job.job_link_clicks?.length || 0) / (job.job_views?.length || 0)) * 100).toFixed(1)
+          : '0',
+        status: job.status,
+        daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 5) || [];
+
+      setTopPerformingJobs(topJobs);
+
     } catch (error) {
-      console.error('error fetching analytics:', error);
+      console.error('Error fetching analytics:', error);
     } finally {
       setLoadingAnalytics(false);
     }
   };
 
-  // soft delete a job - marks it as removed using api route
+  // handle removing a job (soft delete)
   const handleRemove = async (jobId: string) => {
-    if (!confirm('are you sure you want to remove this job? it will be marked as inactive.')) {
+    if (!confirm('Are you sure you want to remove this posting? This action is permanent.')) {
       return;
     }
 
-    try {
-      // call our api route to update the job status to removed
-      const response = await fetch(`/api/faculty/jobs/${jobId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ status: 'removed' }),
-      });
+    const { error } = await supabase
+      .from('jobs')
+      .update({ status: 'removed' })
+      .eq('id', jobId);
 
-      if (!response.ok) {
-        throw new Error('failed to remove job');
-      }
-
-      // reload the jobs list to show updated status
-      fetchJobs();
-      alert('job removed successfully');
-    } catch (error) {
-      console.error('error removing job:', error);
-      alert('failed to remove job. please try again.');
+    if (error) {
+      alert('Failed to remove job.');
+    } else {
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === jobId ? { ...job, status: 'removed' as Job['status'] } : job
+        )
+      );
     }
   };
 
-  // reactivate an archived job with a new deadline using api route
+  // handle reactivating an expired job with a new deadline
   const handleReactivate = async (jobId: string) => {
-    const newDeadline = prompt('enter new deadline (yyyy-mm-dd):');
+    const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
     if (!newDeadline) return;
 
-    // basic date validation
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(newDeadline)) {
-      alert('invalid date format. please use yyyy-mm-dd');
+      alert('Please enter date in YYYY-MM-DD format');
       return;
     }
 
-    const deadlineDate = new Date(newDeadline);
+    const selectedDate = new Date(newDeadline);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    if (deadlineDate <= today) {
-      alert('deadline must be in the future');
+    
+    if (selectedDate <= today) {
+      alert('Please select a future date');
       return;
     }
 
     try {
-      // call our api route to update the job with new deadline and active status
-      const response = await fetch(`/api/faculty/jobs/${jobId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ 
+      const { error } = await supabase
+        .from('jobs')
+        .update({ 
           deadline: newDeadline,
-          status: 'active'
-        }),
-      });
+          status: 'active' 
+        })
+        .eq('id', jobId);
 
-      if (!response.ok) {
-        throw new Error('failed to reactivate job');
+      if (!error) {
+        alert('Job reactivated successfully!');
+        window.location.reload();
+      } else {
+        alert('Failed to reactivate job.');
       }
-
-      // reload both lists to show updated job
-      fetchArchivedJobs();
-      fetchJobs();
-      alert('job reactivated successfully with new deadline');
     } catch (error) {
-      console.error('error reactivating job:', error);
-      alert('failed to reactivate job. please try again.');
+      console.error('Error reactivating job:', error);
+      alert('An error occurred while reactivating the job.');
     }
   };
+  
+  // calculate metrics from the jobs list
+  const totalJobs = jobs.length + archivedJobs.length;
+  const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
+  const totalArchived = archivedJobs.length;
 
-  // filter jobs based on the selected status
-  const filteredJobs = useMemo(() => {
-    if (!statusFilter) return jobs;
-    return jobs.filter(job => job.status === statusFilter);
-  }, [jobs, statusFilter]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-700 mx-auto"></div>
-          <p className="mt-4 text-gray-600">loading your dashboard...</p>
-        </div>
-      </div>
-    );
+  if (!session || !userRole) {
+    return <p className="p-8 text-center">Loading dashboard...</p>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="bg-gray-50 min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
-        {/* header section */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-red-800">Faculty Dashboard</h1>
-              <p className="text-gray-600 mt-1">manage your job postings and track engagement</p>
-            </div>
-            <div className="flex gap-3">
-              <Link href="/faculty/post-job">
-                <button className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-800 font-semibold">
-                  + Post New Job
-                </button>
-              </Link>
-              <button
-                onClick={() => router.push('/login')}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 font-semibold"
-              >
-                Logout
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-red-800">📚 Faculty Dashboard</h1>
+          <div className="flex gap-4">
+            {/* removed view applications button since faculty can't see applications anymore */}
+            <Link href="/faculty/analytics">
+              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
+                <ChartBarIcon className="h-5 w-5" />
+                Full Analytics
               </button>
+            </Link>
+            <Link href="/faculty/create">
+              <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
+                + Post a New Job
+              </button>
+            </Link>
+          </div>
+        </div>
+
+        {/* metrics cards - updated to show link clicks instead of applications */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Total Jobs</h3>
+            <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
+            <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Pending</h3>
+            <p className="text-4xl font-bold text-yellow-600 mt-2">
+              {jobs.filter(j => j.status === 'pending').length}
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Archived</h3>
+            <p className="text-4xl font-bold text-gray-600 mt-2">{totalArchived}</p>
+          </div>
+          
+          {/* updated card showing link clicks instead of applications */}
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 border-l-4 border-l-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-gray-500 font-semibold">Link Clicks</h3>
+                <p className="text-4xl font-bold text-purple-600 mt-2">{linkClicksCount}</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  Student engagement
+                </p>
+              </div>
+              <CursorArrowRaysIcon className="h-10 w-10 text-purple-500" />
             </div>
           </div>
         </div>
 
-        {/* tab navigation */}
+        {/* tabs for switching between active, archived, and analytics */}
         <div className="mb-6 border-b border-gray-200">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`px-6 py-3 font-semibold transition-colors ${
-                activeTab === 'active'
-                  ? 'text-red-700 border-b-2 border-red-700'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <button 
+              onClick={() => setActiveTab('active')} 
+              className={`${
+                activeTab === 'active' 
+                  ? 'border-red-700 text-red-800' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
             >
-              Active Jobs ({jobs.filter(j => j.status === 'active' || j.status === 'pending').length})
+              Current Jobs ({jobs.length})
             </button>
-            <button
-              onClick={() => setActiveTab('archived')}
-              className={`px-6 py-3 font-semibold transition-colors ${
-                activeTab === 'archived'
-                  ? 'text-red-700 border-b-2 border-red-700'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
+            <button 
+              onClick={() => setActiveTab('archived')} 
+              className={`${
+                activeTab === 'archived' 
+                  ? 'border-red-700 text-red-800' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
             >
               Archived Jobs ({archivedJobs.length})
             </button>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-6 py-3 font-semibold transition-colors flex items-center gap-2 ${
-                activeTab === 'analytics'
-                  ? 'text-red-700 border-b-2 border-red-700'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
+            <button 
+              onClick={() => setActiveTab('analytics')} 
+              className={`${
+                activeTab === 'analytics' 
+                  ? 'border-red-700 text-red-800' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
             >
-              <ChartBarIcon className="w-5 h-5" />
               Quick Analytics
             </button>
-          </div>
+          </nav>
         </div>
 
-        {/* main content area - changes based on active tab */}
+        {/* content based on active tab */}
         {activeTab === 'active' ? (
           // active jobs section
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Your Active Job Postings</h2>
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">Your Active Job Postings</h2>
-                <p className="text-gray-600 mt-1">
-                  {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'} 
-                  {statusFilter && ` with status: ${statusFilter}`}
-                </p>
+                <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
+                <select
+                  id="statusFilter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">All</option>
+                  <option value="active">Active</option>
+                  <option value="removed">Removed</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
               </div>
-              
-              {/* filter dropdown */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="active">Active</option>
-                <option value="pending">Pending Approval</option>
-                <option value="removed">Removed</option>
-                <option value="rejected">Rejected</option>
-              </select>
             </div>
 
             {loading ? (
-              <p className="text-center text-gray-500 py-10">loading jobs...</p>
-            ) : filteredJobs.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <h3 className="text-xl font-semibold text-gray-700">
-                  {statusFilter ? 'No jobs match this filter' : 'No jobs posted yet'}
-                </h3>
+              <p className="text-center text-gray-500 py-10">Loading your jobs...</p>
+            ) : jobs.length === 0 ? (
+              <div className="text-center py-10">
+                <h3 className="text-xl font-semibold text-gray-700">No active jobs found.</h3>
                 <p className="text-gray-500 mt-2">
                   {statusFilter 
-                    ? 'try selecting a different status filter above' 
-                    : 'click "Post New Job" to create your first job posting'}
+                    ? "Try changing your filter or post a new job."
+                    : "Click the 'Post a New Job' button to get started."}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredJobs.map((job) => (
+                {jobs.map((job) => (
                   <JobCard 
                     key={job.id} 
                     job={job} 
@@ -551,16 +705,16 @@ export default function FacultyDashboard() {
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Your Archived Jobs (Past Deadline)</h2>
               <p className="text-gray-600 mt-2">
-                these jobs have passed their deadline. you can reactivate them with a new deadline.
+                These jobs have passed their deadline. You can reactivate them with a new deadline.
               </p>
             </div>
 
             {loadingArchived ? (
-              <p className="text-center text-gray-500 py-10">loading archived jobs...</p>
+              <p className="text-center text-gray-500 py-10">Loading archived jobs...</p>
             ) : archivedJobs.length === 0 ? (
               <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <h3 className="text-xl font-semibold text-gray-700">no archived jobs yet.</h3>
-                <p className="text-gray-500 mt-2">jobs will appear here after their deadline passes.</p>
+                <h3 className="text-xl font-semibold text-gray-700">No archived jobs yet.</h3>
+                <p className="text-gray-500 mt-2">Jobs will appear here after their deadline passes.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -580,48 +734,48 @@ export default function FacultyDashboard() {
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">quick analytics overview</h2>
+                <h2 className="text-2xl font-bold text-gray-800">Quick Analytics Overview</h2>
                 <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
                 >
-                  <option value="7">last 7 days</option>
-                  <option value="30">last 30 days</option>
-                  <option value="90">last 90 days</option>
-                  <option value="365">last year</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="365">Last year</option>
                 </select>
               </div>
 
               {loadingAnalytics ? (
-                <p className="text-center text-gray-500 py-10">loading analytics...</p>
+                <p className="text-center text-gray-500 py-10">Loading analytics...</p>
               ) : (
                 <>
                   {/* analytics overview cards - updated labels */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">total link clicks</p>
+                      <p className="text-sm text-gray-500">Total Link Clicks</p>
                       <p className="text-2xl font-bold text-gray-800">{analyticsOverview.totalLinkClicks}</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        avg: {analyticsOverview.averageClicksPerJob} per job
+                        Avg: {analyticsOverview.averageClicksPerJob} per job
                       </p>
                     </div>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">total views</p>
+                      <p className="text-sm text-gray-500">Total Views</p>
                       <p className="text-2xl font-bold text-blue-600">{analyticsOverview.totalViews}</p>
                       <p className="text-xs text-gray-600 mt-1">
-                        engagement: {analyticsOverview.engagementRate}%
+                        Engagement: {analyticsOverview.engagementRate}%
                       </p>
                     </div>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">active jobs</p>
+                      <p className="text-sm text-gray-500">Active Jobs</p>
                       <p className="text-2xl font-bold text-green-600">{analyticsOverview.activeJobs}</p>
                       <p className="text-xs text-gray-600 mt-1">
                         of {analyticsOverview.totalJobs} total
                       </p>
                     </div>
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">avg days to click</p>
+                      <p className="text-sm text-gray-500">Avg Days to Click</p>
                       <p className="text-2xl font-bold text-purple-600">{analyticsOverview.averageDaysToClick}</p>
                       <p className="text-xs text-gray-600 mt-1">after posting</p>
                     </div>
@@ -629,7 +783,7 @@ export default function FacultyDashboard() {
 
                   {/* simple trend chart - updated labels */}
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-3">engagement trends</h3>
+                    <h3 className="text-lg font-semibold mb-3">Engagement Trends</h3>
                     <div className="overflow-x-auto">
                       <div className="min-w-[600px] h-48 flex items-end justify-between gap-1">
                         {clickTrends.slice(-14).map((day, index) => (
@@ -660,26 +814,26 @@ export default function FacultyDashboard() {
                     <div className="flex items-center gap-4 mt-3 justify-center">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-red-600 rounded"></div>
-                        <span className="text-sm text-gray-600">link clicks</span>
+                        <span className="text-sm text-gray-600">Link Clicks</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-blue-600 rounded"></div>
-                        <span className="text-sm text-gray-600">views</span>
+                        <span className="text-sm text-gray-600">Views</span>
                       </div>
                     </div>
                   </div>
 
                   {/* top performing jobs table - updated labels */}
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">top performing jobs</h3>
+                    <h3 className="text-lg font-semibold mb-3">Top Performing Jobs</h3>
                     <div className="overflow-x-auto">
                       <table className="min-w-full">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">job title</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">link clicks</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">views</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">engagement</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Link Clicks</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Views</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Engagement</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
