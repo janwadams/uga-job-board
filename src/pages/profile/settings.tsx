@@ -440,7 +440,7 @@ export default function ProfileSettings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    company name
+                    Company Name
                   </label>
                   <input
                     type="text"
@@ -453,7 +453,7 @@ export default function ProfileSettings() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    your job title
+                    Your Job Title
                   </label>
                   <input
                     type="text"
@@ -467,7 +467,7 @@ export default function ProfileSettings() {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    company website
+                    Company Website
                   </label>
                   <input
                     type="url"
@@ -481,7 +481,7 @@ export default function ProfileSettings() {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    linkedin profile
+                    LinkedIn Profile
                   </label>
                   <input
                     type="url"
@@ -505,7 +505,7 @@ export default function ProfileSettings() {
                 type="button"
                 className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50"
               >
-                cancel
+                Cancel
               </button>
             </Link>
             <button
@@ -513,7 +513,7 @@ export default function ProfileSettings() {
               disabled={saving}
               className="px-6 py-3 bg-red-700 text-white rounded-lg font-semibold hover:bg-red-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {saving ? 'saving...' : 'save changes'}
+              {saving ? 'saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
