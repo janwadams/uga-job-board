@@ -222,7 +222,7 @@ export default function ProfileSettings() {
             </button>
           </Link>
           <h1 className="text-3xl font-bold">Profile Settings</h1>
-          <p className="text-red-100 mt-2">manage your account information</p>
+          <p className="text-red-100 mt-2">Manage Your Account Information</p>
         </div>
       </div>
 
