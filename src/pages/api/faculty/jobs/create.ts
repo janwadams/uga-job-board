@@ -90,8 +90,7 @@ export default async function handler(
         deadline,
         apply_method: apply_method || null,
         created_by: user.id,
-        status: 'active',
-        is_active: true
+        status: 'active'
       }])
       .select()
       .single();
