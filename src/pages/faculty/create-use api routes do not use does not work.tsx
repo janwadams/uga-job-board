@@ -199,7 +199,7 @@ export default function CreateJobPosting() {
       requirements: requirementsArray,
       skills: selectedSkills,
       deadline: formData.deadline,
-      apply_method: formData.apply_method,
+      application_link: formData.apply_method,
     };
     
     try {

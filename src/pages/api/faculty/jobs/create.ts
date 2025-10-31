@@ -57,7 +57,7 @@ export default async function handler(
       requirements,
       skills,
       deadline,
-      application_link
+      apply_method
     } = req.body;
 
     // validate required fields
@@ -88,7 +88,7 @@ export default async function handler(
         requirements: requirements || null,
         skills: skills || null,
         deadline,
-        application_link: application_link || null,
+        apply_method: apply_method || null,
         created_by: user.id,
         status: 'active',
         is_active: true
