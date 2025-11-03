@@ -1,5 +1,4 @@
-// pages/faculty/dashboard.tsx
-// Updated faculty dashboard with link click tracking instead of applications
+//src/pages/rep/dashboard.tsx - complete file with link clicks tracking
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -7,7 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { 
   CursorArrowRaysIcon,
-  ChartBarIcon 
+  ChartBarIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -25,55 +25,28 @@ interface Job {
   status: 'active' | 'pending' | 'removed' | 'rejected' | 'archived';
   created_by: string;
   created_at: string;
+  rejection_note?: string;
 }
 
-// types for analytics data
-interface AnalyticsOverview {
-  totalJobs: number;
-  totalLinkClicks: number; // changed from totalApplications
-  averageClicksPerJob: string; // changed from averageApplicationsPerJob
-  totalViews: number;
-  engagementRate: string; // changed from conversionRate
-  activeJobs: number;
-  expiredJobs: number;
-  averageDaysToClick: string; // changed from averageDaysToApply
-}
-
-interface TrendData {
-  date: string;
-  clicks: number; // changed from applications
-  views: number;
-}
-
-interface TopJob {
-  id: string;
-  title: string;
-  company: string;
-  clicks: number; // changed from applications
-  views: number;
-  engagementRate: string; // changed from conversionRate
-  status: string;
-  daysActive: number;
-}
-
-// job card component - shows individual job postings
-const JobCard = ({ job, onRemove, onReactivate, isArchived }: { 
+// reusable job card component
+const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected }: { 
   job: Job, 
   onRemove?: (jobId: string) => void,
   onReactivate?: (jobId: string) => void,
-  isArchived?: boolean 
+  onRevise?: (jobId: string) => void,
+  isArchived?: boolean,
+  isRejected?: boolean 
 }) => {
   const statusColors: Record<Job['status'], string> = {
     active: 'bg-green-100 text-green-800',
     pending: 'bg-yellow-100 text-yellow-800',
     removed: 'bg-red-100 text-red-800',
-    rejected: 'bg-gray-100 text-gray-800',
+    rejected: 'bg-red-100 text-red-800',
     archived: 'bg-gray-100 text-gray-800',
   };
 
   const isDisabled = job.status === 'removed' || job.status === 'rejected';
 
-  // calculate how many days since the job expired (for archived jobs)
   const getDaysSinceExpired = () => {
     const deadlineDate = new Date(job.deadline);
     const today = new Date();
@@ -103,11 +76,17 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
             Location: {job.location}
           </p>
         )}
+        
+        {isRejected && job.rejection_note && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
+            <p className="text-sm font-semibold text-red-800">Admin Feedback:</p>
+            <p className="text-sm text-red-700 mt-1">{job.rejection_note}</p>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
         {isArchived ? (
-          // buttons for archived jobs
           <>
             <button
               onClick={() => onReactivate && onReactivate(job.id)}
@@ -115,16 +94,29 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
             >
               Reactivate
             </button>
-            <Link href={`/faculty/view/${job.id}`}>
+            <Link href={`/rep/view/${job.id}`}>
               <button className="px-4 py-2 rounded font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                 View Details
               </button>
             </Link>
           </>
-        ) : (
-          // buttons for active jobs
+        ) : isRejected ? (
           <>
-            <Link href={`/faculty/edit/${job.id}`}>
+            <button
+              onClick={() => onRevise && onRevise(job.id)}
+              className="px-4 py-2 rounded font-semibold text-sm bg-yellow-600 text-white hover:bg-yellow-700 transition-colors"
+            >
+              Revise & Resubmit
+            </button>
+            <Link href={`/rep/view/${job.id}`}>
+              <button className="px-4 py-2 rounded font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                View Full Details
+              </button>
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link href={`/rep/edit/${job.id}`}>
               <button
                 disabled={isDisabled}
                 className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
@@ -154,38 +146,22 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
   );
 };
 
-export default function FacultyDashboard() {
+export default function RepDashboard() {
   const router = useRouter();
-  // tab management - active, archived, or analytics view
-  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'analytics'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'rejected'>('active');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [archivedJobs, setArchivedJobs] = useState<Job[]>([]);
+  const [rejectedJobs, setRejectedJobs] = useState<Job[]>([]);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(true);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [loadingRejected, setLoadingRejected] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [userRole, setUserRole] = useState<string | null>(null);
   
-  // updated state for link clicks count instead of applications
+  // state for tracking how many times students clicked on job application links
   const [linkClicksCount, setLinkClicksCount] = useState(0);
-  
-  // analytics state - stores all the data for charts and metrics
-  const [dateRange, setDateRange] = useState('30'); // default to 30 days
-  const [analyticsOverview, setAnalyticsOverview] = useState<AnalyticsOverview>({
-    totalJobs: 0,
-    totalLinkClicks: 0,
-    averageClicksPerJob: '0',
-    totalViews: 0,
-    engagementRate: '0',
-    activeJobs: 0,
-    expiredJobs: 0,
-    averageDaysToClick: '0'
-  });
-  const [clickTrends, setClickTrends] = useState<TrendData[]>([]);
-  const [topPerformingJobs, setTopPerformingJobs] = useState<TopJob[]>([]);
 
-  // check if user is logged in and has faculty role
   useEffect(() => {
     const checkSession = async () => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -203,7 +179,7 @@ export default function FacultyDashboard() {
         .eq('user_id', user.id)
         .single();
         
-      if (roleError || !roleData || roleData.role !== 'faculty') {
+      if (roleError || !roleData || roleData.role !== 'rep') {
           router.push('/unauthorized');
           return;
       }
@@ -214,284 +190,128 @@ export default function FacultyDashboard() {
     checkSession();
   }, [router]);
 
-  // function to fetch link clicks count for all faculty's jobs
-  const fetchLinkClicksCount = async () => {
-    if (!session) return;
-    
-    try {
-      // get all jobs by this faculty member
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('id')
-        .eq('created_by', session.user.id);
-      
-      if (jobs && jobs.length > 0) {
-        // count link clicks for these specific jobs only
-        const { count } = await supabase
-          .from('job_link_clicks')
-          .select('*', { count: 'exact', head: true })
-          .in('job_id', jobs.map(j => j.id));
-        
-        setLinkClicksCount(count || 0);
-      } else {
-        setLinkClicksCount(0);
-      }
-    } catch (error) {
-      console.error('Error fetching link clicks count:', error);
+  // function to fetch link clicks count for this rep's jobs
+  const fetchLinkClicks = async (userId: string) => {
+    // get all job ids created by this rep
+    const { data: repJobs, error: jobsError } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('created_by', userId);
+
+    if (jobsError || !repJobs) {
+      console.error('error fetching rep jobs for link clicks:', jobsError);
+      return;
     }
+
+    const jobIds = repJobs.map(job => job.id);
+
+    if (jobIds.length === 0) {
+      setLinkClicksCount(0);
+      return;
+    }
+
+    // count total link clicks for all these jobs
+    const { data: clicks, error: clicksError } = await supabase
+      .from('job_link_clicks')
+      .select('id', { count: 'exact' })
+      .in('job_id', jobIds);
+
+    if (clicksError) {
+      console.error('error fetching link clicks count:', clicksError);
+      return;
+    }
+
+    // set the total count of link clicks
+    setLinkClicksCount(clicks?.length || 0);
   };
 
-  // fetch active jobs when tab changes or filter changes
+  // fetch active jobs (not archived, not fully removed/rejected)
   useEffect(() => {
+    if (!session) return;
+
     const fetchJobs = async () => {
-      if (!session?.user) {
-        setLoading(false);
-        return;
-      }
-      
       const userId = session.user.id;
-      setLoading(true);
-
-      // get today's date to filter out expired jobs
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      let query = supabase
-        .from('jobs')
-        .select('*')
-        .eq('created_by', userId)
-        .gte('deadline', today.toISOString()); // only get non-expired jobs
-
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching jobs:', error);
-        setJobs([]);
-      } else {
-        setJobs(data as Job[] || []);
-      }
-
-      setLoading(false);
-    };
-
-    if (session) {
-      fetchJobs();
-      fetchLinkClicksCount(); // fetch link clicks count when session is ready
-    }
-  }, [session, statusFilter]);
-
-  // fetch archived (expired) jobs
-  useEffect(() => {
-    const fetchArchivedJobs = async () => {
-      if (!session?.user) {
-        setLoadingArchived(false);
-        return;
-      }
-      
-      const userId = session.user.id;
-      setLoadingArchived(true);
-
-      // get today's date to filter expired jobs
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .lt('deadline', today.toISOString()) // only get expired jobs
-        .order('deadline', { ascending: false }); // newest expired first
+        .neq('status', 'archived')
+        .gte('deadline', today)
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching archived jobs:', error);
-        setArchivedJobs([]);
+        console.error('error fetching jobs:', error);
       } else {
-        setArchivedJobs(data as Job[] || []);
+        setJobs(data || []);
       }
+      setLoading(false);
+    };
 
+    fetchJobs();
+  }, [session]);
+
+  // fetch archived jobs (jobs past their deadline)
+  useEffect(() => {
+    if (!session) return;
+
+    const fetchArchivedJobs = async () => {
+      const userId = session.user.id;
+
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('created_by', userId)
+        .eq('status', 'archived')
+        .order('deadline', { ascending: false });
+
+      if (error) {
+        console.error('error fetching archived jobs:', error);
+      } else {
+        setArchivedJobs(data || []);
+      }
       setLoadingArchived(false);
     };
 
-    if (session) {
-      fetchArchivedJobs();
-    }
+    fetchArchivedJobs();
   }, [session]);
 
-  // fetch analytics data when analytics tab is selected or date range changes
+  // fetch rejected jobs (jobs that admin rejected)
   useEffect(() => {
-    if (activeTab === 'analytics' && session) {
-      fetchAnalyticsData();
-    }
-  }, [activeTab, dateRange, session]);
+    if (!session) return;
 
-  // function to fetch all analytics data - updated for link clicks
-  const fetchAnalyticsData = async () => {
-    if (!session?.user) return;
-    
-    setLoadingAnalytics(true);
-    try {
+    const fetchRejectedJobs = async () => {
       const userId = session.user.id;
-      
-      // fetch all jobs with link clicks and views
-      const { data: jobsWithData, error: jobsError } = await supabase
+
+      const { data, error } = await supabase
         .from('jobs')
-        .select(`
-          *,
-          job_link_clicks (
-            id,
-            clicked_at,
-            user_id
-          ),
-          job_views (
-            id,
-            created_at,
-            user_id
-          )
-        `)
-        .eq('created_by', userId);
+        .select('*')
+        .eq('created_by', userId)
+        .eq('status', 'rejected')
+        .order('created_at', { ascending: false });
 
-      if (jobsError) throw jobsError;
-
-      // calculate overview metrics
-      const totalJobs = jobsWithData?.length || 0;
-      const today = new Date();
-      
-      const activeJobsCount = jobsWithData?.filter(job => 
-        job.status === 'active' && new Date(job.deadline) > today
-      ).length || 0;
-      
-      const expiredJobsCount = jobsWithData?.filter(job => 
-        new Date(job.deadline) <= today
-      ).length || 0;
-
-      const totalLinkClicks = jobsWithData?.reduce((sum, job) => 
-        sum + (job.job_link_clicks?.length || 0), 0
-      ) || 0;
-      
-      const totalViews = jobsWithData?.reduce((sum, job) => 
-        sum + (job.job_views?.length || 0), 0
-      ) || 0;
-
-      const averageClicksPerJob = totalJobs > 0 
-        ? (totalLinkClicks / totalJobs).toFixed(1) 
-        : '0';
-
-      const engagementRate = totalViews > 0 
-        ? ((totalLinkClicks / totalViews) * 100).toFixed(1)
-        : '0';
-
-      // calculate average days to first click
-      let totalDaysToClick = 0;
-      let jobsWithClicks = 0;
-      
-      jobsWithData?.forEach(job => {
-        if (job.job_link_clicks && job.job_link_clicks.length > 0) {
-          const sortedClicks = [...job.job_link_clicks].sort((a, b) => 
-            new Date(a.clicked_at).getTime() - new Date(b.clicked_at).getTime()
-          );
-          const firstClick = sortedClicks[0];
-          const daysToClick = Math.ceil(
-            (new Date(firstClick.clicked_at).getTime() - new Date(job.created_at).getTime())
-            / (1000 * 60 * 60 * 24)
-          );
-          if (daysToClick > 0) {
-            totalDaysToClick += daysToClick;
-            jobsWithClicks++;
-          }
-        }
-      });
-
-      const averageDaysToClick = jobsWithClicks > 0
-        ? (totalDaysToClick / jobsWithClicks).toFixed(1)
-        : '0';
-
-      setAnalyticsOverview({
-        totalJobs,
-        totalLinkClicks,
-        averageClicksPerJob,
-        totalViews,
-        engagementRate,
-        activeJobs: activeJobsCount,
-        expiredJobs: expiredJobsCount,
-        averageDaysToClick
-      });
-
-      // prepare trend data for chart
-      const daysAgo = parseInt(dateRange);
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysAgo);
-      
-      const trendMap: { [key: string]: { clicks: number; views: number } } = {};
-      
-      for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
-        const dateKey = d.toISOString().split('T')[0];
-        trendMap[dateKey] = { clicks: 0, views: 0 };
+      if (error) {
+        console.error('error fetching rejected jobs:', error);
+      } else {
+        setRejectedJobs(data || []);
       }
-      
-      jobsWithData?.forEach(job => {
-        job.job_link_clicks?.forEach(click => {
-          const clickDate = new Date(click.clicked_at);
-          if (clickDate >= startDate) {
-            const dateKey = clickDate.toISOString().split('T')[0];
-            if (trendMap[dateKey]) {
-              trendMap[dateKey].clicks++;
-            }
-          }
-        });
-        
-        job.job_views?.forEach(view => {
-          const viewDate = new Date(view.created_at);
-          if (viewDate >= startDate) {
-            const dateKey = viewDate.toISOString().split('T')[0];
-            if (trendMap[dateKey]) {
-              trendMap[dateKey].views++;
-            }
-          }
-        });
-      });
+      setLoadingRejected(false);
+    };
 
-      const trends = Object.entries(trendMap).map(([date, data]) => ({
-        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        clicks: data.clicks,
-        views: data.views
-      }));
+    fetchRejectedJobs();
+  }, [session]);
 
-      setClickTrends(trends);
+  // fetch link clicks count when session is available
+  useEffect(() => {
+    if (!session) return;
+    fetchLinkClicks(session.user.id);
+  }, [session]);
 
-      // calculate top performing jobs
-      const topJobs = jobsWithData?.map(job => ({
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        clicks: job.job_link_clicks?.length || 0,
-        views: job.job_views?.length || 0,
-        engagementRate: (job.job_views?.length || 0) > 0 
-          ? (((job.job_link_clicks?.length || 0) / (job.job_views?.length || 0)) * 100).toFixed(1)
-          : '0',
-        status: job.status,
-        daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))
-      }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 5) || [];
-
-      setTopPerformingJobs(topJobs);
-
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-    } finally {
-      setLoadingAnalytics(false);
-    }
-  };
-
-  // handle removing a job (soft delete)
+  // function to remove a job (change status to removed)
   const handleRemove = async (jobId: string) => {
-    if (!confirm('Are you sure you want to remove this posting? This action is permanent.')) {
-      return;
-    }
+    const confirmRemove = confirm('are you sure you want to remove this job posting?');
+    if (!confirmRemove) return;
 
     const { error } = await supabase
       .from('jobs')
@@ -499,61 +319,34 @@ export default function FacultyDashboard() {
       .eq('id', jobId);
 
     if (error) {
-      alert('Failed to remove job.');
+      alert('error removing job: ' + error.message);
     } else {
-      setJobs((prev) =>
-        prev.map((job) =>
-          job.id === jobId ? { ...job, status: 'removed' as Job['status'] } : job
-        )
-      );
+      alert('job removed successfully');
+      setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, status: 'removed' } : job)));
     }
   };
 
-  // handle reactivating an expired job with a new deadline
+  // function to reactivate an archived job
   const handleReactivate = async (jobId: string) => {
-    const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
-    if (!newDeadline) return;
-
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(newDeadline)) {
-      alert('Please enter date in YYYY-MM-DD format');
-      return;
-    }
-
-    const selectedDate = new Date(newDeadline);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selectedDate <= today) {
-      alert('Please select a future date');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('jobs')
-        .update({ 
-          deadline: newDeadline,
-          status: 'active' 
-        })
-        .eq('id', jobId);
-
-      if (!error) {
-        alert('Job reactivated successfully!');
-        window.location.reload();
-      } else {
-        alert('Failed to reactivate job.');
-      }
-    } catch (error) {
-      console.error('Error reactivating job:', error);
-      alert('An error occurred while reactivating the job.');
-    }
+    router.push(`/rep/reactivate/${jobId}`);
   };
-  
-  // calculate metrics from the jobs list
-  const totalJobs = jobs.length + archivedJobs.length;
-  const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
-  const totalArchived = archivedJobs.length;
+
+  // function to revise a rejected job
+  const handleRevise = async (jobId: string) => {
+    router.push(`/rep/edit/${jobId}`);
+  };
+
+  // filter jobs based on status filter
+  const filteredJobs = useMemo(() => {
+    if (!statusFilter) return jobs;
+    return jobs.filter((job) => job.status === statusFilter);
+  }, [jobs, statusFilter]);
+
+  // calculate metrics for the dashboard cards
+  const totalJobs = jobs.length;
+  const activeJobs = jobs.filter(job => job.status === 'active').length;
+  const pendingJobs = jobs.filter(job => job.status === 'pending').length;
+  const totalRejected = rejectedJobs.length;
 
   if (!session || !userRole) {
     return <p className="p-8 text-center">Loading dashboard...</p>;
@@ -563,16 +356,26 @@ export default function FacultyDashboard() {
     <div className="bg-gray-50 min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-red-800">📚 Faculty Dashboard</h1>
-          <div className="flex gap-4">
-            {/* removed view applications button since faculty can't see applications anymore */}
-            <Link href="/faculty/analytics">
+          <h1 className="text-3xl font-bold text-red-800">💼 Rep Dashboard</h1>
+          <div className="flex gap-3">
+            {/* button to view analytics page */}
+            <Link href="/rep/analytics">
               <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
                 <ChartBarIcon className="h-5 w-5" />
-                Full Analytics
+                View Analytics
               </button>
             </Link>
-            <Link href="/faculty/create">
+            
+            {/* button to access profile settings page */}
+            <Link href="/profile/settings">
+              <button className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow-sm flex items-center gap-2">
+                <UserCircleIcon className="h-5 w-5" />
+                Account Settings
+              </button>
+            </Link>
+            
+            {/* button to create a new job posting */}
+            <Link href="/rep/create">
               <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
                 + Post a New Job
               </button>
@@ -580,43 +383,38 @@ export default function FacultyDashboard() {
           </div>
         </div>
 
-        {/* metrics cards - updated to show link clicks instead of applications */}
+        {/* metrics cards showing job statistics */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Total Jobs</h3>
+            <h3 className="text-gray-500 font-semibold">Total Posted</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
+            <h3 className="text-gray-500 font-semibold">Active</h3>
             <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Pending</h3>
-            <p className="text-4xl font-bold text-yellow-600 mt-2">
-              {jobs.filter(j => j.status === 'pending').length}
-            </p>
+            <p className="text-4xl font-bold text-yellow-500 mt-2">{pendingJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Archived</h3>
-            <p className="text-4xl font-bold text-gray-600 mt-2">{totalArchived}</p>
+            <h3 className="text-gray-500 font-semibold">Rejected</h3>
+            <p className="text-4xl font-bold text-red-600 mt-2">{totalRejected}</p>
           </div>
-          
-          {/* updated card showing link clicks instead of applications */}
+          {/* card showing total student engagement via link clicks */}
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 border-l-4 border-l-purple-500">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-gray-500 font-semibold">Link Clicks</h3>
                 <p className="text-4xl font-bold text-purple-600 mt-2">{linkClicksCount}</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  Student engagement
-                </p>
+                <p className="text-xs text-gray-600 mt-1">Student engagement</p>
               </div>
               <CursorArrowRaysIcon className="h-10 w-10 text-purple-500" />
             </div>
           </div>
         </div>
 
-        {/* tabs for switching between active, archived, and analytics */}
+        {/* tabs to switch between active, rejected, and archived jobs */}
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button 
@@ -630,6 +428,19 @@ export default function FacultyDashboard() {
               Current Jobs ({jobs.length})
             </button>
             <button 
+              onClick={() => setActiveTab('rejected')} 
+              className={`${
+                activeTab === 'rejected' 
+                  ? 'border-red-700 text-red-800' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg relative`}
+            >
+              Rejected ({rejectedJobs.length})
+              {rejectedJobs.length > 0 && (
+                <span className="absolute -top-1 -right-2 h-3 w-3 bg-red-500 rounded-full"></span>
+              )}
+            </button>
+            <button 
               onClick={() => setActiveTab('archived')} 
               className={`${
                 activeTab === 'archived' 
@@ -637,24 +448,13 @@ export default function FacultyDashboard() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
             >
-              Archived Jobs ({archivedJobs.length})
-            </button>
-            <button 
-              onClick={() => setActiveTab('analytics')} 
-              className={`${
-                activeTab === 'analytics' 
-                  ? 'border-red-700 text-red-800' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
-            >
-              Quick Analytics
+              Archived ({archivedJobs.length})
             </button>
           </nav>
         </div>
 
-        {/* content based on active tab */}
+        {/* tab content - shows different job lists based on selected tab */}
         {activeTab === 'active' ? (
-          // active jobs section
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Your Active Job Postings</h2>
@@ -667,17 +467,16 @@ export default function FacultyDashboard() {
                   className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
                 >
                   <option value="">All</option>
+                  <option value="pending">Pending</option>
                   <option value="active">Active</option>
                   <option value="removed">Removed</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
                 </select>
               </div>
             </div>
 
             {loading ? (
               <p className="text-center text-gray-500 py-10">Loading your jobs...</p>
-            ) : jobs.length === 0 ? (
+            ) : filteredJobs.length === 0 ? (
               <div className="text-center py-10">
                 <h3 className="text-xl font-semibold text-gray-700">No active jobs found.</h3>
                 <p className="text-gray-500 mt-2">
@@ -688,24 +487,54 @@ export default function FacultyDashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {jobs.map((job) => (
+                {filteredJobs.map((job) => (
                   <JobCard 
                     key={job.id} 
                     job={job} 
                     onRemove={handleRemove}
                     isArchived={false}
+                    isRejected={false}
                   />
                 ))}
               </div>
             )}
           </div>
-        ) : activeTab === 'archived' ? (
-          // archived jobs section
+        ) : activeTab === 'rejected' ? (
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Rejected Jobs - Need Revision</h2>
+              <p className="text-gray-600 mt-2">
+                These jobs were rejected by admin. Review the feedback and revise them before resubmitting.
+              </p>
+            </div>
+
+            {loadingRejected ? (
+              <p className="text-center text-gray-500 py-10">Loading rejected jobs...</p>
+            ) : rejectedJobs.length === 0 ? (
+              <div className="text-center py-10 bg-green-50 rounded-lg">
+                <h3 className="text-xl font-semibold text-green-700">No rejected jobs!</h3>
+                <p className="text-gray-600 mt-2">Great job! All your submissions have been approved.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {rejectedJobs.map((job) => (
+                  <JobCard 
+                    key={job.id} 
+                    job={job} 
+                    onRevise={handleRevise}
+                    isArchived={false}
+                    isRejected={true}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Your Archived Jobs (Past Deadline)</h2>
               <p className="text-gray-600 mt-2">
-                These jobs have passed their deadline. You can reactivate them with a new deadline.
+                These jobs have passed their deadline. You can reactivate them with a new deadline (requires admin approval).
               </p>
             </div>
 
@@ -724,140 +553,11 @@ export default function FacultyDashboard() {
                     job={job} 
                     onReactivate={handleReactivate}
                     isArchived={true}
+                    isRejected={false}
                   />
                 ))}
               </div>
             )}
-          </div>
-        ) : (
-          // analytics section - updated labels
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">Quick Analytics Overview</h2>
-                <select
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                >
-                  <option value="7">Last 7 days</option>
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                  <option value="365">Last year</option>
-                </select>
-              </div>
-
-              {loadingAnalytics ? (
-                <p className="text-center text-gray-500 py-10">Loading analytics...</p>
-              ) : (
-                <>
-                  {/* analytics overview cards - updated labels */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Total Link Clicks</p>
-                      <p className="text-2xl font-bold text-gray-800">{analyticsOverview.totalLinkClicks}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Avg: {analyticsOverview.averageClicksPerJob} per job
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Total Views</p>
-                      <p className="text-2xl font-bold text-blue-600">{analyticsOverview.totalViews}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Engagement: {analyticsOverview.engagementRate}%
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Active Jobs</p>
-                      <p className="text-2xl font-bold text-green-600">{analyticsOverview.activeJobs}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        of {analyticsOverview.totalJobs} total
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Avg Days to Click</p>
-                      <p className="text-2xl font-bold text-purple-600">{analyticsOverview.averageDaysToClick}</p>
-                      <p className="text-xs text-gray-600 mt-1">after posting</p>
-                    </div>
-                  </div>
-
-                  {/* simple trend chart - updated labels */}
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-3">Engagement Trends</h3>
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[600px] h-48 flex items-end justify-between gap-1">
-                        {clickTrends.slice(-14).map((day, index) => (
-                          <div key={index} className="flex-1 flex flex-col items-center">
-                            <div className="w-full flex gap-0.5 items-end h-40">
-                              <div 
-                                className="flex-1 bg-red-600 rounded-t"
-                                style={{ 
-                                  height: `${day.clicks > 0 ? (day.clicks / Math.max(...clickTrends.map(d => d.clicks)) * 100) : 0}%`,
-                                  minHeight: day.clicks > 0 ? '4px' : '0'
-                                }}
-                                title={`${day.clicks} clicks`}
-                              />
-                              <div 
-                                className="flex-1 bg-blue-600 rounded-t"
-                                style={{ 
-                                  height: `${day.views > 0 ? (day.views / Math.max(...clickTrends.map(d => d.views)) * 100) : 0}%`,
-                                  minHeight: day.views > 0 ? '4px' : '0'
-                                }}
-                                title={`${day.views} views`}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-600 mt-1 rotate-45 origin-left whitespace-nowrap">{day.date}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 mt-3 justify-center">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-red-600 rounded"></div>
-                        <span className="text-sm text-gray-600">Link Clicks</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-600 rounded"></div>
-                        <span className="text-sm text-gray-600">Views</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* top performing jobs table - updated labels */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Top Performing Jobs</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Link Clicks</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Views</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Engagement</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {topPerformingJobs.map((job, index) => (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{job.title}</td>
-                              <td className="px-4 py-3 text-sm text-center">
-                                <span className="font-semibold text-green-600">{job.clicks}</span>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-center">{job.views}</td>
-                              <td className="px-4 py-3 text-sm text-center">
-                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                  {job.engagementRate}%
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
         )}
       </div>
