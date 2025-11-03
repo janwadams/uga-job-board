@@ -474,7 +474,7 @@ export default function RepDashboard() {
 
             {loading ? (
               <p className="text-center text-gray-500 py-10">Loading your jobs...</p>
-            ) : jobs.length === 0 ? (
+            ) : filteredJobs.length === 0 ? (
               <div className="text-center py-10">
                 <h3 className="text-xl font-semibold text-gray-700">No active jobs found.</h3>
                 <p className="text-gray-500 mt-2">
@@ -485,7 +485,7 @@ export default function RepDashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {jobs.map((job) => (
+                {filteredJobs.map((job) => (
                   <JobCard 
                     key={job.id} 
                     job={job} 
