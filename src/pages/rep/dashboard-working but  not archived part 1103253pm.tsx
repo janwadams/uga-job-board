@@ -231,14 +231,12 @@ export default function RepDashboard() {
 
     const fetchJobs = async () => {
       const userId = session.user.id;
-      const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
         .neq('status', 'archived')
-        .gte('deadline', today)
         .order('created_at', { ascending: false });
 
       if (error) {
