@@ -60,10 +60,10 @@ export default async function handler(
       return res.status(200).json({ count: 0 });
     }
 
-    // count link clicks for these specific jobs only from the job_link_clicks table
+    // count link clicks for these specific jobs only
     const jobIds = jobs.map(job => job.id);
     const { count, error: countError } = await supabase
-      .from('job_link_clicks')
+      .from('link_clicks')
       .select('*', { count: 'exact', head: true })
       .in('job_id', jobIds);
 

@@ -71,9 +71,9 @@ export default async function handler(
 
     const jobIds = jobs.map(j => j.id);
 
-    // fetch link clicks for these jobs
+    // fetch link clicks for these jobs from the job_link_clicks table
     const { data: linkClicks, error: clicksError } = await supabase
-      .from('link_clicks')
+      .from('job_link_clicks')
       .select('*')
       .in('job_id', jobIds);
 

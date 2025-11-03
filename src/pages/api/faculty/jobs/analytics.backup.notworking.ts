@@ -82,9 +82,9 @@ export default async function handler(
       });
     }
 
-    // fetch link clicks data from the job_link_clicks table
+    // fetch link clicks data
     const { data: clicksData, error: clicksError } = await supabase
-      .from('job_link_clicks')
+      .from('link_clicks')
       .select('*')
       .in('job_id', jobIds)
       .gte('clicked_at', startDate.toISOString());

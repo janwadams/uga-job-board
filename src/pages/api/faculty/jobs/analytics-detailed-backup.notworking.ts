@@ -1,12 +1,12 @@
-// pages/api/faculty/link-clicks-count.ts
-// secure api endpoint to get total link clicks count for all faculty's jobs
+// pages/api/faculty/analytics-detailed.ts
+// comprehensive analytics endpoint for the detailed analytics page
 
 import { createClient } from '@supabase/supabase-js';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export default async function handler(
@@ -37,7 +37,7 @@ export default async function handler(
     // verify user has faculty role
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
-      .select('role')
+      .select('role, first_name, last_name')
       .eq('user_id', user.id)
       .single();
 
@@ -45,10 +45,13 @@ export default async function handler(
       return res.status(403).json({ error: 'user does not have faculty permissions' });
     }
 
-    // get all jobs by this faculty member
+    // get date range from query (defaults to 30 days)
+    const { days = '30' } = req.query;
+
+    // fetch all jobs created by this faculty member with link clicks and views
     const { data: jobs, error: jobsError } = await supabase
       .from('jobs')
-      .select('id')
+      .select('*')
       .eq('created_by', user.id);
 
     if (jobsError) {
@@ -56,26 +59,48 @@ export default async function handler(
       return res.status(500).json({ error: 'failed to fetch jobs' });
     }
 
+    // if no jobs, return empty data
     if (!jobs || jobs.length === 0) {
-      return res.status(200).json({ count: 0 });
+      return res.status(200).json({
+        facultyName: `${roleData.first_name || ''} ${roleData.last_name || ''}`.trim() || 'faculty member',
+        jobs: [],
+        linkClicks: [],
+        views: []
+      });
     }
 
-    // count link clicks for these specific jobs only from the job_link_clicks table
-    const jobIds = jobs.map(job => job.id);
-    const { count, error: countError } = await supabase
-      .from('job_link_clicks')
-      .select('*', { count: 'exact', head: true })
+    const jobIds = jobs.map(j => j.id);
+
+    // fetch link clicks for these jobs
+    const { data: linkClicks, error: clicksError } = await supabase
+      .from('link_clicks')
+      .select('*')
       .in('job_id', jobIds);
 
-    if (countError) {
-      console.error('error counting clicks:', countError);
-      return res.status(500).json({ error: 'failed to count link clicks' });
+    if (clicksError) {
+      console.error('error fetching link clicks:', clicksError);
     }
 
-    return res.status(200).json({ count: count || 0 });
+    // fetch views for these jobs
+    const { data: views, error: viewsError } = await supabase
+      .from('job_views')
+      .select('*')
+      .in('job_id', jobIds);
+
+    if (viewsError) {
+      console.error('error fetching views:', viewsError);
+    }
+
+    // return all the raw data for frontend processing
+    return res.status(200).json({
+      facultyName: `${roleData.first_name || ''} ${roleData.last_name || ''}`.trim() || 'faculty member',
+      jobs: jobs || [],
+      linkClicks: linkClicks || [],
+      views: views || []
+    });
 
   } catch (error) {
-    console.error('unexpected error in link clicks count api:', error);
+    console.error('unexpected error in detailed analytics api:', error);
     return res.status(500).json({ error: 'internal server error' });
   }
 }
