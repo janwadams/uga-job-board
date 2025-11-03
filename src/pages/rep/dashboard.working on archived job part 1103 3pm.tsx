@@ -237,9 +237,8 @@ export default function RepDashboard() {
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
+        .neq('status', 'archived')
         .gte('deadline', today)
-        .neq('status', 'removed')
-        .neq('status', 'rejected')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -259,15 +258,12 @@ export default function RepDashboard() {
 
     const fetchArchivedJobs = async () => {
       const userId = session.user.id;
-      const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .lt('deadline', today)
-        .neq('status', 'removed')
-        .neq('status', 'rejected')
+        .eq('status', 'archived')
         .order('deadline', { ascending: false });
 
       if (error) {
