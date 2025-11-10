@@ -1,5 +1,5 @@
-// signup form for company representatives and faculty/staff
-// pages/signup.tsx
+//company rep sign up form
+//pages/signup.tsx
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -20,9 +20,6 @@ const EyeOffIcon = () => (
 );
 
 export default function Signup() {
-  // track whether user is signing up as company or faculty
-  const [userType, setUserType] = useState<'company' | 'faculty'>('company');
-  
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -55,12 +52,6 @@ export default function Signup() {
       return;
     }
 
-    // make sure faculty use uga email addresses
-    if (userType === 'faculty' && !formData.email.endsWith('@uga.edu')) {
-      setError('Faculty/Staff must use a UGA email address (@uga.edu).');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -72,10 +63,9 @@ export default function Signup() {
         body: JSON.stringify({ 
           email: formData.email, 
           password: formData.password, 
-          company_name: userType === 'company' ? formData.companyName : 'University of Georgia',
+          company_name: formData.companyName,
           first_name: formData.firstName,
           last_name: formData.lastName,
-          is_faculty: userType === 'faculty', // tell the api if this is faculty
         }),
       });
 
@@ -83,15 +73,6 @@ export default function Signup() {
 
       if (response.ok) {
         setMessage(data.message);
-        // clear the form after successful submission
-        setFormData({
-          firstName: '',
-          lastName: '',
-          email: '',
-          password: '',
-          confirmPassword: '',
-          companyName: '',
-        });
       } else {
         setError(data.error);
       }
@@ -106,39 +87,7 @@ export default function Signup() {
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="p-8 bg-white rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center text-red-700">
-          {userType === 'faculty' ? 'Faculty/Staff Signup' : 'Company Rep Signup'}
-        </h1>
-        
-        {/* let user choose between company rep or faculty/staff */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">I am a:</label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setUserType('company')}
-              className={`py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                userType === 'company'
-                  ? 'bg-red-800 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              Company Representative
-            </button>
-            <button
-              type="button"
-              onClick={() => setUserType('faculty')}
-              className={`py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                userType === 'faculty'
-                  ? 'bg-red-800 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              UGA Faculty/Staff
-            </button>
-          </div>
-        </div>
-
+        <h1 className="text-2xl font-bold mb-6 text-center text-red-700">Company Rep Signup</h1>
         <form onSubmit={handleSignup} className="space-y-4">
           <div className="flex gap-4">
               <input
@@ -160,24 +109,19 @@ export default function Signup() {
                 className="w-full border p-2 rounded"
               />
           </div>
-          
-          {/* only show company name field for company reps, not faculty */}
-          {userType === 'company' && (
-            <input
-              name="companyName"
-              type="text"
-              placeholder="Company Name"
-              value={formData.companyName}
-              onChange={handleChange}
-              required
-              className="w-full border p-2 rounded"
-            />
-          )}
-          
+          <input
+            name="companyName"
+            type="text"
+            placeholder="Company Name"
+            value={formData.companyName}
+            onChange={handleChange}
+            required
+            className="w-full border p-2 rounded"
+          />
           <input
             name="email"
             type="email"
-            placeholder={userType === 'faculty' ? 'UGA Email (@uga.edu)' : 'Company Email'}
+            placeholder="Company Email"
             value={formData.email}
             onChange={handleChange}
             required
@@ -262,16 +206,6 @@ export default function Signup() {
             {loading ? 'Submitting...' : 'Request Account'}
           </button>
         </form>
-        
-        {/* show info message about admin approval */}
-        <div className="mt-4 p-3 bg-gray-50 rounded-md">
-          <p className="text-xs text-gray-600">
-            {userType === 'faculty' 
-              ? '✓ Faculty/Staff accounts require admin approval before activation.'
-              : '✓ Company accounts require admin approval before activation.'}
-          </p>
-        </div>
-        
         {message && <p className="text-green-500 text-center mt-4">{message}</p>}
         {error && <p className="text-red-500 text-center mt-4">{error}</p>}
          <p className="text-center text-sm text-gray-600 mt-4">
