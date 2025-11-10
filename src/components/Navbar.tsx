@@ -141,7 +141,7 @@ export default function Navbar() {
                     </Link>
                     <Link href="/signup">
                       <span className="font-semibold text-uga-red bg-uga-white px-4 py-2 rounded-md hover:bg-opacity-90 transition-colors cursor-pointer">
-                        Company Sign Up
+                        Rep/Faculty Sign Up
                       </span>
                     </Link>
                   </>
@@ -234,7 +234,7 @@ export default function Navbar() {
                         onClick={() => setMobileMenuOpen(false)}
                         className="block py-2 text-white hover:text-gray-200"
                       >
-                        Company Sign Up
+                        Rep/Faculty Sign Up
                       </span>
                     </Link>
                   </div>
