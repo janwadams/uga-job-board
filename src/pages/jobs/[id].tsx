@@ -24,7 +24,7 @@ interface Job {
   deadline: string;
   apply_method: string;
   created_at: string;
-  updated_at: string;
+  
   status: string;
 }
 
@@ -462,11 +462,7 @@ export default function JobDetails() {
                 <div>
                   <span className="font-medium text-gray-700">Posted:</span> {formatDate(job.created_at)}
                 </div>
-                {job.updated_at !== job.created_at && (
-                  <div>
-                    <span className="font-medium text-gray-700">Last Updated:</span> {formatDate(job.updated_at)}
-                  </div>
-                )}
+                
               </div>
             </section>
           </div>
