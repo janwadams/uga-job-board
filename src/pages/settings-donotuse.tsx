@@ -105,21 +105,9 @@ export default function Settings() {
     setMessage(null);
     
     try {
-      // Get the session token
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      
-      if (!currentSession?.access_token) {
-        throw new Error('No valid session found');
-      }
-
-      // Call the secure API route
-      const response = await fetch('/api/profile/update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentSession.access_token}`
-        },
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from('user_roles')
+        .update({
           first_name: profile.first_name,
           last_name: profile.last_name,
           email: profile.email,
@@ -129,13 +117,9 @@ export default function Settings() {
           office_location: profile.office_location,
           office_hours: profile.office_hours
         })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update profile');
-      }
+        .eq('user_id', session.user.id);
+      
+      if (error) throw error;
       
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       
