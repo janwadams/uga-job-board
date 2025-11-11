@@ -7,8 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { 
   CursorArrowRaysIcon,
-  ChartBarIcon,
-  UserCircleIcon
+  ChartBarIcon 
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -567,12 +566,6 @@ export default function FacultyDashboard() {
           <h1 className="text-3xl font-bold text-red-800">📚 Faculty Dashboard</h1>
           <div className="flex gap-4">
             {/* removed view applications button since faculty can't see applications anymore */}
-            <Link href="/settings">
-              <button className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow-sm flex items-center gap-2">
-                <UserCircleIcon className="h-5 w-5" />
-                Account Settings
-              </button>
-            </Link>
             <Link href="/faculty/analytics">
               <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
                 <ChartBarIcon className="h-5 w-5" />
