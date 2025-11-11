@@ -1,866 +1,366 @@
+// faculty dashboard
 // pages/faculty/dashboard.tsx
-// Updated faculty dashboard with link click tracking instead of applications
 
-import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { 
-  CursorArrowRaysIcon,
-  ChartBarIcon 
-} from '@heroicons/react/24/outline';
+import { Search, Users, FileText, TrendingUp, LogOut, User, ChevronDown, Calendar, Briefcase, BookOpen, Target, Plus } from 'lucide-react';
+import PostJobModal from '../../components/PostJobModal';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface Job {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  deadline: string;
-  job_type: string;
-  status: 'active' | 'pending' | 'removed' | 'rejected' | 'archived';
-  created_by: string;
-  created_at: string;
-}
-
-// types for analytics data
-interface AnalyticsOverview {
-  totalJobs: number;
-  totalLinkClicks: number; // changed from totalApplications
-  averageClicksPerJob: string; // changed from averageApplicationsPerJob
-  totalViews: number;
-  engagementRate: string; // changed from conversionRate
-  activeJobs: number;
-  expiredJobs: number;
-  averageDaysToClick: string; // changed from averageDaysToApply
-}
-
-interface TrendData {
-  date: string;
-  clicks: number; // changed from applications
-  views: number;
-}
-
-interface TopJob {
-  id: string;
-  title: string;
-  company: string;
-  clicks: number; // changed from applications
-  views: number;
-  engagementRate: string; // changed from conversionRate
-  status: string;
-  daysActive: number;
-}
-
-// job card component - shows individual job postings
-const JobCard = ({ job, onRemove, onReactivate, isArchived }: { 
-  job: Job, 
-  onRemove?: (jobId: string) => void,
-  onReactivate?: (jobId: string) => void,
-  isArchived?: boolean 
-}) => {
-  const statusColors: Record<Job['status'], string> = {
-    active: 'bg-green-100 text-green-800',
-    pending: 'bg-yellow-100 text-yellow-800',
-    removed: 'bg-red-100 text-red-800',
-    rejected: 'bg-gray-100 text-gray-800',
-    archived: 'bg-gray-100 text-gray-800',
-  };
-
-  const isDisabled = job.status === 'removed' || job.status === 'rejected';
-
-  // calculate how many days since the job expired (for archived jobs)
-  const getDaysSinceExpired = () => {
-    const deadlineDate = new Date(job.deadline);
-    const today = new Date();
-    const diffTime = today.getTime() - deadlineDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-6 flex flex-col h-full">
-      <div className="flex-grow">
-        <div className="flex justify-between items-start">
-          <h2 className="font-bold text-xl text-gray-800">{job.title}</h2>
-          <span className={`px-3 py-1 text-xs font-semibold rounded-full ${statusColors[isArchived ? 'archived' : job.status]}`}>
-            {isArchived ? 'Archived' : job.status.charAt(0).toUpperCase() + job.status.slice(1)}
-          </span>
-        </div>
-        <p className="text-gray-600 mb-2">{job.company}</p>
-        <p className="text-sm text-gray-500">
-          {isArchived 
-            ? `Expired: ${new Date(job.deadline).toLocaleDateString()} (${getDaysSinceExpired()} days ago)`
-            : `Deadline: ${new Date(job.deadline).toLocaleDateString()}`
-          }
-        </p>
-        {job.location && (
-          <p className="text-sm text-gray-500 mt-1">
-            Location: {job.location}
-          </p>
-        )}
-      </div>
-
-      <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
-        {isArchived ? (
-          // buttons for archived jobs
-          <>
-            <button
-              onClick={() => onReactivate && onReactivate(job.id)}
-              className="px-4 py-2 rounded font-semibold text-sm bg-green-600 text-white hover:bg-green-700 transition-colors"
-            >
-              Reactivate
-            </button>
-            <Link href={`/faculty/view/${job.id}`}>
-              <button className="px-4 py-2 rounded font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                View Details
-              </button>
-            </Link>
-          </>
-        ) : (
-          // buttons for active jobs
-          <>
-            <Link href={`/faculty/edit/${job.id}`}>
-              <button
-                disabled={isDisabled}
-                className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
-                  isDisabled
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                Edit
-              </button>
-            </Link>
-            <button
-              onClick={() => onRemove && onRemove(job.id)}
-              disabled={isDisabled}
-              className={`px-4 py-2 rounded font-semibold text-sm transition-colors ${
-                isDisabled
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-gray-600 text-white hover:bg-gray-700'
-              }`}
-            >
-              Remove
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
 export default function FacultyDashboard() {
-  const router = useRouter();
-  // tab management - active, archived, or analytics view
-  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'analytics'>('active');
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [archivedJobs, setArchivedJobs] = useState<Job[]>([]);
-  const [session, setSession] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [postedJobs, setPostedJobs] = useState<any[]>([]);
+  const [totalApplications, setTotalApplications] = useState(0);
+  const [activeJobsCount, setActiveJobsCount] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingArchived, setLoadingArchived] = useState(true);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [userRole, setUserRole] = useState<string | null>(null);
-  
-  // updated state for link clicks count instead of applications
-  const [linkClicksCount, setLinkClicksCount] = useState(0);
-  
-  // analytics state - stores all the data for charts and metrics
-  const [dateRange, setDateRange] = useState('30'); // default to 30 days
-  const [analyticsOverview, setAnalyticsOverview] = useState<AnalyticsOverview>({
-    totalJobs: 0,
-    totalLinkClicks: 0,
-    averageClicksPerJob: '0',
-    totalViews: 0,
-    engagementRate: '0',
-    activeJobs: 0,
-    expiredJobs: 0,
-    averageDaysToClick: '0'
-  });
-  const [clickTrends, setClickTrends] = useState<TrendData[]>([]);
-  const [topPerformingJobs, setTopPerformingJobs] = useState<TopJob[]>([]);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showPostJobModal, setShowPostJobModal] = useState(false);
+  const router = useRouter();
 
-  // check if user is logged in and has faculty role
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    checkUserAndLoadData();
+  }, []);
 
-      if (sessionError || !sessionData.session) {
+  const checkUserAndLoadData = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
         router.push('/login');
         return;
       }
 
-      const user = sessionData.session.user;
-      
-      const { data: roleData, error: roleError } = await supabase
+      // Fetch user profile
+      const { data: profile } = await supabase
         .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
+        .select('*')
+        .eq('user_id', session.user.id)
         .single();
-        
-      if (roleError || !roleData || roleData.role !== 'faculty') {
-          router.push('/unauthorized');
-          return;
-      }
-      
-      setUserRole(roleData.role);
-      setSession(sessionData.session);
-    };
-    checkSession();
-  }, [router]);
 
-  // function to fetch link clicks count for all faculty's jobs
-  const fetchLinkClicksCount = async () => {
-    if (!session) return;
-    
-    try {
-      // get all jobs by this faculty member
+      if (profile?.role !== 'faculty') {
+        router.push('/');
+        return;
+      }
+
+      setUserProfile(profile);
+
+      // Fetch posted jobs
       const { data: jobs } = await supabase
         .from('jobs')
-        .select('id')
-        .eq('created_by', session.user.id);
-      
-      if (jobs && jobs.length > 0) {
-        // count link clicks for these specific jobs only
-        const { count } = await supabase
-          .from('job_link_clicks')
-          .select('*', { count: 'exact', head: true })
-          .in('job_id', jobs.map(j => j.id));
+        .select('*')
+        .eq('created_by', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (jobs) {
+        setPostedJobs(jobs);
+        setActiveJobsCount(jobs.filter(job => job.status === 'active').length);
         
-        setLinkClicksCount(count || 0);
-      } else {
-        setLinkClicksCount(0);
+        // Calculate total applications
+        const total = jobs.reduce((sum, job) => sum + (job.application_count || 0), 0);
+        setTotalApplications(total);
+        
+        // Create recent activity from jobs
+        const activities = jobs.slice(0, 5).map(job => ({
+          id: job.id,
+          type: 'job_posted',
+          title: job.title,
+          date: job.created_at,
+          status: job.status
+        }));
+        setRecentActivity(activities);
       }
     } catch (error) {
-      console.error('Error fetching link clicks count:', error);
-    }
-  };
-
-  // fetch active jobs when tab changes or filter changes
-  useEffect(() => {
-    const fetchJobs = async () => {
-      if (!session?.user) {
-        setLoading(false);
-        return;
-      }
-      
-      const userId = session.user.id;
-      setLoading(true);
-
-      // get today's date to filter out expired jobs
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      let query = supabase
-        .from('jobs')
-        .select('*')
-        .eq('created_by', userId)
-        .gte('deadline', today.toISOString()); // only get non-expired jobs
-
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching jobs:', error);
-        setJobs([]);
-      } else {
-        setJobs(data as Job[] || []);
-      }
-
-      setLoading(false);
-    };
-
-    if (session) {
-      fetchJobs();
-      fetchLinkClicksCount(); // fetch link clicks count when session is ready
-    }
-  }, [session, statusFilter]);
-
-  // fetch archived (expired) jobs
-  useEffect(() => {
-    const fetchArchivedJobs = async () => {
-      if (!session?.user) {
-        setLoadingArchived(false);
-        return;
-      }
-      
-      const userId = session.user.id;
-      setLoadingArchived(true);
-
-      // get today's date to filter expired jobs
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('created_by', userId)
-        .lt('deadline', today.toISOString()) // only get expired jobs
-        .order('deadline', { ascending: false }); // newest expired first
-
-      if (error) {
-        console.error('Error fetching archived jobs:', error);
-        setArchivedJobs([]);
-      } else {
-        setArchivedJobs(data as Job[] || []);
-      }
-
-      setLoadingArchived(false);
-    };
-
-    if (session) {
-      fetchArchivedJobs();
-    }
-  }, [session]);
-
-  // fetch analytics data when analytics tab is selected or date range changes
-  useEffect(() => {
-    if (activeTab === 'analytics' && session) {
-      fetchAnalyticsData();
-    }
-  }, [activeTab, dateRange, session]);
-
-  // function to fetch all analytics data - updated for link clicks
-  const fetchAnalyticsData = async () => {
-    if (!session?.user) return;
-    
-    setLoadingAnalytics(true);
-    try {
-      const userId = session.user.id;
-      
-      // fetch all jobs with link clicks and views
-      const { data: jobsWithData, error: jobsError } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          job_link_clicks (
-            id,
-            clicked_at,
-            user_id
-          ),
-          job_views (
-            id,
-            created_at,
-            user_id
-          )
-        `)
-        .eq('created_by', userId);
-
-      if (jobsError) throw jobsError;
-
-      // calculate overview metrics
-      const totalJobs = jobsWithData?.length || 0;
-      const today = new Date();
-      
-      const activeJobsCount = jobsWithData?.filter(job => 
-        job.status === 'active' && new Date(job.deadline) > today
-      ).length || 0;
-      
-      const expiredJobsCount = jobsWithData?.filter(job => 
-        new Date(job.deadline) <= today
-      ).length || 0;
-
-      const totalLinkClicks = jobsWithData?.reduce((sum, job) => 
-        sum + (job.job_link_clicks?.length || 0), 0
-      ) || 0;
-      
-      const totalViews = jobsWithData?.reduce((sum, job) => 
-        sum + (job.job_views?.length || 0), 0
-      ) || 0;
-
-      const averageClicksPerJob = totalJobs > 0 
-        ? (totalLinkClicks / totalJobs).toFixed(1) 
-        : '0';
-
-      const engagementRate = totalViews > 0 
-        ? ((totalLinkClicks / totalViews) * 100).toFixed(1)
-        : '0';
-
-      // calculate average days to first click
-      let totalDaysToClick = 0;
-      let jobsWithClicks = 0;
-      
-      jobsWithData?.forEach(job => {
-        if (job.job_link_clicks && job.job_link_clicks.length > 0) {
-          const sortedClicks = [...job.job_link_clicks].sort((a, b) => 
-            new Date(a.clicked_at).getTime() - new Date(b.clicked_at).getTime()
-          );
-          const firstClick = sortedClicks[0];
-          const daysToClick = Math.ceil(
-            (new Date(firstClick.clicked_at).getTime() - new Date(job.created_at).getTime())
-            / (1000 * 60 * 60 * 24)
-          );
-          if (daysToClick > 0) {
-            totalDaysToClick += daysToClick;
-            jobsWithClicks++;
-          }
-        }
-      });
-
-      const averageDaysToClick = jobsWithClicks > 0
-        ? (totalDaysToClick / jobsWithClicks).toFixed(1)
-        : '0';
-
-      setAnalyticsOverview({
-        totalJobs,
-        totalLinkClicks,
-        averageClicksPerJob,
-        totalViews,
-        engagementRate,
-        activeJobs: activeJobsCount,
-        expiredJobs: expiredJobsCount,
-        averageDaysToClick
-      });
-
-      // prepare trend data for chart
-      const daysAgo = parseInt(dateRange);
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysAgo);
-      
-      const trendMap: { [key: string]: { clicks: number; views: number } } = {};
-      
-      for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
-        const dateKey = d.toISOString().split('T')[0];
-        trendMap[dateKey] = { clicks: 0, views: 0 };
-      }
-      
-      jobsWithData?.forEach(job => {
-        job.job_link_clicks?.forEach(click => {
-          const clickDate = new Date(click.clicked_at);
-          if (clickDate >= startDate) {
-            const dateKey = clickDate.toISOString().split('T')[0];
-            if (trendMap[dateKey]) {
-              trendMap[dateKey].clicks++;
-            }
-          }
-        });
-        
-        job.job_views?.forEach(view => {
-          const viewDate = new Date(view.created_at);
-          if (viewDate >= startDate) {
-            const dateKey = viewDate.toISOString().split('T')[0];
-            if (trendMap[dateKey]) {
-              trendMap[dateKey].views++;
-            }
-          }
-        });
-      });
-
-      const trends = Object.entries(trendMap).map(([date, data]) => ({
-        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        clicks: data.clicks,
-        views: data.views
-      }));
-
-      setClickTrends(trends);
-
-      // calculate top performing jobs
-      const topJobs = jobsWithData?.map(job => ({
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        clicks: job.job_link_clicks?.length || 0,
-        views: job.job_views?.length || 0,
-        engagementRate: (job.job_views?.length || 0) > 0 
-          ? (((job.job_link_clicks?.length || 0) / (job.job_views?.length || 0)) * 100).toFixed(1)
-          : '0',
-        status: job.status,
-        daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))
-      }))
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 5) || [];
-
-      setTopPerformingJobs(topJobs);
-
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
+      console.error('Error loading dashboard:', error);
     } finally {
-      setLoadingAnalytics(false);
+      setLoading(false);
     }
   };
 
-  // handle removing a job (soft delete)
-  const handleRemove = async (jobId: string) => {
-    if (!confirm('Are you sure you want to remove this posting? This action is permanent.')) {
-      return;
-    }
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
 
-    const { error } = await supabase
-      .from('jobs')
-      .update({ status: 'removed' })
-      .eq('id', jobId);
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
 
-    if (error) {
-      alert('Failed to remove job.');
-    } else {
-      setJobs((prev) =>
-        prev.map((job) =>
-          job.id === jobId ? { ...job, status: 'removed' as Job['status'] } : job
-        )
-      );
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'text-green-600 bg-green-100';
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'archived':
+        return 'text-gray-600 bg-gray-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
-  // handle reactivating an expired job with a new deadline
-  const handleReactivate = async (jobId: string) => {
-    const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
-    if (!newDeadline) return;
-
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(newDeadline)) {
-      alert('Please enter date in YYYY-MM-DD format');
-      return;
-    }
-
-    const selectedDate = new Date(newDeadline);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selectedDate <= today) {
-      alert('Please select a future date');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('jobs')
-        .update({ 
-          deadline: newDeadline,
-          status: 'active' 
-        })
-        .eq('id', jobId);
-
-      if (!error) {
-        alert('Job reactivated successfully!');
-        window.location.reload();
-      } else {
-        alert('Failed to reactivate job.');
-      }
-    } catch (error) {
-      console.error('Error reactivating job:', error);
-      alert('An error occurred while reactivating the job.');
-    }
-  };
-  
-  // calculate metrics from the jobs list
-  const totalJobs = jobs.length + archivedJobs.length;
-  const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
-  const totalArchived = archivedJobs.length;
-
-  if (!session || !userRole) {
-    return <p className="p-8 text-center">Loading dashboard...</p>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-800 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-red-800">📚 Faculty Dashboard</h1>
-          <div className="flex gap-4">
-            {/* removed view applications button since faculty can't see applications anymore */}
-            <Link href="/faculty/analytics">
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
-                <ChartBarIcon className="h-5 w-5" />
-                Full Analytics
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">Faculty Dashboard</h1>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowPostJobModal(true)}
+                className="bg-red-800 hover:bg-red-900 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Post New Job</span>
               </button>
-            </Link>
-            <Link href="/faculty/create">
-              <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
-                + Post a New Job
-              </button>
-            </Link>
+              
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
+                >
+                  <div className="h-8 w-8 bg-gray-300 rounded-full flex items-center justify-center">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                
+                {showUserDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                    <div className="px-4 py-2 text-sm text-gray-700 border-b">
+                      <div className="font-medium">{userProfile?.first_name} {userProfile?.last_name}</div>
+                      <div className="text-gray-500 text-xs">Faculty</div>
+                    </div>
+                    {/* link to account settings page */}
+                    <Link href="/faculty/account-settings">
+                      <span className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                        Account Settings
+                      </span>
+                    </Link>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* metrics cards - updated to show link clicks instead of applications */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Total Jobs</h3>
-            <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
-            <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Pending</h3>
-            <p className="text-4xl font-bold text-yellow-600 mt-2">
-              {jobs.filter(j => j.status === 'pending').length}
-            </p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Archived</h3>
-            <p className="text-4xl font-bold text-gray-600 mt-2">{totalArchived}</p>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Welcome back, {userProfile?.first_name}!
+          </h2>
+          <p className="text-gray-600">
+            Here's an overview of your job postings and recruitment activity.
+          </p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600">Total Jobs Posted</span>
+              <Briefcase className="h-5 w-5 text-red-800" />
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{postedJobs.length}</div>
+            <p className="text-xs text-gray-500 mt-1">All time</p>
           </div>
           
-          {/* updated card showing link clicks instead of applications */}
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 border-l-4 border-l-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-gray-500 font-semibold">Link Clicks</h3>
-                <p className="text-4xl font-bold text-purple-600 mt-2">{linkClicksCount}</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  Student engagement
-                </p>
-              </div>
-              <CursorArrowRaysIcon className="h-10 w-10 text-purple-500" />
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600">Active Jobs</span>
+              <Target className="h-5 w-5 text-green-600" />
             </div>
+            <div className="text-2xl font-bold text-gray-900">{activeJobsCount}</div>
+            <p className="text-xs text-gray-500 mt-1">Currently accepting applications</p>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600">Total Applications</span>
+              <Users className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{totalApplications}</div>
+            <p className="text-xs text-gray-500 mt-1">Across all jobs</p>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600">Avg. per Job</span>
+              <TrendingUp className="h-5 w-5 text-purple-600" />
+            </div>
+            <div className="text-2xl font-bold text-gray-900">
+              {postedJobs.length > 0 ? Math.round(totalApplications / postedJobs.length) : 0}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Applications per posting</p>
           </div>
         </div>
 
-        {/* tabs for switching between active, archived, and analytics */}
-        <div className="mb-6 border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            <button 
-              onClick={() => setActiveTab('active')} 
-              className={`${
-                activeTab === 'active' 
-                  ? 'border-red-700 text-red-800' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
-            >
-              Current Jobs ({jobs.length})
-            </button>
-            <button 
-              onClick={() => setActiveTab('archived')} 
-              className={`${
-                activeTab === 'archived' 
-                  ? 'border-red-700 text-red-800' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
-            >
-              Archived Jobs ({archivedJobs.length})
-            </button>
-            <button 
-              onClick={() => setActiveTab('analytics')} 
-              className={`${
-                activeTab === 'analytics' 
-                  ? 'border-red-700 text-red-800' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
-            >
-              Quick Analytics
-            </button>
-          </nav>
-        </div>
-
-        {/* content based on active tab */}
-        {activeTab === 'active' ? (
-          // active jobs section
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Your Active Job Postings</h2>
-              <div>
-                <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
-                <select
-                  id="statusFilter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
-                >
-                  <option value="">All</option>
-                  <option value="active">Active</option>
-                  <option value="removed">Removed</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Posted Jobs List */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Your Posted Jobs</h3>
               </div>
-            </div>
-
-            {loading ? (
-              <p className="text-center text-gray-500 py-10">Loading your jobs...</p>
-            ) : jobs.length === 0 ? (
-              <div className="text-center py-10">
-                <h3 className="text-xl font-semibold text-gray-700">No active jobs found.</h3>
-                <p className="text-gray-500 mt-2">
-                  {statusFilter 
-                    ? "Try changing your filter or post a new job."
-                    : "Click the 'Post a New Job' button to get started."}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {jobs.map((job) => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    onRemove={handleRemove}
-                    isArchived={false}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : activeTab === 'archived' ? (
-          // archived jobs section
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Your Archived Jobs (Past Deadline)</h2>
-              <p className="text-gray-600 mt-2">
-                These jobs have passed their deadline. You can reactivate them with a new deadline.
-              </p>
-            </div>
-
-            {loadingArchived ? (
-              <p className="text-center text-gray-500 py-10">Loading archived jobs...</p>
-            ) : archivedJobs.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <h3 className="text-xl font-semibold text-gray-700">No archived jobs yet.</h3>
-                <p className="text-gray-500 mt-2">Jobs will appear here after their deadline passes.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {archivedJobs.map((job) => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    onReactivate={handleReactivate}
-                    isArchived={true}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          // analytics section - updated labels
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">Quick Analytics Overview</h2>
-                <select
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                >
-                  <option value="7">Last 7 days</option>
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                  <option value="365">Last year</option>
-                </select>
-              </div>
-
-              {loadingAnalytics ? (
-                <p className="text-center text-gray-500 py-10">Loading analytics...</p>
-              ) : (
-                <>
-                  {/* analytics overview cards - updated labels */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Total Link Clicks</p>
-                      <p className="text-2xl font-bold text-gray-800">{analyticsOverview.totalLinkClicks}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Avg: {analyticsOverview.averageClicksPerJob} per job
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Total Views</p>
-                      <p className="text-2xl font-bold text-blue-600">{analyticsOverview.totalViews}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Engagement: {analyticsOverview.engagementRate}%
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Active Jobs</p>
-                      <p className="text-2xl font-bold text-green-600">{analyticsOverview.activeJobs}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        of {analyticsOverview.totalJobs} total
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-500">Avg Days to Click</p>
-                      <p className="text-2xl font-bold text-purple-600">{analyticsOverview.averageDaysToClick}</p>
-                      <p className="text-xs text-gray-600 mt-1">after posting</p>
-                    </div>
+              <div className="divide-y divide-gray-200">
+                {postedJobs.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-gray-500">
+                    <Briefcase className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p>You haven't posted any jobs yet.</p>
+                    <button
+                      onClick={() => setShowPostJobModal(true)}
+                      className="mt-4 text-red-800 hover:text-red-900 font-medium"
+                    >
+                      Post your first job →
+                    </button>
                   </div>
-
-                  {/* simple trend chart - updated labels */}
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-3">Engagement Trends</h3>
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[600px] h-48 flex items-end justify-between gap-1">
-                        {clickTrends.slice(-14).map((day, index) => (
-                          <div key={index} className="flex-1 flex flex-col items-center">
-                            <div className="w-full flex gap-0.5 items-end h-40">
-                              <div 
-                                className="flex-1 bg-red-600 rounded-t"
-                                style={{ 
-                                  height: `${day.clicks > 0 ? (day.clicks / Math.max(...clickTrends.map(d => d.clicks)) * 100) : 0}%`,
-                                  minHeight: day.clicks > 0 ? '4px' : '0'
-                                }}
-                                title={`${day.clicks} clicks`}
-                              />
-                              <div 
-                                className="flex-1 bg-blue-600 rounded-t"
-                                style={{ 
-                                  height: `${day.views > 0 ? (day.views / Math.max(...clickTrends.map(d => d.views)) * 100) : 0}%`,
-                                  minHeight: day.views > 0 ? '4px' : '0'
-                                }}
-                                title={`${day.views} views`}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-600 mt-1 rotate-45 origin-left whitespace-nowrap">{day.date}</p>
+                ) : (
+                  postedJobs.map((job) => (
+                    <div key={job.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-gray-900">{job.title}</h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {job.location} • {job.job_type}
+                          </p>
+                          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                            <span>Posted {formatDate(job.created_at)}</span>
+                            <span>{job.application_count || 0} applications</span>
+                            <span>{job.view_count || 0} views</span>
                           </div>
-                        ))}
+                        </div>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
+                          {job.status}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex space-x-3">
+                        <Link href={`/jobs/${job.id}`}>
+                          <span className="text-xs text-red-800 hover:text-red-900 cursor-pointer">View Details</span>
+                        </Link>
+                        <Link href={`/faculty/job/${job.id}/edit`}>
+                          <span className="text-xs text-gray-600 hover:text-gray-800 cursor-pointer">Edit</span>
+                        </Link>
+                        <Link href={`/faculty/job/${job.id}/applications`}>
+                          <span className="text-xs text-gray-600 hover:text-gray-800 cursor-pointer">Applications</span>
+                        </Link>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 mt-3 justify-center">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-red-600 rounded"></div>
-                        <span className="text-sm text-gray-600">Link Clicks</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-600 rounded"></div>
-                        <span className="text-sm text-gray-600">Views</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* top performing jobs table - updated labels */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Top Performing Jobs</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Link Clicks</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Views</th>
-                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Engagement</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {topPerformingJobs.map((job, index) => (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{job.title}</td>
-                              <td className="px-4 py-3 text-sm text-center">
-                                <span className="font-semibold text-green-600">{job.clicks}</span>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-center">{job.views}</td>
-                              <td className="px-4 py-3 text-sm text-center">
-                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                  {job.engagementRate}%
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Recent Activity */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {recentActivity.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-gray-500">
+                    <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">No recent activity</p>
+                  </div>
+                ) : (
+                  recentActivity.map((activity) => (
+                    <div key={activity.id} className="px-6 py-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
+                            <Briefcase className="h-4 w-4 text-red-800" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900">
+                            Posted "{activity.title}"
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(activity.date)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="mt-6 bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowPostJobModal(true)}
+                  className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center space-x-3"
+                >
+                  <Plus className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-900">Post New Job</span>
+                </button>
+                <Link href="/faculty/jobs">
+                  <button className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center space-x-3">
+                    <FileText className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-900">Manage All Jobs</span>
+                  </button>
+                </Link>
+                <Link href="/faculty/applications">
+                  <button className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center space-x-3">
+                    <Users className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-900">Review Applications</span>
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Post Job Modal */}
+      {showPostJobModal && (
+        <PostJobModal
+          onClose={() => setShowPostJobModal(false)}
+          onSuccess={() => {
+            setShowPostJobModal(false);
+            checkUserAndLoadData(); // Reload data after posting
+          }}
+        />
+      )}
     </div>
   );
 }
