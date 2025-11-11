@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
-import SimpleDeleteAccount from '../../components/SimpleDeleteAccount';
+import AccountDeletion from '../../components/AccountDeletion';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -366,8 +366,8 @@ export default function FacultyAccountSettings() {
             </form>
           </div>
 
-          {/* account deletion component - allows users to delete their account */}
-          <SimpleDeleteAccount />
+          {/* account deletion component - this is where users can delete their account */}
+          <AccountDeletion />
         </div>
       </div>
     </div>
