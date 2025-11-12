@@ -157,22 +157,10 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (user: AdminUser) => {
     if (window.confirm(`Are you sure you want to delete ${user.email}? This action cannot be undone.`)) {
       try {
-        // Get the current admin's email from session
-        const { data: { session } } = await supabase.auth.getSession();
-        const adminEmail = session?.user?.email;
-
-        if (!adminEmail) {
-          alert('Could not determine admin email. Please log in again.');
-          return;
-        }
-
         const response = await fetch('/api/admin/delete-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            userToDelete: user,
-            adminEmail: adminEmail
-          })
+          body: JSON.stringify({ userToDelete: user })
 		  
         });
 
