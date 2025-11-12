@@ -225,7 +225,7 @@ export default function ProfileSettings() {
 
     setIsDeleting(true);
     
-    // Close the modal immediately
+    // Close the modal immediately to show processing
     setShowDeleteModal(false);
 
     try {
@@ -236,8 +236,14 @@ export default function ProfileSettings() {
         throw new Error('No valid session found');
       }
 
-      // Fire off the delete request but don't wait for it
-      fetch('/api/account/delete', {
+      // Show user we're processing
+      alert('Deleting your account... Please wait.');
+
+      // call the delete account API with a timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch('/api/account/delete', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -245,23 +251,37 @@ export default function ProfileSettings() {
         },
         body: JSON.stringify({
           confirmText: deleteConfirmText
-        })
-      }).catch(err => {
-        console.log('Delete API error (non-blocking):', err);
+        }),
+        signal: controller.signal
       });
 
-      // Immediately log out and redirect (don't wait for API)
+      clearTimeout(timeoutId);
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete account');
+      }
+
+      // Success - sign out and redirect
       await supabase.auth.signOut();
-      
-      alert('Your account is being deleted. You will now be logged out.');
-      
-      // Force full page reload to homepage
-      window.location.href = '/';
+      alert('Your account has been deleted successfully.');
+      window.location.href = '/'; // Force full page redirect
 
     } catch (error: any) {
-      console.error('Error during logout:', error);
-      // Even if logout fails, force redirect
-      window.location.href = '/';
+      console.error('Error deleting account:', error);
+      
+      // If timeout or network error, account might still be deleted
+      // So log out anyway to be safe
+      if (error.name === 'AbortError') {
+        alert('The deletion is taking longer than expected. Logging you out for safety. Your account may have been deleted.');
+        await supabase.auth.signOut();
+        window.location.href = '/';
+      } else {
+        setErrorMessage(error.message || 'Failed to delete account.');
+        setIsDeleting(false);
+        setShowDeleteModal(true); // Reopen modal on error
+      }
     }
   };
 
