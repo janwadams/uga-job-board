@@ -79,7 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         first_name: userData.first_name,
         last_name: userData.last_name,
         company_name: userData.company_name,
-        deleted_by_admin_email: emailForAudit, // Self-deletion: use user's own email
+        deleted_by_admin_email: null, // self-deletion, not admin
         deleted_at: new Date().toISOString()
       });
 
