@@ -14,7 +14,6 @@ import {
   ArrowLeftIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -40,10 +39,7 @@ interface ProfileData {
   company_name?: string;
   job_title?: string;
   company_website?: string;
-  // faculty fields
-  department?: string;
-  office_location?: string;
-  office_hours?: string;
+  
 }
 
 export default function ProfileSettings() {
@@ -53,11 +49,6 @@ export default function ProfileSettings() {
   const [userId, setUserId] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  
-  // delete account states
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [isDeleting, setIsDeleting] = useState(false);
   
   // profile form data
   const [profileData, setProfileData] = useState<ProfileData>({
@@ -76,9 +67,7 @@ export default function ProfileSettings() {
     company_name: '',
     job_title: '',
     company_website: '',
-    department: '',
-    office_location: '',
-    office_hours: '',
+ 
   });
 
   // check if user is logged in and load their profile data
@@ -126,9 +115,7 @@ export default function ProfileSettings() {
           company_name: roleData.company_name || '',
           job_title: roleData.job_title || '',
           company_website: roleData.company_website || '',
-          department: roleData.department || '',
-          office_location: roleData.office_location || '',
-          office_hours: roleData.office_hours || '',
+        
         });
 
         setLoading(false);
@@ -143,7 +130,7 @@ export default function ProfileSettings() {
   }, [router]);
 
   // handle form field changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileData(prev => ({
       ...prev,
@@ -210,57 +197,6 @@ export default function ProfileSettings() {
     if (profileData.role === 'faculty') return '/faculty/dashboard';
     if (profileData.role === 'admin') return '/admin/dashboard';
     return '/';
-  };
-
-  // handle delete account
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE') {
-      setErrorMessage('Please type DELETE to confirm account deletion.');
-      return;
-    }
-
-    if (!confirm('Are you absolutely sure? This action cannot be undone. Your account will be permanently deleted.')) {
-      return;
-    }
-
-    setIsDeleting(true);
-
-    try {
-      // get the session token
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        throw new Error('No valid session found');
-      }
-
-      // call the delete account API
-      const response = await fetch('/api/account/delete', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          confirmText: deleteConfirmText
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete account');
-      }
-
-      // sign out and redirect to home
-      await supabase.auth.signOut();
-      alert('Your account has been deleted. You will now be redirected to the home page.');
-      router.push('/');
-
-    } catch (error: any) {
-      console.error('Error deleting account:', error);
-      setErrorMessage(error.message || 'Failed to delete account.');
-      setIsDeleting(false);
-    }
   };
 
   if (loading) {
@@ -560,78 +496,6 @@ export default function ProfileSettings() {
             </div>
           )}
 
-          {/* faculty-specific fields */}
-          {profileData.role === 'faculty' && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <BriefcaseIcon className="h-6 w-6 text-red-700" />
-                <h2 className="text-xl font-bold text-gray-900">Faculty Information</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Department
-                  </label>
-                  <select
-                    name="department"
-                    value={profileData.department}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  >
-                    <option value="">Select Department</option>
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Engineering">Engineering</option>
-                    <option value="Business">Business</option>
-                    <option value="Biology">Biology</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Psychology">Psychology</option>
-                    <option value="English">English</option>
-                    <option value="History">History</option>
-                    <option value="Economics">Economics</option>
-                    <option value="Political Science">Political Science</option>
-                    <option value="Sociology">Sociology</option>
-                    <option value="Education">Education</option>
-                    <option value="Art">Art</option>
-                    <option value="Music">Music</option>
-                    <option value="Theatre">Theatre</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Office Location
-                  </label>
-                  <input
-                    type="text"
-                    name="office_location"
-                    value={profileData.office_location}
-                    onChange={handleChange}
-                    placeholder="e.g., Boyd Building, Room 304"
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Office Hours
-                  </label>
-                  <input
-                    type="text"
-                    name="office_hours"
-                    value={profileData.office_hours}
-                    onChange={handleChange}
-                    placeholder="e.g., Mon/Wed 2-4 PM"
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           
 
           {/* save button */}
@@ -653,93 +517,6 @@ export default function ProfileSettings() {
             </button>
           </div>
         </form>
-
-        {/* danger zone - delete account */}
-        <div className="max-w-4xl mx-auto px-4 mt-8 mb-8">
-          <div className="bg-white rounded-lg shadow border border-red-200 p-6">
-            <h2 className="text-xl font-semibold text-red-800 mb-2">Danger Zone</h2>
-            <p className="text-gray-600 mb-4">
-              Once you delete your account, there is no going back. Your account will be permanently deleted, 
-              but your contributions (job postings, applications) will remain anonymized for record-keeping.
-            </p>
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors"
-            >
-              Delete Account
-            </button>
-          </div>
-        </div>
-
-        {/* delete account confirmation modal */}
-        {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <ExclamationCircleIcon className="h-8 w-8 text-red-600" />
-                <h3 className="text-xl font-bold text-gray-900">Delete Account</h3>
-              </div>
-              
-              <div className="mb-6">
-                <p className="text-gray-700 mb-4">
-                  This action <strong>cannot be undone</strong>. This will permanently delete your account.
-                </p>
-                
-                <p className="text-gray-700 mb-4">
-                  Your contributions will remain but will show as "Deleted User" to preserve data integrity.
-                </p>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-yellow-800">
-                    <strong>What happens:</strong>
-                  </p>
-                  <ul className="text-sm text-yellow-800 mt-2 ml-4 list-disc">
-                    <li>You will be logged out immediately</li>
-                    <li>You cannot recover this account</li>
-                    <li>Your personal information will be anonymized</li>
-                    <li>Historical data (jobs/applications) will remain</li>
-                  </ul>
-                </div>
-
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">DELETE</span> to confirm:
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  placeholder="Type DELETE"
-                  disabled={isDeleting}
-                />
-              </div>
-
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setDeleteConfirmText('');
-                  }}
-                  disabled={isDeleting}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={deleteConfirmText !== 'DELETE' || isDeleting}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                    deleteConfirmText !== 'DELETE' || isDeleting
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-red-600 text-white hover:bg-red-700'
-                  }`}
-                >
-                  {isDeleting ? 'Deleting...' : 'Delete My Account'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
