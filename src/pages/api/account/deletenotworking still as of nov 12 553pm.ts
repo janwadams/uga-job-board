@@ -1,6 +1,5 @@
 // pages/api/account/delete.ts
 // API endpoint to delete user account with data anonymization
-// Simplified version without token validation
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
@@ -11,21 +10,57 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// initialize regular supabase client for auth verification
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'DELETE' && req.method !== 'POST') {
+  if (req.method !== 'DELETE') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { userId, confirmText } = req.body;
+    // get the user's session token
+    const token = req.headers.authorization?.replace('Bearer ', '');
     
-    console.log('[Account Deletion] Received request for userId:', userId);
-    console.log('[Account Deletion] Confirm text:', confirmText);
-
-    if (!userId) {
-      console.error('[Account Deletion] No userId provided');
-      return res.status(400).json({ error: 'User ID is required' });
+    console.log('[Account Deletion] Token present:', !!token);
+    
+    if (!token) {
+      console.error('[Account Deletion] No token provided');
+      return res.status(401).json({ error: 'No authorization token provided' });
     }
+
+    // Use the service role client to verify the token (admin client can verify any token)
+    let user;
+    try {
+      const { data, error: authError } = await supabaseAdmin.auth.getUser(token);
+      
+      console.log('[Account Deletion] Auth check - error:', authError);
+      console.log('[Account Deletion] Auth check - user:', !!data?.user);
+      
+      if (authError) {
+        console.error('[Account Deletion] Auth error details:', JSON.stringify(authError));
+        return res.status(401).json({ error: 'Invalid token', details: authError.message });
+      }
+      
+      if (!data?.user) {
+        console.error('[Account Deletion] No user in auth response');
+        return res.status(401).json({ error: 'No user found for token' });
+      }
+      
+      user = data.user;
+    } catch (authException) {
+      console.error('[Account Deletion] Auth exception:', authException);
+      return res.status(401).json({ error: 'Authentication failed', details: String(authException) });
+    }
+
+    const userId = user.id;
+    const confirmText = req.body.confirmText;
+    
+    console.log('[Account Deletion] User ID:', userId);
+    console.log('[Account Deletion] Confirm text:', confirmText);
 
     // verify confirmation text
     if (confirmText !== 'DELETE') {
@@ -53,13 +88,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'This account has already been deleted' });
     }
 
-    // Get email - use from user_roles or fetch from auth
-    let emailForAudit = userData.email;
-    if (!emailForAudit || emailForAudit.trim() === '') {
-      // Fallback: get email from auth.users
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-      emailForAudit = authUser?.user?.email || '';
-    }
+    // Use email from auth.users (from session token) as primary source
+    // This ensures we get the real email even if user_roles.email is somehow empty
+    const emailForAudit = user.email || userData.email || '';
     
     console.log(`[Account Deletion] Using email for audit: ${emailForAudit}`);
 
@@ -68,7 +99,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('deleted_users_audit')
       .insert({
         user_id: userId,
-        email: emailForAudit,
+        email: emailForAudit, // Use auth email as primary source
         role: userData.role,
         first_name: userData.first_name,
         last_name: userData.last_name,
@@ -118,6 +149,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`[Account Deletion] Anonymized user_roles for user: ${userId}`);
 
     // step 3: delete user from auth.users (this will prevent login)
+    // Note: This might fail but we still consider the deletion successful since data is anonymized
     try {
       const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
@@ -132,11 +164,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('[Account Deletion] Continuing anyway - user is anonymized and marked inactive');
     }
 
+    // step 4: jobs, applications, views, and clicks remain in database
+    // they will show as created by "Deleted User" due to the anonymization
+    // this preserves data integrity and analytics
+
     console.log(`[Account Deletion] Successfully completed deletion for user: ${userId}`);
 
     return res.status(200).json({ 
       success: true,
-      message: 'Account deleted successfully. Your data has been anonymized.'
+      message: 'Account deleted successfully. Your data has been anonymized and you have been logged out.'
     });
 
   } catch (error: any) {

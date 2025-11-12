@@ -229,21 +229,21 @@ export default function ProfileSettings() {
     setShowDeleteModal(false);
 
     try {
-      // get the user ID from session
+      // get the session token
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (!session?.user?.id) {
+      if (!session?.access_token) {
         throw new Error('No valid session found');
       }
 
       // Fire off the delete request but don't wait for it
       fetch('/api/account/delete', {
-        method: 'POST',
+        method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          userId: session.user.id,
           confirmText: deleteConfirmText
         })
       }).catch(err => {
