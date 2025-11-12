@@ -25,46 +25,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // get and verify the user's session token
     const token = req.headers.authorization?.replace('Bearer ', '');
     
-    console.log('[Account Deletion] Token present:', !!token);
-    
     if (!token) {
-      console.error('[Account Deletion] No token provided');
       return res.status(401).json({ error: 'No authorization token provided' });
     }
 
-    // Try to get user from token
-    let user;
-    try {
-      const { data, error: authError } = await supabase.auth.getUser(token);
-      
-      console.log('[Account Deletion] Auth check - error:', authError);
-      console.log('[Account Deletion] Auth check - user:', !!data?.user);
-      
-      if (authError) {
-        console.error('[Account Deletion] Auth error details:', JSON.stringify(authError));
-        return res.status(401).json({ error: 'Invalid token', details: authError.message });
-      }
-      
-      if (!data?.user) {
-        console.error('[Account Deletion] No user in auth response');
-        return res.status(401).json({ error: 'No user found for token' });
-      }
-      
-      user = data.user;
-    } catch (authException) {
-      console.error('[Account Deletion] Auth exception:', authException);
-      return res.status(401).json({ error: 'Authentication failed', details: String(authException) });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
     const userId = user.id;
     const confirmText = req.body.confirmText;
-    
-    console.log('[Account Deletion] User ID:', userId);
-    console.log('[Account Deletion] Confirm text:', confirmText);
 
     // verify confirmation text
     if (confirmText !== 'DELETE') {
-      console.error('[Account Deletion] Invalid confirmation text');
       return res.status(400).json({ error: 'Confirmation text must be "DELETE"' });
     }
 
@@ -149,20 +124,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`[Account Deletion] Anonymized user_roles for user: ${userId}`);
 
     // step 3: delete user from auth.users (this will prevent login)
-    // Note: This might fail but we still consider the deletion successful since data is anonymized
-    try {
-      const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
-      if (deleteAuthError) {
-        console.error('[Account Deletion] Failed to delete from auth.users:', deleteAuthError);
-        console.log('[Account Deletion] Continuing anyway - user is anonymized and marked inactive');
-      } else {
-        console.log(`[Account Deletion] Deleted from auth.users for user: ${userId}`);
-      }
-    } catch (authDeleteException) {
-      console.error('[Account Deletion] Exception deleting from auth.users:', authDeleteException);
-      console.log('[Account Deletion] Continuing anyway - user is anonymized and marked inactive');
+    if (deleteAuthError) {
+      console.error('[Account Deletion] Failed to delete from auth.users:', deleteAuthError);
+      // even if auth deletion fails, user is anonymized and marked inactive
+      return res.status(500).json({ 
+        error: 'Failed to delete authentication account, but profile has been anonymized' 
+      });
     }
+
+    console.log(`[Account Deletion] Deleted from auth.users for user: ${userId}`);
 
     // step 4: jobs, applications, views, and clicks remain in database
     // they will show as created by "Deleted User" due to the anonymization
