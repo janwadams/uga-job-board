@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // step 0: fetch user data for audit log BEFORE anonymization
     const { data: userData, error: fetchError } = await supabaseAdmin
       .from('user_roles')
-      .select('email, role, first_name, last_name, company_name, is_active')
+      .select('email, role, first_name, last_name, company_name')
       .eq('user_id', userId)
       .single();
 
@@ -57,24 +57,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to fetch user data' });
     }
 
-    // Check if already deleted/anonymized
-    if (userData.is_active === false || userData.email?.startsWith('deleted_')) {
-      console.log(`[Account Deletion] User ${userId} is already deleted/anonymized`);
-      return res.status(400).json({ error: 'This account has already been deleted' });
-    }
-
-    // Use email from auth.users (from session token) as primary source
-    // This ensures we get the real email even if user_roles.email is somehow empty
-    const emailForAudit = user.email || userData.email || '';
-    
-    console.log(`[Account Deletion] Using email for audit: ${emailForAudit}`);
-
     // step 1: write to audit log
     const { error: auditError } = await supabaseAdmin
       .from('deleted_users_audit')
       .insert({
         user_id: userId,
-        email: emailForAudit, // Use auth email as primary source
+        email: userData.email,
         role: userData.role,
         first_name: userData.first_name,
         last_name: userData.last_name,
