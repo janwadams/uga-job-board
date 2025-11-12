@@ -45,40 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Account Deletion] Starting deletion process for user: ${userId}`);
 
-    // step 0: fetch user data for audit log BEFORE anonymization
-    const { data: userData, error: fetchError } = await supabaseAdmin
-      .from('user_roles')
-      .select('email, role, first_name, last_name, company_name')
-      .eq('user_id', userId)
-      .single();
-
-    if (fetchError) {
-      console.error('[Account Deletion] Failed to fetch user data for audit:', fetchError);
-      return res.status(500).json({ error: 'Failed to fetch user data' });
-    }
-
-    // step 1: write to audit log
-    const { error: auditError } = await supabaseAdmin
-      .from('deleted_users_audit')
-      .insert({
-        user_id: userId,
-        email: userData.email,
-        role: userData.role,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        company_name: userData.company_name,
-        deleted_by_admin_email: null, // self-deletion, not admin
-        deleted_at: new Date().toISOString()
-      });
-
-    if (auditError) {
-      console.error('[Account Deletion] Failed to write audit log:', auditError);
-      return res.status(500).json({ error: 'Failed to create audit record' });
-    }
-
-    console.log(`[Account Deletion] Audit log created for user: ${userId}`);
-
-    // step 2: anonymize user data in user_roles table
+    // step 1: anonymize user data in user_roles table
     const { error: anonymizeError } = await supabaseAdmin
       .from('user_roles')
       .update({
@@ -111,7 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Account Deletion] Anonymized user_roles for user: ${userId}`);
 
-    // step 3: delete user from auth.users (this will prevent login)
+    // step 2: delete user from auth.users (this will prevent login)
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (deleteAuthError) {
@@ -124,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Account Deletion] Deleted from auth.users for user: ${userId}`);
 
-    // step 4: jobs, applications, views, and clicks remain in database
+    // step 3: jobs, applications, views, and clicks remain in database
     // they will show as created by "Deleted User" due to the anonymization
     // this preserves data integrity and analytics
 
