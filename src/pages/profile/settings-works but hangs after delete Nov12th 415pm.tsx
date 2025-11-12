@@ -224,9 +224,6 @@ export default function ProfileSettings() {
     }
 
     setIsDeleting(true);
-    
-    // Close the modal immediately to show processing
-    setShowDeleteModal(false);
 
     try {
       // get the session token
@@ -236,13 +233,7 @@ export default function ProfileSettings() {
         throw new Error('No valid session found');
       }
 
-      // Show user we're processing
-      alert('Deleting your account... Please wait.');
-
-      // call the delete account API with a timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
+      // call the delete account API
       const response = await fetch('/api/account/delete', {
         method: 'DELETE',
         headers: {
@@ -251,11 +242,8 @@ export default function ProfileSettings() {
         },
         body: JSON.stringify({
           confirmText: deleteConfirmText
-        }),
-        signal: controller.signal
+        })
       });
-
-      clearTimeout(timeoutId);
 
       const result = await response.json();
 
@@ -263,25 +251,15 @@ export default function ProfileSettings() {
         throw new Error(result.error || 'Failed to delete account');
       }
 
-      // Success - sign out and redirect
+      // sign out and redirect to home
       await supabase.auth.signOut();
-      alert('Your account has been deleted successfully.');
-      window.location.href = '/'; // Force full page redirect
+      alert('Your account has been deleted. You will now be redirected to the home page.');
+      router.push('/');
 
     } catch (error: any) {
       console.error('Error deleting account:', error);
-      
-      // If timeout or network error, account might still be deleted
-      // So log out anyway to be safe
-      if (error.name === 'AbortError') {
-        alert('The deletion is taking longer than expected. Logging you out for safety. Your account may have been deleted.');
-        await supabase.auth.signOut();
-        window.location.href = '/';
-      } else {
-        setErrorMessage(error.message || 'Failed to delete account.');
-        setIsDeleting(false);
-        setShowDeleteModal(true); // Reopen modal on error
-      }
+      setErrorMessage(error.message || 'Failed to delete account.');
+      setIsDeleting(false);
     }
   };
 
