@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // get the user's session token
+    // get and verify the user's session token
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     console.log('[Account Deletion] Token present:', !!token);
@@ -32,10 +32,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'No authorization token provided' });
     }
 
-    // Use the service role client to verify the token (admin client can verify any token)
+    // Try to get user from token
     let user;
     try {
-      const { data, error: authError } = await supabaseAdmin.auth.getUser(token);
+      const { data, error: authError } = await supabase.auth.getUser(token);
       
       console.log('[Account Deletion] Auth check - error:', authError);
       console.log('[Account Deletion] Auth check - user:', !!data?.user);
