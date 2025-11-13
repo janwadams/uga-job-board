@@ -376,9 +376,6 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveTab('archived')} className={`px-4 py-2 font-medium rounded-t-lg whitespace-nowrap ${activeTab === 'archived' ? 'bg-white text-uga-red border-b-2 border-uga-red' : 'bg-gray-100 text-gray-600'}`}>
             Archived ({archivedJobs.length})
           </button>
-          <Link href="/admin/deleted-users" className="px-4 py-2 font-medium rounded-t-lg whitespace-nowrap bg-gray-100 text-gray-600 hover:bg-gray-200">
-            Deleted Users
-          </Link>
         </div>
 
         {/* Tab Content */}
