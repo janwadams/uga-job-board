@@ -11,7 +11,8 @@ const supabaseAdmin = createClient(
 
 // UUID for a "System Deleted User" - 
 // This is a placeholder account that will own all orphaned content
-const DELETED_USER_ID = '00000000-0000-0000-0000-000000000000';
+//18aeff56-775f-49e7-b351-28c7e80ec3c8
+const DELETED_USER_ID = '18aeff56-775f-49e7-b351-28c7e80ec3c8';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -82,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Reassign applications (if student)
     const { error: appsError } = await supabaseAdmin
-      .from('job_applications')
+      .from('applications')
       .update({ user_id: DELETED_USER_ID })
       .eq('user_id', userId);
 
@@ -90,18 +91,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error('[Admin Delete] Failed to reassign applications:', appsError);
     } else {
       console.log(`[Admin Delete] Reassigned applications to system deleted user`);
-    }
-
-    // Delete student_profiles (blocking deletion)
-    const { error: studentProfileError } = await supabaseAdmin
-      .from('student_profiles')
-      .delete()
-      .eq('user_id', userId);
-
-    if (studentProfileError) {
-      console.error('[Admin Delete] Failed to delete student_profiles:', studentProfileError);
-    } else {
-      console.log(`[Admin Delete] Deleted student_profiles`);
     }
 
     // Reassign job views
@@ -139,7 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Admin Delete] Deleted from user_roles for user: ${userId}`);
 
-    // Step 5: Delete from auth.users 
+    // Step 5: Delete from auth.users (should work now)
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (authError) {
