@@ -45,21 +45,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to fetch user data' });
     }
 
-    // Get email - use from user_roles or fetch from auth.users as fallback
-    let emailForAudit = userData.email;
-    if (!emailForAudit || emailForAudit.trim() === '') {
-      console.log('[Admin Delete] Email not in user_roles, fetching from auth.users');
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-      emailForAudit = authUser?.user?.email || '';
-      console.log(`[Admin Delete] Got email from auth.users: ${emailForAudit}`);
-    }
-
     // Step 2: Write to audit log
     const { error: auditError } = await supabaseAdmin
       .from('deleted_users_audit')
       .insert({
         user_id: userId,
-        email: emailForAudit,
+        email: userData.email,
         role: userData.role,
         first_name: userData.first_name,
         last_name: userData.last_name,
