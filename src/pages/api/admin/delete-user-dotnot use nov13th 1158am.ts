@@ -60,23 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Admin Delete] Audit log created for user: ${userId}`);
 
-    // Step 3: Delete user from auth.users FIRST (before anonymizing)
-    // This seems to work better when done before modifying user_roles
-    try {
-      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
-      if (authError) {
-        console.error('[Admin Delete] Failed to delete from auth.users:', authError);
-        console.log('[Admin Delete] Continuing with anonymization anyway');
-      } else {
-        console.log(`[Admin Delete] Deleted from auth.users for user: ${userId}`);
-      }
-    } catch (authException) {
-      console.error('[Admin Delete] Exception deleting from auth.users:', authException);
-      console.log('[Admin Delete] Continuing with anonymization anyway');
-    }
-
-    // Step 4: Anonymize user data in user_roles table
+    // Step 3: Anonymize user data in user_roles table (instead of hard delete)
     const { error: anonymizeError } = await supabaseAdmin
       .from('user_roles')
       .update({
@@ -108,6 +92,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     console.log(`[Admin Delete] Anonymized user_roles for user: ${userId}`);
+
+    // Step 4: Delete user from auth.users (this will prevent login)
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (authError) {
+      console.error('[Admin Delete] Failed to delete from auth.users:', authError);
+      // even if auth deletion fails, user is anonymized and marked inactive
+      return res.status(500).json({ 
+        error: 'Failed to delete authentication account, but profile has been anonymized' 
+      });
+    }
+
+    console.log(`[Admin Delete] Deleted from auth.users for user: ${userId}`);
     console.log(`[Admin Delete] Successfully completed deletion for user: ${userId} by admin: ${adminEmail}`);
 
     res.status(200).json({ 
