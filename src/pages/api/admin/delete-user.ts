@@ -1,3 +1,5 @@
+//    /pages/api/admin/delete-user.ts
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
@@ -6,6 +8,11 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// UUID for a "System Deleted User" - 
+// This is a placeholder account that will own all orphaned content
+//18aeff56-775f-49e7-b351-28c7e80ec3c8
+const DELETED_USER_ID = '18aeff56-775f-49e7-b351-28c7e80ec3c8';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -27,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Admin Delete] Starting deletion process for user: ${userId} by admin: ${adminEmail}`);
 
-    // Step 1: Fetch user data for audit log BEFORE anonymization
+    // Step 1: Fetch user data for audit log BEFORE deletion
     const { data: userData, error: fetchError } = await supabaseAdmin
       .from('user_roles')
       .select('email, role, first_name, last_name, company_name')
@@ -49,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         first_name: userData.first_name,
         last_name: userData.last_name,
         company_name: userData.company_name,
-        deleted_by_admin_email: adminEmail, // admin deletion
+        deleted_by_admin_email: adminEmail,
         deleted_at: new Date().toISOString()
       });
 
@@ -60,59 +67,84 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Admin Delete] Audit log created for user: ${userId}`);
 
-    // Step 3: Delete user from auth.users FIRST (before anonymizing)
-    // This seems to work better when done before modifying user_roles
-    try {
-      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    // Step 3: Reassign all foreign key references to preserve data integrity
+    
+    // Reassign jobs created by this user
+    const { error: jobsError } = await supabaseAdmin
+      .from('jobs')
+      .update({ created_by: DELETED_USER_ID })
+      .eq('created_by', userId);
 
-      if (authError) {
-        console.error('[Admin Delete] Failed to delete from auth.users:', authError);
-        console.log('[Admin Delete] Continuing with anonymization anyway');
-      } else {
-        console.log(`[Admin Delete] Deleted from auth.users for user: ${userId}`);
-      }
-    } catch (authException) {
-      console.error('[Admin Delete] Exception deleting from auth.users:', authException);
-      console.log('[Admin Delete] Continuing with anonymization anyway');
+    if (jobsError) {
+      console.error('[Admin Delete] Failed to reassign jobs:', jobsError);
+    } else {
+      console.log(`[Admin Delete] Reassigned jobs to system deleted user`);
     }
 
-    // Step 4: Anonymize user data in user_roles table
-    const { error: anonymizeError } = await supabaseAdmin
-      .from('user_roles')
-      .update({
-        is_active: false,
-        first_name: 'Deleted',
-        last_name: 'User',
-        email: `deleted_${userId}@deleted.com`,
-        phone_number: null,
-        bio: null,
-        profile_picture_url: null,
-        major: null,
-        graduation_year: null,
-        gpa: null,
-        resume_url: null,
-        linkedin_url: null,
-        job_title: null,
-        company_name: null,
-        company_website: null,
-        department: null,
-        office_location: null,
-        office_hours: null,
-        updated_at: new Date().toISOString()
-      })
+    // Reassign applications (if student)
+    const { error: appsError } = await supabaseAdmin
+      .from('applications')
+      .update({ user_id: DELETED_USER_ID })
       .eq('user_id', userId);
 
-    if (anonymizeError) {
-      console.error('[Admin Delete] Failed to anonymize user_roles:', anonymizeError);
-      return res.status(500).json({ error: 'Failed to anonymize profile data' });
+    if (appsError) {
+      console.error('[Admin Delete] Failed to reassign applications:', appsError);
+    } else {
+      console.log(`[Admin Delete] Reassigned applications to system deleted user`);
     }
 
-    console.log(`[Admin Delete] Anonymized user_roles for user: ${userId}`);
+    // Reassign job views
+    const { error: viewsError } = await supabaseAdmin
+      .from('job_views')
+      .update({ user_id: DELETED_USER_ID })
+      .eq('user_id', userId);
+
+    if (viewsError) {
+      console.error('[Admin Delete] Failed to reassign job views:', viewsError);
+    }
+
+    // Reassign job link clicks
+    const { error: clicksError } = await supabaseAdmin
+      .from('job_link_clicks')
+      .update({ user_id: DELETED_USER_ID })
+      .eq('user_id', userId);
+
+    if (clicksError) {
+      console.error('[Admin Delete] Failed to reassign job link clicks:', clicksError);
+    }
+
+    console.log(`[Admin Delete] All foreign key references reassigned`);
+
+    // Step 4: HARD DELETE from user_roles (now safe - no FK violations)
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId);
+
+    if (roleError) {
+      console.error('[Admin Delete] Failed to delete from user_roles:', roleError);
+      return res.status(500).json({ error: 'Failed to delete user from roles table' });
+    }
+
+    console.log(`[Admin Delete] Deleted from user_roles for user: ${userId}`);
+
+    // Step 5: Delete from auth.users (should work now)
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (authError) {
+      console.error('[Admin Delete] Failed to delete from auth.users:', authError);
+      return res.status(500).json({ 
+        error: 'Failed to delete authentication account',
+        details: authError.message 
+      });
+    }
+
+    console.log(`[Admin Delete] Deleted from auth.users for user: ${userId}`);
     console.log(`[Admin Delete] Successfully completed deletion for user: ${userId} by admin: ${adminEmail}`);
 
     res.status(200).json({ 
       success: true,
-      message: 'User successfully deleted and anonymized.' 
+      message: 'User successfully deleted. All content has been preserved and reassigned.' 
     });
 
   } catch (error) {
