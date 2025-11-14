@@ -71,7 +71,7 @@ interface StudentProfile {
 }
 
 // changed tabs - merged browse and recommended into "for you"
-type DashboardTab = 'for-you' | 'all-jobs' | 'saved' | 'applications' | 'deadlines';
+type DashboardTab = 'for-you' | 'saved' | 'applications' | 'deadlines';
 type ViewMode = 'cards' | 'list' | 'split';
 
 // deadline calendar widget component - handles the clickable calendar functionality  
@@ -786,10 +786,11 @@ export default function StudentDashboard() {
   const getDisplayedJobs = () => {
     switch (activeTab) {
       case 'for-you':
-        // always show only recommended/matched jobs
-        return getFilteredJobs(recommendedJobs);
-      case 'all-jobs':
-        // show all active jobs
+        // show recommended first if they exist and toggle is on
+        if (showOnlyRecommended) {
+          return getFilteredJobs(recommendedJobs);
+        }
+        // otherwise show all jobs with recommended ones marked
         return getFilteredJobs(allJobs);
       case 'saved':
         return savedJobs.filter(savedJob => {
@@ -1344,18 +1345,6 @@ export default function StudentDashboard() {
               </span>
             </button>
             <button
-              onClick={() => setActiveTab('all-jobs')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === 'all-jobs'
-                  ? 'border-uga-red text-uga-red'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                All Jobs ({allJobs.length})
-              </span>
-            </button>
-            <button
               onClick={() => setActiveTab('saved')}
               className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === 'saved'
@@ -1406,7 +1395,7 @@ export default function StudentDashboard() {
         {/* main content area with sidebar filters */}
         <div className="flex gap-6">
           {/* improved: sidebar filters - persistent and better organized */}
-          {(activeTab === 'for-you' || activeTab === 'all-jobs' || activeTab === 'saved') && showFilters && (
+          {(activeTab === 'for-you' || activeTab === 'saved') && showFilters && (
             <div className="w-64 bg-white p-4 rounded-lg shadow-sm h-fit sticky top-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-gray-900">Filters</h3>
@@ -1519,7 +1508,7 @@ export default function StudentDashboard() {
           )}
 
           {/* toggle filter button for mobile when hidden */}
-          {(activeTab === 'for-you' || activeTab === 'all-jobs' || activeTab === 'saved') && !showFilters && (
+          {(activeTab === 'for-you' || activeTab === 'saved') && !showFilters && (
             <button
               onClick={() => setShowFilters(true)}
               className="fixed bottom-4 right-4 z-10 px-4 py-2 bg-uga-red text-white rounded-full shadow-lg hover:bg-red-800 flex items-center gap-2 md:hidden"
@@ -1532,7 +1521,7 @@ export default function StudentDashboard() {
           {/* main content */}
           <div className="flex-1">
             {/* view mode toggle for for you and saved tabs */}
-            {(activeTab === 'for-you' || activeTab === 'all-jobs' || activeTab === 'saved') && (
+            {(activeTab === 'for-you' || activeTab === 'saved') && (
               <div className="flex justify-between items-center mb-4">
                 <div className="text-sm text-gray-600">
                   {getDisplayedJobs().length} jobs found
@@ -1581,66 +1570,6 @@ export default function StudentDashboard() {
                         ? 'No recommended jobs match your filters. Complete your profile for better matches.'
                         : 'No jobs match your filters. Try adjusting them.'}
                     </p>
-                    {(searchTerm || jobTypeFilters.length > 0 || industryFilter || locationFilter !== 'all') && (
-                      <button
-                        onClick={clearAllFilters}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Clear Filters
-                      </button>
-                    )}
-                  </div>
-                ) : viewMode === 'split' ? (
-                  // split view layout
-                  <div className="flex gap-4 h-[calc(100vh-300px)]">
-                    <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-y-auto">
-                      {getDisplayedJobs().map((job) => (
-                        <JobListItem 
-                          key={job.id} 
-                          job={job as Job} 
-                          isSelected={selectedJob?.id === job.id}
-                        />
-                      ))}
-                    </div>
-                    <div className="w-1/2 bg-white rounded-lg shadow-sm overflow-hidden">
-                      {selectedJob ? (
-                        <JobDetailPanel job={selectedJob} />
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-gray-500">
-                          Select a job to view details
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : viewMode === 'list' ? (
-                  // list view
-                  <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    {getDisplayedJobs().map((job) => (
-                      <JobListItem key={job.id} job={job as Job} />
-                    ))}
-                  </div>
-                ) : (
-                  // card view (default)
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {getDisplayedJobs().map((job) => (
-                      <JobCard key={job.id} job={job as Job} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* all jobs tab */}
-            {activeTab === 'all-jobs' && (
-              <div>
-                {loadingJobs ? (
-                  <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                    <p className="mt-2 text-gray-600">Loading jobs...</p>
-                  </div>
-                ) : getDisplayedJobs().length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                    <p className="text-gray-600 mb-4">No jobs match your filters.</p>
                     {(searchTerm || jobTypeFilters.length > 0 || industryFilter || locationFilter !== 'all') && (
                       <button
                         onClick={clearAllFilters}
