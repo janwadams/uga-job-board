@@ -628,7 +628,7 @@ export default function StudentDashboard() {
     const recommendations = availableJobs
       .sort((a, b) => b.matchScore - a.matchScore)
       .slice(0, 20)
-      .filter(job => job.matchScore >= 5); // Require meaningful match score
+      .filter(job => job.matchScore > 0);
 
     setRecommendedJobs(recommendations);
   };
