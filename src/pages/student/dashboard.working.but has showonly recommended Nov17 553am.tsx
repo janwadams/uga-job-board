@@ -306,6 +306,7 @@ export default function StudentDashboard() {
   const [showFilters, setShowFilters] = useState(true); // sidebar visibility
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null); // for split view
+  const [showOnlyRecommended, setShowOnlyRecommended] = useState(false); // toggle in for you tab
 
   // disabled: quick apply modal no longer needed
   // const [quickApplyModal, setQuickApplyModal] = useState<{
@@ -1432,6 +1433,20 @@ export default function StudentDashboard() {
               </div>
 
               {/* for you tab specific toggle */}
+              {activeTab === 'for-you' && recommendedJobs.length > 0 && (
+                <div className="mb-4 pb-4 border-b">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showOnlyRecommended}
+                      onChange={(e) => setShowOnlyRecommended(e.target.checked)}
+                      className="mr-2 text-uga-red focus:ring-uga-red rounded"
+                    />
+                    <span className="text-sm text-gray-700">Show only recommended</span>
+                  </label>
+                </div>
+              )}
+
               {/* job type */}
               <div className="mb-4">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -1562,7 +1577,9 @@ export default function StudentDashboard() {
                 ) : getDisplayedJobs().length === 0 ? (
                   <div className="text-center py-12 bg-white rounded-lg shadow-sm">
                     <p className="text-gray-600 mb-4">
-                      No jobs match your filters. Complete your profile for better matches.
+                      {showOnlyRecommended 
+                        ? 'No recommended jobs match your filters. Complete your profile for better matches.'
+                        : 'No jobs match your filters. Try adjusting them.'}
                     </p>
                     {(searchTerm || jobTypeFilters.length > 0 || industryFilter || locationFilter !== 'all') && (
                       <button
