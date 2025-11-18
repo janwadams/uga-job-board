@@ -1,5 +1,6 @@
 // /pages/rep/analytics.tsx
-// Complete analytics dashboard for company representatives - FIXED VERSION
+// Complete analytics dashboard for company representatives -
+
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
