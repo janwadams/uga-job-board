@@ -537,7 +537,7 @@ export default function FacultyDashboard() {
         body: JSON.stringify({ 
           jobId, 
           newDeadline,
-          userId: session?.user?.id 
+          userId: user?.id 
         })
       });
 
