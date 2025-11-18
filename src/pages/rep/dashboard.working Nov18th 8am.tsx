@@ -332,43 +332,7 @@ export default function RepDashboard() {
 
   // function to reactivate an archived job
   const handleReactivate = async (jobId: string) => {
-    const newDeadline = prompt("Enter new deadline (YYYY-MM-DD):");
-    if (!newDeadline) return;
-
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(newDeadline)) {
-      alert('Please enter date in YYYY-MM-DD format');
-      return;
-    }
-
-    const selectedDate = new Date(newDeadline);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selectedDate <= today) {
-      alert('Please select a future date');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('jobs')
-        .update({ 
-          deadline: newDeadline,
-          status: 'active'
-        })
-        .eq('id', jobId);
-
-      if (!error) {
-        alert('Job reactivated successfully!');
-        window.location.reload();
-      } else {
-        alert('Failed to reactivate job.');
-      }
-    } catch (error) {
-      console.error('Error reactivating job:', error);
-      alert('An error occurred while reactivating the job.');
-    }
+    router.push(`/rep/reactivate/${jobId}`);
   };
 
   // function to revise a rejected job
