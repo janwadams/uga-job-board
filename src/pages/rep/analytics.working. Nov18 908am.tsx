@@ -1,5 +1,6 @@
 // /pages/rep/analytics.tsx
-// Complete analytics dashboard for company representatives - FIXED VERSION
+// Complete analytics dashboard for company representatives -
+
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -532,9 +533,6 @@ export default function RepAnalytics() {
 
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
           <h2 className="text-xl font-bold text-gray-800 mb-4">📋 Job Status Overview</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Current status of all your job postings. Active jobs are live, pending awaits admin approval, rejected needs revision, and expired are past deadline.
-          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {statusBreakdown.map((status, index) => (
               <div key={index} className="text-center">
@@ -562,9 +560,6 @@ export default function RepAnalytics() {
 
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
           <h2 className="text-xl font-bold text-gray-800 mb-4">📈 Engagement Trends</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Daily activity showing clicks (red), views (blue), and new postings (green). Taller bars indicate higher activity. Use this to identify your best posting days.
-          </p>
           <div className="overflow-x-auto">
             <div className="min-w-[600px] h-64 flex items-end justify-between gap-2">
               {clickTrends.map((day, index) => (
@@ -619,9 +614,6 @@ export default function RepAnalytics() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h2 className="text-xl font-bold text-gray-800 mb-4">🏆 Top Performing Jobs</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Your most clicked job postings ranked by student interest. Higher engagement rates mean more clicks relative to views.
-            </p>
             {topPerformingJobs.length > 0 ? (
               <div className="space-y-3">
                 {topPerformingJobs.map((job, index) => (
@@ -654,9 +646,6 @@ export default function RepAnalytics() {
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Job Type Distribution</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Breakdown of your postings by type (full-time, internship, etc.) with click counts. Shows which job types attract the most student interest.
-            </p>
             {jobTypeDistribution.length > 0 ? (
               <div className="space-y-3">
                 {jobTypeDistribution.map((type, index) => (
@@ -687,9 +676,6 @@ export default function RepAnalytics() {
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Engagement Levels</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Categorizes your jobs by student interest level. Jobs with no engagement may need better titles or descriptions to attract applicants.
-            </p>
             {engagementMetrics.length > 0 ? (
               <div className="space-y-3">
                 {engagementMetrics.map((metric, index) => (
@@ -717,9 +703,6 @@ export default function RepAnalytics() {
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h2 className="text-xl font-bold text-gray-800 mb-4">📊 Industry Comparison</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Compares your metrics against industry averages. Green (↑) means above average, red (↓) means below average performance.
-            </p>
             <div className="space-y-3">
               {competitorComparison.map((item, index) => (
                 <div key={index} className="flex items-center justify-between">
