@@ -146,7 +146,7 @@ export default function FacultyAnalytics() {
 
     const { data: userData } = await supabase
       .from('user_roles')
-      .select('role, first_name, last_name, department')
+      .select('role, first_name, last_name')
       .eq('user_id', session.user.id)
       .single();
 
@@ -157,7 +157,7 @@ export default function FacultyAnalytics() {
 
     setSession(session);
     setFacultyName(`${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Faculty Member');
-    setDepartment(userData.department || ''); // Use actual department from database
+    setDepartment('Computer Science'); // placeholder
   };
 
   const fetchAnalyticsData = async () => {
@@ -557,9 +557,7 @@ export default function FacultyAnalytics() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-red-800">📊 Faculty Analytics</h1>
-            <p className="text-gray-600 mt-1">
-              {department && `${department} Department • `}{facultyName}
-            </p>
+            <p className="text-gray-600 mt-1">{department} Department • {facultyName}</p>
           </div>
           <div className="flex items-center gap-4">
             <select
