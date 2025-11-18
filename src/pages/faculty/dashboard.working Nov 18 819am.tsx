@@ -670,6 +670,7 @@ export default function FacultyDashboard() {
                   <option value="">All</option>
                   <option value="active">Active</option>
                   <option value="removed">Removed</option>
+                  <option value="rejected">Rejected</option>
                 </select>
               </div>
             </div>
