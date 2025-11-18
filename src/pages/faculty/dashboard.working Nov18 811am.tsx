@@ -588,7 +588,7 @@ export default function FacultyDashboard() {
         </div>
 
         {/* metrics cards - updated to show link clicks instead of applications */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Total Jobs</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
@@ -596,6 +596,12 @@ export default function FacultyDashboard() {
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
             <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-gray-500 font-semibold">Pending</h3>
+            <p className="text-4xl font-bold text-yellow-600 mt-2">
+              {jobs.filter(j => j.status === 'pending').length}
+            </p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Archived</h3>
@@ -670,6 +676,7 @@ export default function FacultyDashboard() {
                   <option value="">All</option>
                   <option value="active">Active</option>
                   <option value="removed">Removed</option>
+                  <option value="pending">Pending</option>
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
