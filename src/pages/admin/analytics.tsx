@@ -1,4 +1,5 @@
-// src/pages/admin/analytics.tsx - updated to track link clicks instead of applications
+// src/pages/admin/analytics.tsx - enhanced version with improved visualizations and insights
+// tracks link clicks instead of applications
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
@@ -13,7 +14,9 @@ import {
   UserGroupIcon,
   ChartBarIcon,
   ArrowUpIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  CursorArrowRaysIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -26,15 +29,15 @@ interface TimeSeriesData {
   total_postings: number;
   active_postings: number;
   views: number;
-  link_clicks: number; // changed from apply_clicks
-  // removed: applications field
+  link_clicks: number;
 }
 
 interface TopCompany {
   company: string;
   views: number;
-  link_clicks: number; // changed from apply_clicks
+  link_clicks: number;
   job_count: number;
+  engagement_rate: number;
 }
 
 interface MostViewedJob {
@@ -42,9 +45,10 @@ interface MostViewedJob {
   title: string;
   company: string;
   views: number;
-  link_clicks: number; // changed from apply_clicks
-  engagement_rate: number; // changed from applications
+  link_clicks: number;
+  engagement_rate: number;
   created_at: string;
+  days_active: number;
 }
 
 interface UserEngagement {
@@ -65,15 +69,20 @@ interface UserEngagement {
 interface MetricsData {
   // current month metrics
   jobs_posted_month: number;
-  link_clicks_month: number; // changed from applications_submitted_month
+  link_clicks_month: number;
   total_postings: number;
   active_postings: number;
   
   // comparison with last month
   jobs_posted_last_month: number;
-  link_clicks_last_month: number; // changed from applications_submitted_last_month
+  link_clicks_last_month: number;
   jobs_growth_percentage: number;
-  clicks_growth_percentage: number; // changed from applications_growth_percentage
+  clicks_growth_percentage: number;
+  
+  // new: average metrics
+  avg_views_per_job: number;
+  avg_clicks_per_job: number;
+  overall_engagement_rate: number;
   
   // top content
   time_series: TimeSeriesData[];
@@ -82,6 +91,10 @@ interface MetricsData {
   
   // user engagement
   user_engagement: UserEngagement;
+  
+  // new: peak activity times
+  peak_activity_day: string;
+  peak_activity_time: string;
 }
 
 export default function AdminAnalyticsDashboard() {
@@ -110,8 +123,8 @@ export default function AdminAnalyticsDashboard() {
       const [
         jobsThisMonthResult,
         jobsLastMonthResult,
-        clicksThisMonthResult, // changed from applications
-        clicksLastMonthResult, // changed from applications
+        clicksThisMonthResult,
+        clicksLastMonthResult,
         totalPostingsResult,
         activePostingsResult,
         totalUsersResult,
@@ -120,7 +133,8 @@ export default function AdminAnalyticsDashboard() {
         mostViewedJobsResult,
         topCompaniesDataResult,
         allJobsInRangeResult,
-        allClicksInRangeResult // changed from applications
+        allClicksInRangeResult,
+        allAnalyticsResult
       ] = await Promise.all([
         // jobs posted this month
         supabase.from('jobs')
@@ -186,7 +200,12 @@ export default function AdminAnalyticsDashboard() {
         // get all link clicks in date range for time series
         supabase.from('job_link_clicks')
           .select('clicked_at')
-          .gte('clicked_at', startDate.toISOString())
+          .gte('clicked_at', startDate.toISOString()),
+        
+        // get all analytics for peak time analysis
+        supabase.from('job_analytics')
+          .select('created_at, event_type')
+          .gte('created_at', startDate.toISOString())
       ]);
 
       // extract counts from results
@@ -199,8 +218,16 @@ export default function AdminAnalyticsDashboard() {
       const totalUsers = totalUsersResult.count || 0;
       const newUsersMonth = newUsersMonthResult.count || 0;
 
-      // process user roles breakdown
-      const userByRole = {
+      // calculate percentage changes
+      const jobsGrowth = jobsLastMonth > 0 
+        ? ((jobsThisMonth - jobsLastMonth) / jobsLastMonth) * 100 
+        : 100;
+      const clicksGrowth = clicksLastMonth > 0 
+        ? ((clicksThisMonth - clicksLastMonth) / clicksLastMonth) * 100 
+        : 100;
+
+      // process user roles
+      const roleBreakdown = {
         student: 0,
         faculty: 0,
         staff: 0,
@@ -209,72 +236,192 @@ export default function AdminAnalyticsDashboard() {
       };
 
       userRolesResult.data?.forEach(user => {
-        if (user.role in userByRole) {
-          userByRole[user.role as keyof typeof userByRole]++;
+        if (user.role in roleBreakdown) {
+          roleBreakdown[user.role as keyof typeof roleBreakdown]++;
         }
       });
 
-      // calculate growth percentages
-      const jobsGrowth = jobsLastMonth ? 
-        ((jobsThisMonth - jobsLastMonth) / jobsLastMonth * 100) : 100;
-      const clicksGrowth = clicksLastMonth ? 
-        ((clicksThisMonth - clicksLastMonth) / clicksLastMonth * 100) : 100;
+      // get active users count for different time periods
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      // process time series data in memory
-      const timeSeriesData: TimeSeriesData[] = [];
-      const allJobs = allJobsInRangeResult.data || [];
-      const allClicks = allClicksInRangeResult.data || [];
+      const { count: activeToday } = await supabase
+        .from('job_analytics')
+        .select('user_id', { count: 'exact', head: true })
+        .gte('created_at', oneDayAgo.toISOString());
 
-      for (let i = daysAgo - 1; i >= 0; i--) {
-        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        // count items for this specific day
-        const dailyJobs = allJobs.filter(job => 
-          job.created_at.startsWith(dateStr)
-        ).length;
-        
-        const dailyClicks = allClicks.filter(click => 
-          click.clicked_at.startsWith(dateStr)
-        ).length;
+      const { count: activeWeek } = await supabase
+        .from('job_analytics')
+        .select('user_id', { count: 'exact', head: true })
+        .gte('created_at', oneWeekAgo.toISOString());
 
-        timeSeriesData.push({
-          date: dateStr,
-          total_postings: dailyJobs,
-          active_postings: dailyJobs,
-          views: Math.floor(Math.random() * 500) + 50, // placeholder until view tracking is implemented
-          link_clicks: dailyClicks
+      const { count: activeMonth } = await supabase
+        .from('job_analytics')
+        .select('user_id', { count: 'exact', head: true })
+        .gte('created_at', startOfMonth.toISOString());
+
+      // process job views and clicks for each job
+      const jobStatsMap = new Map<string, { views: number, clicks: number }>();
+
+      // fetch view counts for each job
+      for (const job of (mostViewedJobsResult.data || [])) {
+        const { count: viewCount } = await supabase
+          .from('job_views')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id);
+
+        const { count: clickCount } = await supabase
+          .from('job_link_clicks')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id);
+
+        jobStatsMap.set(job.id, {
+          views: viewCount || 0,
+          clicks: clickCount || 0
         });
       }
 
-      // transform most viewed jobs data
-      const transformedMostViewed = mostViewedJobsResult.data?.map(job => ({
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        views: Math.floor(Math.random() * 1000) + 100, // placeholder
-        link_clicks: Math.floor(Math.random() * 100) + 10, // placeholder - would need join with clicks table
-        engagement_rate: Math.floor(Math.random() * 30), // engagement percentage
-        created_at: job.created_at
-      })) || [];
+      // create most viewed jobs array with stats
+      const mostViewedJobs: MostViewedJob[] = (mostViewedJobsResult.data || [])
+        .map(job => {
+          const stats = jobStatsMap.get(job.id) || { views: 0, clicks: 0 };
+          const daysActive = Math.floor(
+            (now.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          return {
+            ...job,
+            views: stats.views,
+            link_clicks: stats.clicks,
+            engagement_rate: stats.views > 0 ? (stats.clicks / stats.views) * 100 : 0,
+            days_active: daysActive
+          };
+        })
+        .sort((a, b) => b.views - a.views);
 
-      // process top companies
-      const companyMap = new Map<string, number>();
-      topCompaniesDataResult.data?.forEach(job => {
-        companyMap.set(job.company, (companyMap.get(job.company) || 0) + 1);
+      // calculate company stats
+      const companyStatsMap = new Map<string, { jobs: Set<string>, views: number, clicks: number }>();
+
+      for (const job of (topCompaniesDataResult.data || [])) {
+        if (!companyStatsMap.has(job.company)) {
+          companyStatsMap.set(job.company, { jobs: new Set(), views: 0, clicks: 0 });
+        }
+        companyStatsMap.get(job.company)!.jobs.add(job.company);
+      }
+
+      // fetch views and clicks for each company's jobs
+      for (const [company, stats] of companyStatsMap.entries()) {
+        const { data: companyJobs } = await supabase
+          .from('jobs')
+          .select('id')
+          .eq('company', company)
+          .eq('status', 'active');
+
+        if (companyJobs) {
+          for (const job of companyJobs) {
+            const { count: viewCount } = await supabase
+              .from('job_views')
+              .select('*', { count: 'exact', head: true })
+              .eq('job_id', job.id);
+
+            const { count: clickCount } = await supabase
+              .from('job_link_clicks')
+              .select('*', { count: 'exact', head: true })
+              .eq('job_id', job.id);
+
+            stats.views += viewCount || 0;
+            stats.clicks += clickCount || 0;
+          }
+        }
+      }
+
+      const topCompanies: TopCompany[] = Array.from(companyStatsMap.entries())
+        .map(([company, stats]) => ({
+          company,
+          views: stats.views,
+          link_clicks: stats.clicks,
+          job_count: stats.jobs.size,
+          engagement_rate: stats.views > 0 ? (stats.clicks / stats.views) * 100 : 0
+        }))
+        .sort((a, b) => b.views - a.views)
+        .slice(0, 10);
+
+      // create time series data
+      const timeSeriesMap = new Map<string, { postings: number, clicks: number, views: number }>();
+
+      // initialize all dates in range
+      for (let i = 0; i < daysAgo; i++) {
+        const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+        const dateStr = date.toISOString().split('T')[0];
+        timeSeriesMap.set(dateStr, { postings: 0, clicks: 0, views: 0 });
+      }
+
+      // count postings per day
+      allJobsInRangeResult.data?.forEach(job => {
+        const dateStr = job.created_at.split('T')[0];
+        const existing = timeSeriesMap.get(dateStr);
+        if (existing) {
+          existing.postings++;
+        }
       });
 
-      const topCompanies: TopCompany[] = Array.from(companyMap.entries())
-        .map(([company, count]) => ({
-          company,
-          job_count: count,
-          views: Math.floor(Math.random() * 1000) + 100, // placeholder
-          link_clicks: Math.floor(Math.random() * 100) + 10 // placeholder
-        }))
-        .sort((a, b) => b.job_count - a.job_count)
-        .slice(0, 5);
+      // count clicks per day
+      allClicksInRangeResult.data?.forEach(click => {
+        const dateStr = click.clicked_at.split('T')[0];
+        const existing = timeSeriesMap.get(dateStr);
+        if (existing) {
+          existing.clicks++;
+        }
+      });
 
-      // set all metrics at once
+      // count views per day from analytics
+      allAnalyticsResult.data?.forEach(record => {
+        if (record.event_type === 'view') {
+          const dateStr = record.created_at.split('T')[0];
+          const existing = timeSeriesMap.get(dateStr);
+          if (existing) {
+            existing.views++;
+          }
+        }
+      });
+
+      const timeSeries: TimeSeriesData[] = Array.from(timeSeriesMap.entries())
+        .map(([date, data]) => ({
+          date,
+          total_postings: data.postings,
+          active_postings: data.postings,
+          views: data.views,
+          link_clicks: data.clicks
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      // find peak activity times
+      const dayActivity = new Map<string, number>();
+      const hourActivity = new Map<number, number>();
+
+      allAnalyticsResult.data?.forEach(record => {
+        const date = new Date(record.created_at);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const hour = date.getHours();
+
+        dayActivity.set(dayOfWeek, (dayActivity.get(dayOfWeek) || 0) + 1);
+        hourActivity.set(hour, (hourActivity.get(hour) || 0) + 1);
+      });
+
+      const peakDay = Array.from(dayActivity.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Monday';
+
+      const peakHour = Array.from(hourActivity.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 12;
+      
+      const peakTime = `${peakHour}:00 - ${peakHour + 1}:00`;
+
+      // calculate average metrics
+      const totalViews = mostViewedJobs.reduce((sum, job) => sum + job.views, 0);
+      const totalClicks = mostViewedJobs.reduce((sum, job) => sum + job.link_clicks, 0);
+      const avgViewsPerJob = activePostings > 0 ? totalViews / activePostings : 0;
+      const avgClicksPerJob = activePostings > 0 ? totalClicks / activePostings : 0;
+      const overallEngagementRate = totalViews > 0 ? (totalClicks / totalViews) * 100 : 0;
+
       setMetrics({
         jobs_posted_month: jobsThisMonth,
         link_clicks_month: clicksThisMonth,
@@ -284,176 +431,148 @@ export default function AdminAnalyticsDashboard() {
         link_clicks_last_month: clicksLastMonth,
         jobs_growth_percentage: jobsGrowth,
         clicks_growth_percentage: clicksGrowth,
-        time_series: timeSeriesData,
+        avg_views_per_job: avgViewsPerJob,
+        avg_clicks_per_job: avgClicksPerJob,
+        overall_engagement_rate: overallEngagementRate,
+        time_series: timeSeries,
         top_companies: topCompanies,
-        most_viewed_jobs: transformedMostViewed,
+        most_viewed_jobs: mostViewedJobs,
         user_engagement: {
           total_users: totalUsers,
-          active_users_today: Math.floor(totalUsers * 0.3), // placeholder
-          active_users_week: Math.floor(totalUsers * 0.6), // placeholder
-          active_users_month: Math.floor(totalUsers * 0.8), // placeholder
+          active_users_today: activeToday || 0,
+          active_users_week: activeWeek || 0,
+          active_users_month: activeMonth || 0,
           new_users_month: newUsersMonth,
-          user_by_role: userByRole
-        }
+          user_by_role: roleBreakdown
+        },
+        peak_activity_day: peakDay,
+        peak_activity_time: peakTime
       });
 
     } catch (err) {
       console.error('Error fetching metrics:', err);
-      setError('Failed to fetch metrics data.');
+      setError('Failed to load analytics data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExportCSV = () => {
-    if (!metrics) return;
-
-    // prepare csv content for export
-    let csvContent = 'Platform Metrics Report\n';
-    csvContent += `Generated: ${new Date().toLocaleDateString()}\n\n`;
-    
-    // summary metrics section
-    csvContent += 'Summary Metrics\n';
-    csvContent += `Jobs Posted This Month,${metrics.jobs_posted_month}\n`;
-    csvContent += `Link Clicks This Month,${metrics.link_clicks_month}\n`;
-    csvContent += `Total Postings,${metrics.total_postings}\n`;
-    csvContent += `Active Postings,${metrics.active_postings}\n\n`;
-    
-    // time series data section
-    csvContent += 'Daily Metrics\n';
-    csvContent += 'Date,Jobs Posted,Link Clicks,Views\n';
-    metrics.time_series.forEach(row => {
-      csvContent += `${row.date},${row.total_postings},${row.link_clicks},${row.views}\n`;
-    });
-    
-    // top companies section
-    csvContent += '\nTop Companies\n';
-    csvContent += 'Company,Jobs Posted,Views,Link Clicks\n';
-    metrics.top_companies.forEach(company => {
-      csvContent += `${company.company},${company.job_count},${company.views},${company.link_clicks}\n`;
-    });
-
-    // create and download the csv file
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `platform_metrics_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // show loading spinner while fetching data
-  if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        <p className="mt-2 text-gray-600">Loading metrics...</p>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading analytics...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  // show error if something went wrong
-  if (error) return (
-    <div className="p-4 text-red-600">Error: {error}</div>
-  );
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50">
       <Head>
-        <title>Platform Metrics Dashboard</title>
+        <title>Admin Analytics | UGA Job Board</title>
       </Head>
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* header with controls */}
-        <div className="flex justify-between items-center mb-6">
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">📊 Platform Metrics Dashboard</h1>
-            <p className="text-gray-600 mt-1">Comprehensive analytics and engagement metrics</p>
+            <h1 className="text-3xl font-bold text-gray-900">Platform Analytics</h1>
+            <p className="text-gray-600 mt-2">Comprehensive metrics and insights</p>
           </div>
-          <div className="flex space-x-4">
-            {/* date range selector */}
-            <select 
-              value={dateRange} 
+          <div className="flex gap-3 w-full sm:w-auto">
+            <select
+              value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+              className="flex-1 sm:flex-initial px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="7">Last 7 days</option>
               <option value="30">Last 30 days</option>
               <option value="90">Last 90 days</option>
             </select>
-            
             <Link href="/admin/dashboard">
-              <button className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500">
-                ← Back to Admin Dashboard
+              <button className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                ← Dashboard
               </button>
             </Link>
-            <button
-              onClick={handleExportCSV}
-              className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800"
-            >
-              Export CSV
-            </button>
           </div>
         </div>
 
         {metrics && (
-          <div className="space-y-8">
-            {/* key metrics cards - updated labels */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* jobs posted this month card */}
+          <div className="space-y-6">
+            {/* key metrics cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* jobs posted this month */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-gray-600">Jobs Posted This Month</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">
                       {metrics.jobs_posted_month}
                     </p>
-                    <p className={`text-sm mt-2 flex items-center ${
-                      metrics.jobs_growth_percentage >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                    <div className="flex items-center mt-2">
                       {metrics.jobs_growth_percentage >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 mr-1" />
+                        <ArrowUpIcon className="h-4 w-4 text-green-500 mr-1" />
                       ) : (
-                        <ArrowDownIcon className="h-4 w-4 mr-1" />
+                        <ArrowDownIcon className="h-4 w-4 text-red-500 mr-1" />
                       )}
-                      {Math.abs(metrics.jobs_growth_percentage).toFixed(1)}% vs last month
-                    </p>
+                      <p className={`text-sm ${
+                        metrics.jobs_growth_percentage >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {Math.abs(metrics.jobs_growth_percentage).toFixed(1)}% from last month
+                      </p>
+                    </div>
                   </div>
                   <BriefcaseIcon className="h-10 w-10 text-blue-500" />
                 </div>
               </div>
 
-              {/* link clicks this month card - updated */}
+              {/* link clicks this month */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-gray-600">Link Clicks This Month</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">
                       {metrics.link_clicks_month}
                     </p>
-                    <p className={`text-sm mt-2 flex items-center ${
-                      metrics.clicks_growth_percentage >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                    <div className="flex items-center mt-2">
                       {metrics.clicks_growth_percentage >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 mr-1" />
+                        <ArrowUpIcon className="h-4 w-4 text-green-500 mr-1" />
                       ) : (
-                        <ArrowDownIcon className="h-4 w-4 mr-1" />
+                        <ArrowDownIcon className="h-4 w-4 text-red-500 mr-1" />
                       )}
-                      {Math.abs(metrics.clicks_growth_percentage).toFixed(1)}% vs last month
-                    </p>
+                      <p className={`text-sm ${
+                        metrics.clicks_growth_percentage >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {Math.abs(metrics.clicks_growth_percentage).toFixed(1)}% from last month
+                      </p>
+                    </div>
                   </div>
-                  <DocumentTextIcon className="h-10 w-10 text-green-500" />
+                  <CursorArrowRaysIcon className="h-10 w-10 text-green-500" />
                 </div>
               </div>
 
-              {/* active postings card */}
+              {/* active postings */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-gray-600">Active Postings</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">
                       {metrics.active_postings}
@@ -466,10 +585,10 @@ export default function AdminAnalyticsDashboard() {
                 </div>
               </div>
 
-              {/* total users card */}
+              {/* total users */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-gray-600">Total Users</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">
                       {metrics.user_engagement.total_users}
@@ -483,34 +602,80 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
+            {/* engagement insights card */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow border border-blue-100">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <ArrowTrendingUpIcon className="h-6 w-6 text-blue-600 mr-2" />
+                Platform Insights
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Avg Views Per Job</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {metrics.avg_views_per_job.toFixed(1)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Avg Clicks Per Job</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {metrics.avg_clicks_per_job.toFixed(1)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Overall Engagement Rate</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {metrics.overall_engagement_rate.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-blue-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <CalendarIcon className="h-5 w-5 text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-600">Peak Activity Day</p>
+                      <p className="font-semibold text-gray-800">{metrics.peak_activity_day}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <ClockIcon className="h-5 w-5 text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-600">Peak Activity Time</p>
+                      <p className="font-semibold text-gray-800">{metrics.peak_activity_time}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* user engagement trends section */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">User Engagement Trends</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <p className="text-sm text-gray-600">Active Today</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Active Today</p>
+                  <p className="text-3xl font-bold text-blue-600">
                     {metrics.user_engagement.active_users_today}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 mt-1">
                     {((metrics.user_engagement.active_users_today / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Active This Week</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Active This Week</p>
+                  <p className="text-3xl font-bold text-green-600">
                     {metrics.user_engagement.active_users_week}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 mt-1">
                     {((metrics.user_engagement.active_users_week / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Active This Month</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Active This Month</p>
+                  <p className="text-3xl font-bold text-purple-600">
                     {metrics.user_engagement.active_users_month}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 mt-1">
                     {((metrics.user_engagement.active_users_month / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
                   </p>
                 </div>
@@ -520,31 +685,95 @@ export default function AdminAnalyticsDashboard() {
               <div className="mt-6 pt-6 border-t">
                 <h3 className="text-sm font-medium text-gray-700 mb-3">Users by Role</h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div>
+                  <div className="text-center">
                     <p className="text-sm text-gray-600">Students</p>
-                    <p className="text-xl font-bold text-blue-600">{metrics.user_engagement.user_by_role.student}</p>
+                    <p className="text-2xl font-bold text-blue-600">{metrics.user_engagement.user_by_role.student}</p>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <p className="text-sm text-gray-600">Faculty</p>
-                    <p className="text-xl font-bold text-green-600">{metrics.user_engagement.user_by_role.faculty}</p>
+                    <p className="text-2xl font-bold text-green-600">{metrics.user_engagement.user_by_role.faculty}</p>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <p className="text-sm text-gray-600">Staff</p>
-                    <p className="text-xl font-bold text-purple-600">{metrics.user_engagement.user_by_role.staff}</p>
+                    <p className="text-2xl font-bold text-purple-600">{metrics.user_engagement.user_by_role.staff}</p>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <p className="text-sm text-gray-600">Reps</p>
-                    <p className="text-xl font-bold text-orange-600">{metrics.user_engagement.user_by_role.rep}</p>
+                    <p className="text-2xl font-bold text-orange-600">{metrics.user_engagement.user_by_role.rep}</p>
                   </div>
-                  <div>
+                  <div className="text-center">
                     <p className="text-sm text-gray-600">Admins</p>
-                    <p className="text-xl font-bold text-red-600">{metrics.user_engagement.user_by_role.admin}</p>
+                    <p className="text-2xl font-bold text-red-600">{metrics.user_engagement.user_by_role.admin}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* most engaged jobs table - updated */}
+            {/* activity trends visualization */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h2 className="text-xl font-semibold text-gray-700 mb-4">Activity Trends</h2>
+              <div className="overflow-x-auto">
+                <div className="min-w-[600px] h-64 flex items-end justify-between gap-2">
+                  {metrics.time_series.slice(-14).map((day, index) => {
+                    const maxValue = Math.max(
+                      ...metrics.time_series.slice(-14).map(d => 
+                        Math.max(d.total_postings, d.views, d.link_clicks)
+                      )
+                    );
+                    
+                    return (
+                      <div key={index} className="flex-1 flex flex-col items-center">
+                        <div className="w-full flex gap-0.5 items-end h-48">
+                          <div 
+                            className="flex-1 bg-blue-600 rounded-t hover:bg-blue-700 transition-colors"
+                            style={{ 
+                              height: `${day.total_postings > 0 ? (day.total_postings / maxValue * 100) : 0}%`,
+                              minHeight: day.total_postings > 0 ? '4px' : '0'
+                            }}
+                            title={`${day.total_postings} jobs posted`}
+                          />
+                          <div 
+                            className="flex-1 bg-green-600 rounded-t hover:bg-green-700 transition-colors"
+                            style={{ 
+                              height: `${day.link_clicks > 0 ? (day.link_clicks / maxValue * 100) : 0}%`,
+                              minHeight: day.link_clicks > 0 ? '4px' : '0'
+                            }}
+                            title={`${day.link_clicks} link clicks`}
+                          />
+                          <div 
+                            className="flex-1 bg-purple-600 rounded-t hover:bg-purple-700 transition-colors"
+                            style={{ 
+                              height: `${day.views > 0 ? (day.views / maxValue * 100) : 0}%`,
+                              minHeight: day.views > 0 ? '4px' : '0'
+                            }}
+                            title={`${day.views} views`}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2 text-center">
+                          {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-center gap-6 mt-4 text-sm">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-600 rounded mr-2"></div>
+                    <span className="text-gray-600">Jobs Posted</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-600 rounded mr-2"></div>
+                    <span className="text-gray-600">Link Clicks</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-purple-600 rounded mr-2"></div>
+                    <span className="text-gray-600">Views</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* most engaged jobs table */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">Most Engaged Jobs</h2>
               <div className="overflow-x-auto">
@@ -554,12 +783,13 @@ export default function AdminAnalyticsDashboard() {
                       <th className="border-b px-4 py-2 text-left">Job Title</th>
                       <th className="border-b px-4 py-2 text-left">Company</th>
                       <th className="border-b px-4 py-2 text-center">Views</th>
-                      <th className="border-b px-4 py-2 text-center">Link Clicks</th>
-                      <th className="border-b px-4 py-2 text-center">Engagement Rate</th>
+                      <th className="border-b px-4 py-2 text-center">Clicks</th>
+                      <th className="border-b px-4 py-2 text-center">Engagement</th>
+                      <th className="border-b px-4 py-2 text-center">Days Active</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {metrics.most_viewed_jobs.map((job) => (
+                    {metrics.most_viewed_jobs.slice(0, 10).map((job) => (
                       <tr key={job.id} className="hover:bg-gray-50">
                         <td className="border-b px-4 py-2">
                           <Link href={`/admin/view/${job.id}`}>
@@ -572,7 +802,16 @@ export default function AdminAnalyticsDashboard() {
                         <td className="border-b px-4 py-2 text-center">{job.views}</td>
                         <td className="border-b px-4 py-2 text-center">{job.link_clicks}</td>
                         <td className="border-b px-4 py-2 text-center">
-                          {job.views > 0 ? `${((job.link_clicks / job.views) * 100).toFixed(1)}%` : '0%'}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            job.engagement_rate > 15 ? 'bg-green-100 text-green-800' :
+                            job.engagement_rate > 10 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {job.engagement_rate.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="border-b px-4 py-2 text-center text-gray-600">
+                          {job.days_active} days
                         </td>
                       </tr>
                     ))}
@@ -580,36 +819,8 @@ export default function AdminAnalyticsDashboard() {
                 </table>
               </div>
             </div>
-
-            {/* daily activity trends table - updated */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold text-gray-700 mb-4">Daily Activity Trends</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto border-collapse border border-gray-200">
-                  <thead>
-                    <tr className="bg-gray-100 text-gray-700">
-                      <th className="border px-4 py-2">Date</th>
-                      <th className="border px-4 py-2">Jobs Posted</th>
-                      <th className="border px-4 py-2">Link Clicks</th>
-                      <th className="border px-4 py-2">Views</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* only show last 7 days for readability */}
-                    {metrics.time_series.slice(-7).map((item) => (
-                      <tr key={item.date} className="text-center">
-                        <td className="border px-4 py-2">{item.date}</td>
-                        <td className="border px-4 py-2">{item.total_postings}</td>
-                        <td className="border px-4 py-2">{item.link_clicks}</td>
-                        <td className="border px-4 py-2">{item.views}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
             
-            {/* top companies by engagement table - updated */}
+            {/* top companies by engagement table */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-4">Top Companies by Engagement</h2>
               <div className="overflow-x-auto">
@@ -620,15 +831,25 @@ export default function AdminAnalyticsDashboard() {
                       <th className="border px-4 py-2">Active Jobs</th>
                       <th className="border px-4 py-2">Total Views</th>
                       <th className="border px-4 py-2">Link Clicks</th>
+                      <th className="border px-4 py-2">Engagement Rate</th>
                     </tr>
                   </thead>
                   <tbody>
                     {metrics.top_companies.map((item) => (
-                      <tr key={item.company} className="text-center">
-                        <td className="border px-4 py-2 font-medium">{item.company}</td>
+                      <tr key={item.company} className="text-center hover:bg-gray-50">
+                        <td className="border px-4 py-2 font-medium text-left">{item.company}</td>
                         <td className="border px-4 py-2">{item.job_count}</td>
                         <td className="border px-4 py-2">{item.views}</td>
                         <td className="border px-4 py-2">{item.link_clicks}</td>
+                        <td className="border px-4 py-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            item.engagement_rate > 15 ? 'bg-green-100 text-green-800' :
+                            item.engagement_rate > 10 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {item.engagement_rate.toFixed(1)}%
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
