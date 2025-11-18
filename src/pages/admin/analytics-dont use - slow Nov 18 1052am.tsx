@@ -1,4 +1,4 @@
-// src/pages/admin/analytics.tsx - optimized version with batch queries and explanations
+// src/pages/admin/analytics.tsx - enhanced version with improved visualizations and insights
 // tracks link clicks instead of applications
 
 import { useState, useEffect } from 'react';
@@ -16,8 +16,7 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   CursorArrowRaysIcon,
-  ClockIcon,
-  InformationCircleIcon
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 const supabase = createClient(
@@ -80,7 +79,7 @@ interface MetricsData {
   jobs_growth_percentage: number;
   clicks_growth_percentage: number;
   
-  // average metrics
+  // new: average metrics
   avg_views_per_job: number;
   avg_clicks_per_job: number;
   overall_engagement_rate: number;
@@ -93,7 +92,7 @@ interface MetricsData {
   // user engagement
   user_engagement: UserEngagement;
   
-  // peak activity times
+  // new: peak activity times
   peak_activity_day: string;
   peak_activity_time: string;
 }
@@ -119,10 +118,8 @@ export default function AdminAnalyticsDashboard() {
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
       const daysAgo = parseInt(dateRange);
       const startDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      // OPTIMIZED: fetch all data in one parallel batch
+      // run all count queries at the same time
       const [
         jobsThisMonthResult,
         jobsLastMonthResult,
@@ -133,13 +130,11 @@ export default function AdminAnalyticsDashboard() {
         totalUsersResult,
         newUsersMonthResult,
         userRolesResult,
-        allJobsResult,
-        allViewsResult,
-        allClicksResult,
-        allAnalyticsResult,
-        activeTodayResult,
-        activeWeekResult,
-        activeMonthResult
+        mostViewedJobsResult,
+        topCompaniesDataResult,
+        allJobsInRangeResult,
+        allClicksInRangeResult,
+        allAnalyticsResult
       ] = await Promise.all([
         // jobs posted this month
         supabase.from('jobs')
@@ -185,40 +180,32 @@ export default function AdminAnalyticsDashboard() {
         supabase.from('user_roles')
           .select('role'),
         
-        // get all active jobs with their data
+        // most viewed jobs (getting recent active jobs)
         supabase.from('jobs')
           .select('id, title, company, created_at')
           .eq('status', 'active')
           .order('created_at', { ascending: false })
-          .limit(20),
+          .limit(10),
         
-        // get ALL views at once
-        supabase.from('job_views')
-          .select('job_id, viewed_at'),
+        // companies data for top companies
+        supabase.from('jobs')
+          .select('company')
+          .eq('status', 'active'),
         
-        // get ALL clicks at once
-        supabase.from('job_link_clicks')
-          .select('job_id, clicked_at'),
-        
-        // get all analytics for time analysis
-        supabase.from('job_analytics')
-          .select('created_at, event_type, user_id')
+        // get all jobs in date range for time series
+        supabase.from('jobs')
+          .select('created_at')
           .gte('created_at', startDate.toISOString()),
         
-        // active users today
-        supabase.from('job_analytics')
-          .select('user_id', { count: 'exact', head: false })
-          .gte('created_at', oneDayAgo.toISOString()),
+        // get all link clicks in date range for time series
+        supabase.from('job_link_clicks')
+          .select('clicked_at')
+          .gte('clicked_at', startDate.toISOString()),
         
-        // active users this week
+        // get all analytics for peak time analysis
         supabase.from('job_analytics')
-          .select('user_id', { count: 'exact', head: false })
-          .gte('created_at', oneWeekAgo.toISOString()),
-        
-        // active users this month
-        supabase.from('job_analytics')
-          .select('user_id', { count: 'exact', head: false })
-          .gte('created_at', startOfMonth.toISOString())
+          .select('created_at, event_type')
+          .gte('created_at', startDate.toISOString())
       ]);
 
       // extract counts from results
@@ -254,59 +241,100 @@ export default function AdminAnalyticsDashboard() {
         }
       });
 
-      // count unique active users
-      const activeToday = new Set(activeTodayResult.data?.map(a => a.user_id)).size;
-      const activeWeek = new Set(activeWeekResult.data?.map(a => a.user_id)).size;
-      const activeMonth = new Set(activeMonthResult.data?.map(a => a.user_id)).size;
+      // get active users count for different time periods
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      // OPTIMIZED: process all job stats at once using maps
-      const viewsByJob = new Map<string, number>();
-      const clicksByJob = new Map<string, number>();
+      const { count: activeToday } = await supabase
+        .from('job_analytics')
+        .select('user_id', { count: 'exact', head: true })
+        .gte('created_at', oneDayAgo.toISOString());
 
-      allViewsResult.data?.forEach(view => {
-        viewsByJob.set(view.job_id, (viewsByJob.get(view.job_id) || 0) + 1);
-      });
+      const { count: activeWeek } = await supabase
+        .from('job_analytics')
+        .select('user_id', { count: 'exact', head: true })
+        .gte('created_at', oneWeekAgo.toISOString());
 
-      allClicksResult.data?.forEach(click => {
-        clicksByJob.set(click.job_id, (clicksByJob.get(click.job_id) || 0) + 1);
-      });
+      const { count: activeMonth } = await supabase
+        .from('job_analytics')
+        .select('user_id', { count: 'exact', head: true })
+        .gte('created_at', startOfMonth.toISOString());
 
-      // create most viewed jobs array with precomputed stats
-      const mostViewedJobs: MostViewedJob[] = (allJobsResult.data || [])
+      // process job views and clicks for each job
+      const jobStatsMap = new Map<string, { views: number, clicks: number }>();
+
+      // fetch view counts for each job
+      for (const job of (mostViewedJobsResult.data || [])) {
+        const { count: viewCount } = await supabase
+          .from('job_views')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id);
+
+        const { count: clickCount } = await supabase
+          .from('job_link_clicks')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id);
+
+        jobStatsMap.set(job.id, {
+          views: viewCount || 0,
+          clicks: clickCount || 0
+        });
+      }
+
+      // create most viewed jobs array with stats
+      const mostViewedJobs: MostViewedJob[] = (mostViewedJobsResult.data || [])
         .map(job => {
-          const views = viewsByJob.get(job.id) || 0;
-          const clicks = clicksByJob.get(job.id) || 0;
+          const stats = jobStatsMap.get(job.id) || { views: 0, clicks: 0 };
           const daysActive = Math.floor(
             (now.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)
           );
           return {
-            id: job.id,
-            title: job.title,
-            company: job.company,
-            views,
-            link_clicks: clicks,
-            engagement_rate: views > 0 ? (clicks / views) * 100 : 0,
-            created_at: job.created_at,
+            ...job,
+            views: stats.views,
+            link_clicks: stats.clicks,
+            engagement_rate: stats.views > 0 ? (stats.clicks / stats.views) * 100 : 0,
             days_active: daysActive
           };
         })
-        .sort((a, b) => b.views - a.views)
-        .slice(0, 10);
+        .sort((a, b) => b.views - a.views);
 
-      // calculate company stats from job data
-      const companyStats = new Map<string, { views: number, clicks: number, jobs: Set<string> }>();
-      
-      allJobsResult.data?.forEach(job => {
-        if (!companyStats.has(job.company)) {
-          companyStats.set(job.company, { views: 0, clicks: 0, jobs: new Set() });
+      // calculate company stats
+      const companyStatsMap = new Map<string, { jobs: Set<string>, views: number, clicks: number }>();
+
+      for (const job of (topCompaniesDataResult.data || [])) {
+        if (!companyStatsMap.has(job.company)) {
+          companyStatsMap.set(job.company, { jobs: new Set(), views: 0, clicks: 0 });
         }
-        const stats = companyStats.get(job.company)!;
-        stats.jobs.add(job.id);
-        stats.views += viewsByJob.get(job.id) || 0;
-        stats.clicks += clicksByJob.get(job.id) || 0;
-      });
+        companyStatsMap.get(job.company)!.jobs.add(job.company);
+      }
 
-      const topCompanies: TopCompany[] = Array.from(companyStats.entries())
+      // fetch views and clicks for each company's jobs
+      for (const [company, stats] of companyStatsMap.entries()) {
+        const { data: companyJobs } = await supabase
+          .from('jobs')
+          .select('id')
+          .eq('company', company)
+          .eq('status', 'active');
+
+        if (companyJobs) {
+          for (const job of companyJobs) {
+            const { count: viewCount } = await supabase
+              .from('job_views')
+              .select('*', { count: 'exact', head: true })
+              .eq('job_id', job.id);
+
+            const { count: clickCount } = await supabase
+              .from('job_link_clicks')
+              .select('*', { count: 'exact', head: true })
+              .eq('job_id', job.id);
+
+            stats.views += viewCount || 0;
+            stats.clicks += clickCount || 0;
+          }
+        }
+      }
+
+      const topCompanies: TopCompany[] = Array.from(companyStatsMap.entries())
         .map(([company, stats]) => ({
           company,
           views: stats.views,
@@ -327,25 +355,32 @@ export default function AdminAnalyticsDashboard() {
         timeSeriesMap.set(dateStr, { postings: 0, clicks: 0, views: 0 });
       }
 
-      // count events per day from analytics
-      allAnalyticsResult.data?.forEach(record => {
-        const dateStr = record.created_at.split('T')[0];
-        const existing = timeSeriesMap.get(dateStr);
-        if (existing) {
-          if (record.event_type === 'view') {
-            existing.views++;
-          } else if (record.event_type === 'click_apply' || record.event_type === 'link_click') {
-            existing.clicks++;
-          }
-        }
-      });
-
-      // count job postings per day
-      allJobsResult.data?.forEach(job => {
+      // count postings per day
+      allJobsInRangeResult.data?.forEach(job => {
         const dateStr = job.created_at.split('T')[0];
         const existing = timeSeriesMap.get(dateStr);
         if (existing) {
           existing.postings++;
+        }
+      });
+
+      // count clicks per day
+      allClicksInRangeResult.data?.forEach(click => {
+        const dateStr = click.clicked_at.split('T')[0];
+        const existing = timeSeriesMap.get(dateStr);
+        if (existing) {
+          existing.clicks++;
+        }
+      });
+
+      // count views per day from analytics
+      allAnalyticsResult.data?.forEach(record => {
+        if (record.event_type === 'view') {
+          const dateStr = record.created_at.split('T')[0];
+          const existing = timeSeriesMap.get(dateStr);
+          if (existing) {
+            existing.views++;
+          }
         }
       });
 
@@ -404,9 +439,9 @@ export default function AdminAnalyticsDashboard() {
         most_viewed_jobs: mostViewedJobs,
         user_engagement: {
           total_users: totalUsers,
-          active_users_today: activeToday,
-          active_users_week: activeWeek,
-          active_users_month: activeMonth,
+          active_users_today: activeToday || 0,
+          active_users_week: activeWeek || 0,
+          active_users_month: activeMonth || 0,
           new_users_month: newUsersMonth,
           user_by_role: roleBreakdown
         },
@@ -482,7 +517,7 @@ export default function AdminAnalyticsDashboard() {
 
         {metrics && (
           <div className="space-y-6">
-            {/* key metrics cards with explanations */}
+            {/* key metrics cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* jobs posted this month */}
               <div className="bg-white p-6 rounded-lg shadow">
@@ -504,9 +539,6 @@ export default function AdminAnalyticsDashboard() {
                         {Math.abs(metrics.jobs_growth_percentage).toFixed(1)}% from last month
                       </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 italic">
-                      Total new opportunities added this month
-                    </p>
                   </div>
                   <BriefcaseIcon className="h-10 w-10 text-blue-500" />
                 </div>
@@ -532,9 +564,6 @@ export default function AdminAnalyticsDashboard() {
                         {Math.abs(metrics.clicks_growth_percentage).toFixed(1)}% from last month
                       </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 italic">
-                      Students clicking to external applications
-                    </p>
                   </div>
                   <CursorArrowRaysIcon className="h-10 w-10 text-green-500" />
                 </div>
@@ -550,9 +579,6 @@ export default function AdminAnalyticsDashboard() {
                     </p>
                     <p className="text-sm text-gray-500 mt-2">
                       of {metrics.total_postings} total
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1 italic">
-                      Jobs currently accepting applications
                     </p>
                   </div>
                   <ChartBarIcon className="h-10 w-10 text-purple-500" />
@@ -570,98 +596,61 @@ export default function AdminAnalyticsDashboard() {
                     <p className="text-sm text-gray-500 mt-2">
                       +{metrics.user_engagement.new_users_month} this month
                     </p>
-                    <p className="text-xs text-gray-500 mt-1 italic">
-                      Registered platform users
-                    </p>
                   </div>
                   <UserGroupIcon className="h-10 w-10 text-orange-500" />
                 </div>
               </div>
             </div>
 
-            {/* engagement insights card with full explanations */}
+            {/* engagement insights card */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg shadow border border-blue-100">
-              <div className="flex items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                 <ArrowTrendingUpIcon className="h-6 w-6 text-blue-600 mr-2" />
-                <h2 className="text-xl font-semibold text-gray-800">Platform Insights</h2>
-              </div>
-              <p className="text-sm text-gray-600 mb-4">
-                These metrics help you understand typical job performance and identify optimal posting times
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="bg-white p-4 rounded-lg">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Avg Views Per Job</p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {metrics.avg_views_per_job.toFixed(1)}
-                      </p>
-                    </div>
-                    <InformationCircleIcon className="h-5 w-5 text-gray-400" title="Average number of times each job is viewed" />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Typical job visibility across platform
+                Platform Insights
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Avg Views Per Job</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {metrics.avg_views_per_job.toFixed(1)}
                   </p>
                 </div>
-                <div className="bg-white p-4 rounded-lg">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Avg Clicks Per Job</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {metrics.avg_clicks_per_job.toFixed(1)}
-                      </p>
-                    </div>
-                    <InformationCircleIcon className="h-5 w-5 text-gray-400" title="Average application link clicks per job" />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Typical application interest level
+                <div>
+                  <p className="text-sm text-gray-600">Avg Clicks Per Job</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {metrics.avg_clicks_per_job.toFixed(1)}
                   </p>
                 </div>
-                <div className="bg-white p-4 rounded-lg">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">Overall Engagement Rate</p>
-                      <p className="text-2xl font-bold text-purple-600">
-                        {metrics.overall_engagement_rate.toFixed(1)}%
-                      </p>
-                    </div>
-                    <InformationCircleIcon className="h-5 w-5 text-gray-400" title="Percentage of views that result in clicks" />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Views converting to application clicks
+                <div>
+                  <p className="text-sm text-gray-600">Overall Engagement Rate</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {metrics.overall_engagement_rate.toFixed(1)}%
                   </p>
                 </div>
               </div>
-              <div className="pt-4 border-t border-blue-200">
-                <p className="text-sm font-medium text-gray-700 mb-3">Optimal Posting Times</p>
+              <div className="mt-4 pt-4 border-t border-blue-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center bg-white p-3 rounded-lg">
-                    <CalendarIcon className="h-5 w-5 text-blue-500 mr-2" />
+                  <div className="flex items-center">
+                    <CalendarIcon className="h-5 w-5 text-gray-500 mr-2" />
                     <div>
                       <p className="text-sm text-gray-600">Peak Activity Day</p>
                       <p className="font-semibold text-gray-800">{metrics.peak_activity_day}</p>
                     </div>
                   </div>
-                  <div className="flex items-center bg-white p-3 rounded-lg">
-                    <ClockIcon className="h-5 w-5 text-blue-500 mr-2" />
+                  <div className="flex items-center">
+                    <ClockIcon className="h-5 w-5 text-gray-500 mr-2" />
                     <div>
                       <p className="text-sm text-gray-600">Peak Activity Time</p>
                       <p className="font-semibold text-gray-800">{metrics.peak_activity_time}</p>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-600 mt-3 italic">
-                  Post jobs and send announcements during peak times for maximum visibility
-                </p>
               </div>
             </div>
 
-            {/* user engagement trends section with explanations */}
+            {/* user engagement trends section */}
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">User Engagement Trends</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Track active users over different time periods to gauge platform health and user retention
-              </p>
+              <h2 className="text-xl font-semibold text-gray-700 mb-4">User Engagement Trends</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Active Today</p>
@@ -670,9 +659,6 @@ export default function AdminAnalyticsDashboard() {
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
                     {((metrics.user_engagement.active_users_today / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2 italic">
-                    Users who viewed or clicked jobs today
                   </p>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
@@ -683,9 +669,6 @@ export default function AdminAnalyticsDashboard() {
                   <p className="text-sm text-gray-500 mt-1">
                     {((metrics.user_engagement.active_users_week / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
                   </p>
-                  <p className="text-xs text-gray-500 mt-2 italic">
-                    Week-over-week engagement indicator
-                  </p>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Active This Month</p>
@@ -695,16 +678,12 @@ export default function AdminAnalyticsDashboard() {
                   <p className="text-sm text-gray-500 mt-1">
                     {((metrics.user_engagement.active_users_month / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
                   </p>
-                  <p className="text-xs text-gray-500 mt-2 italic">
-                    Monthly active user baseline
-                  </p>
                 </div>
               </div>
 
-              {/* user breakdown by role with explanations */}
+              {/* user breakdown by role */}
               <div className="mt-6 pt-6 border-t">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Users by Role</h3>
-                <p className="text-xs text-gray-500 mb-3">Platform user distribution across all role types</p>
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Users by Role</h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600">Students</p>
@@ -730,12 +709,9 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
-            {/* activity trends visualization with explanation */}
+            {/* activity trends visualization */}
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">Activity Trends</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Daily breakdown of jobs posted, views, and link clicks. Use this to identify trends and patterns in platform usage.
-              </p>
+              <h2 className="text-xl font-semibold text-gray-700 mb-4">Activity Trends</h2>
               <div className="overflow-x-auto">
                 <div className="min-w-[600px] h-64 flex items-end justify-between gap-2">
                   {metrics.time_series.slice(-14).map((day, index) => {
@@ -797,13 +773,9 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
-            {/* most engaged jobs table with explanation */}
+            {/* most engaged jobs table */}
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">Most Engaged Jobs</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Top performing jobs ranked by total views. Engagement rate shows the percentage of viewers who clicked to apply.
-                Higher engagement (>15%) indicates compelling job descriptions and relevant opportunities.
-              </p>
+              <h2 className="text-xl font-semibold text-gray-700 mb-4">Most Engaged Jobs</h2>
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto border-collapse">
                   <thead>
@@ -848,13 +820,9 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
             
-            {/* top companies by engagement table with explanation */}
+            {/* top companies by engagement table */}
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">Top Companies by Engagement</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Companies with the most student interest, ranked by total views. Engagement rate indicates quality of their job postings.
-                This helps identify which companies students prefer and which may need posting improvements.
-              </p>
+              <h2 className="text-xl font-semibold text-gray-700 mb-4">Top Companies by Engagement</h2>
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto border-collapse border border-gray-200">
                   <thead>

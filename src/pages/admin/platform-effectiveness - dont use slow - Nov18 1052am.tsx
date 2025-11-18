@@ -141,97 +141,74 @@ export default function PlatformEffectiveness() {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // OPTIMIZED: batch all queries at once
-    const [
-      activeJobsResult,
-      expiredResult,
-      pendingResult,
-      allViewsResult,
-      allClicksResult,
-      recentViewsResult
-    ] = await Promise.all([
-      // get all active jobs with their data
-      supabase
-        .from('jobs')
-        .select('id, created_at')
-        .eq('status', 'active')
-        .gte('deadline', now.toISOString()),
-      
-      // get expired jobs count
-      supabase
-        .from('jobs')
-        .select('*', { count: 'exact', head: true })
-        .lt('deadline', now.toISOString()),
-      
-      // get pending approvals
-      supabase
-        .from('jobs')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending'),
-      
-      // get ALL views at once
-      supabase
-        .from('job_views')
-        .select('job_id, viewed_at'),
-      
-      // get ALL clicks at once
-      supabase
-        .from('job_link_clicks')
-        .select('job_id'),
-      
-      // get recent views (last 7 days)
-      supabase
-        .from('job_views')
-        .select('job_id')
-        .gte('viewed_at', sevenDaysAgo.toISOString())
-    ]);
+    // get active jobs count
+    const { count: activeCount } = await supabase
+      .from('jobs')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active')
+      .gte('deadline', now.toISOString());
 
-    const activeJobs = activeJobsResult.data || [];
-    
-    // OPTIMIZED: process all views and clicks using maps
-    const viewsByJob = new Map<string, number>();
-    const clicksByJob = new Map<string, number>();
-    const recentViewsByJob = new Map<string, number>();
+    // get expired jobs count
+    const { count: expiredCount } = await supabase
+      .from('jobs')
+      .select('*', { count: 'exact', head: true })
+      .lt('deadline', now.toISOString());
 
-    allViewsResult.data?.forEach(view => {
-      viewsByJob.set(view.job_id, (viewsByJob.get(view.job_id) || 0) + 1);
-    });
+    // get pending approvals
+    const { count: pendingCount } = await supabase
+      .from('jobs')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
 
-    allClicksResult.data?.forEach(click => {
-      clicksByJob.set(click.job_id, (clicksByJob.get(click.job_id) || 0) + 1);
-    });
+    // get all active jobs for performance analysis
+    const { data: activeJobs } = await supabase
+      .from('jobs')
+      .select('id, created_at')
+      .eq('status', 'active')
+      .gte('deadline', now.toISOString());
 
-    recentViewsResult.data?.forEach(view => {
-      recentViewsByJob.set(view.job_id, (recentViewsByJob.get(view.job_id) || 0) + 1);
-    });
-
-    // calculate performance metrics
     let staleCount = 0;
     let highPerformingCount = 0;
     let lowPerformingCount = 0;
 
-    activeJobs.forEach(job => {
-      const recentViews = recentViewsByJob.get(job.id) || 0;
-      const totalViews = viewsByJob.get(job.id) || 0;
-      const totalClicks = clicksByJob.get(job.id) || 0;
+    if (activeJobs) {
+      for (const job of activeJobs) {
+        // check views in last 7 days
+        const { count: recentViews } = await supabase
+          .from('job_views')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id)
+          .gte('viewed_at', sevenDaysAgo.toISOString());
 
-      // categorize job performance
-      if (recentViews === 0) {
-        staleCount++;
-      }
+        // check total views and clicks
+        const { count: totalViews } = await supabase
+          .from('job_views')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id);
 
-      const engagementRate = totalViews ? totalClicks / totalViews : 0;
-      if (engagementRate > 0.15) {
-        highPerformingCount++;
-      } else if (engagementRate < 0.05 && totalViews > 10) {
-        lowPerformingCount++;
+        const { count: totalClicks } = await supabase
+          .from('job_link_clicks')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id);
+
+        // categorize job performance
+        if (recentViews === 0) {
+          staleCount++;
+        }
+
+        const engagementRate = totalViews ? (totalClicks || 0) / totalViews : 0;
+        if (engagementRate > 0.15) {
+          highPerformingCount++;
+        } else if (engagementRate < 0.05 && totalViews && totalViews > 10) {
+          lowPerformingCount++;
+        }
       }
-    });
+    }
 
     setSystemStatus({
-      active_jobs: activeJobs.length,
-      expired_jobs: expiredResult.count || 0,
-      pending_approvals: pendingResult.count || 0,
+      active_jobs: activeCount || 0,
+      expired_jobs: expiredCount || 0,
+      pending_approvals: pendingCount || 0,
       stale_jobs: staleCount,
       high_performing_jobs: highPerformingCount,
       low_performing_jobs: lowPerformingCount
@@ -318,70 +295,54 @@ export default function PlatformEffectiveness() {
   const fetchTopPerformingJobs = async (startDate: Date) => {
     const now = new Date();
     
-    // OPTIMIZED: get all data at once
-    const [
-      jobsResult,
-      analyticsResult
-    ] = await Promise.all([
-      // get all active jobs
-      supabase
-        .from('jobs')
-        .select('id, title, company, created_at')
-        .eq('status', 'active')
-        .gte('deadline', now.toISOString()),
-      
-      // get all analytics for date range
-      supabase
-        .from('job_analytics')
-        .select('job_id, event_type')
-        .gte('created_at', startDate.toISOString())
-    ]);
+    // get jobs
+    const { data: jobs } = await supabase
+      .from('jobs')
+      .select('id, title, company, created_at')
+      .eq('status', 'active')
+      .gte('deadline', now.toISOString());
 
-    const jobs = jobsResult.data || [];
-    const analytics = analyticsResult.data || [];
-
-    // OPTIMIZED: count views and clicks using maps
-    const viewsByJob = new Map<string, number>();
-    const clicksByJob = new Map<string, number>();
-
-    analytics.forEach(record => {
-      if (record.event_type === 'view') {
-        viewsByJob.set(record.job_id, (viewsByJob.get(record.job_id) || 0) + 1);
-      } else if (record.event_type === 'click_apply' || record.event_type === 'link_click') {
-        clicksByJob.set(record.job_id, (clicksByJob.get(record.job_id) || 0) + 1);
-      }
-    });
+    // get analytics for these jobs
+    const { data: analytics } = await supabase
+      .from('job_analytics')
+      .select('job_id, event_type')
+      .gte('created_at', startDate.toISOString());
 
     // calculate metrics for each job
-    const jobMetrics: JobPerformance[] = jobs.map(job => {
-      const views = viewsByJob.get(job.id) || 0;
-      const clicks = clicksByJob.get(job.id) || 0;
-      const engagement = views > 0 ? (clicks / views) * 100 : 0;
-      
-      // calculate days active
-      const daysActive = Math.floor(
-        (now.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)
-      );
-      
-      // effectiveness score: weighted combination of engagement, views, and freshness
-      const viewScore = Math.min(views / 10, 1) * 40; // max 40 points for 100+ views
-      const engagementScore = Math.min(engagement / 20, 1) * 40; // max 40 points for 20%+ engagement
-      const freshnessScore = Math.max(0, (1 - daysActive / 30)) * 20; // max 20 points, decreases with age
-      const effectivenessScore = viewScore + engagementScore + freshnessScore;
+    const jobMetrics = new Map<string, JobPerformance>();
 
-      return {
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        views,
-        clicks,
-        engagement_rate: engagement,
-        effectiveness_score: effectivenessScore,
-        days_active: daysActive
-      };
-    });
+    if (jobs) {
+      for (const job of jobs) {
+        const jobAnalytics = analytics?.filter(a => a.job_id === job.id) || [];
+        const views = jobAnalytics.filter(a => a.event_type === 'view').length;
+        const clicks = jobAnalytics.filter(a => a.event_type === 'click_apply' || a.event_type === 'link_click').length;
+        const engagement = views > 0 ? (clicks / views) * 100 : 0;
+        
+        // calculate days active
+        const daysActive = Math.floor(
+          (now.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        // effectiveness score: weighted combination of engagement, views, and freshness
+        const viewScore = Math.min(views / 10, 1) * 40; // max 40 points for 100+ views
+        const engagementScore = Math.min(engagement / 20, 1) * 40; // max 40 points for 20%+ engagement
+        const freshnessScore = Math.max(0, (1 - daysActive / 30)) * 20; // max 20 points, decreases with age
+        const effectivenessScore = viewScore + engagementScore + freshnessScore;
 
-    const sortedJobs = jobMetrics
+        jobMetrics.set(job.id, {
+          id: job.id,
+          title: job.title,
+          company: job.company,
+          views,
+          clicks,
+          engagement_rate: engagement,
+          effectiveness_score: effectivenessScore,
+          days_active: daysActive
+        });
+      }
+    }
+
+    const sortedJobs = Array.from(jobMetrics.values())
       .sort((a, b) => b.effectiveness_score - a.effectiveness_score)
       .slice(0, 10);
 
