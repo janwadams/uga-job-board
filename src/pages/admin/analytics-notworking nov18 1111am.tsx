@@ -802,7 +802,7 @@ export default function AdminAnalyticsDashboard() {
               <h2 className="text-xl font-semibold text-gray-700 mb-2">Most Engaged Jobs</h2>
               <p className="text-sm text-gray-600 mb-4">
                 Top performing jobs ranked by total views. Engagement rate shows the percentage of viewers who clicked to apply.
-                Higher engagement (&gt;15%) indicates compelling job descriptions and relevant opportunities.
+                Higher engagement (>15%) indicates compelling job descriptions and relevant opportunities.
               </p>
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto border-collapse">
