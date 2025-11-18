@@ -182,11 +182,11 @@ export default function RepAnalytics() {
       ).length || 0;
 
       const submittedJobs = jobs?.filter(job => 
-        job.status !== 'pending' && job.status !== 'draft'  // Submitted means went through approval process
+        job.status !== 'pending'
       ).length || 0;
       
       const approvedJobs = jobs?.filter(job => 
-        job.status === 'active'  // Only active jobs are approved by admin
+        job.status === 'active' || job.status === 'removed' || job.status === 'archived'
       ).length || 0;
       
       const approvalRate = submittedJobs > 0 
