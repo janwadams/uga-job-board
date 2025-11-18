@@ -1,5 +1,5 @@
 // pages/faculty/dashboard.tsx
-// Updated faculty dashboard with link click tracking - NO quick analytics tab
+// Updated faculty dashboard with link click tracking instead of applications
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -207,17 +207,20 @@ export default function FacultyDashboard() {
     if (!session) return;
 
     const fetchJobs = async () => {
+      const userId = session.user.id;
       const today = new Date().toISOString().split('T')[0];
-      
+
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
-        .eq('created_by', session.user.id)
+        .eq('created_by', userId)
         .gte('deadline', today)
-        .in('status', ['active', 'removed', 'rejected']);
+        .neq('status', 'removed')
+        .neq('status', 'rejected')
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching jobs:', error);
+        console.error('error fetching jobs:', error);
       } else {
         setJobs(data || []);
       }
@@ -225,25 +228,27 @@ export default function FacultyDashboard() {
     };
 
     fetchJobs();
-    fetchLinkClicks(session.user.id);
   }, [session]);
 
-  // fetch archived jobs (past deadline)
+  // fetch archived jobs (jobs past their deadline)
   useEffect(() => {
     if (!session) return;
 
     const fetchArchivedJobs = async () => {
+      const userId = session.user.id;
       const today = new Date().toISOString().split('T')[0];
-      
+
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
-        .eq('created_by', session.user.id)
+        .eq('created_by', userId)
         .lt('deadline', today)
+        .neq('status', 'removed')
+        .neq('status', 'rejected')
         .order('deadline', { ascending: false });
 
       if (error) {
-        console.error('Error fetching archived jobs:', error);
+        console.error('error fetching archived jobs:', error);
       } else {
         setArchivedJobs(data || []);
       }
@@ -253,27 +258,31 @@ export default function FacultyDashboard() {
     fetchArchivedJobs();
   }, [session]);
 
+  // fetch link clicks count when session is available
+  useEffect(() => {
+    if (!session) return;
+    fetchLinkClicks(session.user.id);
+  }, [session]);
+
   // handle removing a job (soft delete)
   const handleRemove = async (jobId: string) => {
-    if (!confirm('Are you sure you want to remove this job?')) return;
+    if (!confirm('Are you sure you want to remove this posting? This action is permanent.')) {
+      return;
+    }
 
-    try {
-      const { error } = await supabase
-        .from('jobs')
-        .update({ status: 'removed' })
-        .eq('id', jobId);
+    const { error } = await supabase
+      .from('jobs')
+      .update({ status: 'removed' })
+      .eq('id', jobId);
 
-      if (!error) {
-        setJobs(jobs.map(job => 
-          job.id === jobId ? { ...job, status: 'removed' as const } : job
-        ));
-        alert('Job removed successfully.');
-      } else {
-        alert('Failed to remove job.');
-      }
-    } catch (error) {
-      console.error('Error removing job:', error);
-      alert('An error occurred while removing the job.');
+    if (error) {
+      alert('Failed to remove job.');
+    } else {
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === jobId ? { ...job, status: 'removed' as Job['status'] } : job
+        )
+      );
     }
   };
 
@@ -333,6 +342,7 @@ export default function FacultyDashboard() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-red-800">📚 Faculty Dashboard</h1>
           <div className="flex gap-4">
+            {/* removed view applications button since faculty can't see applications anymore */}
             <Link href="/profile/settings">
               <button className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow-sm flex items-center gap-2">
                 <UserCircleIcon className="h-5 w-5" />
