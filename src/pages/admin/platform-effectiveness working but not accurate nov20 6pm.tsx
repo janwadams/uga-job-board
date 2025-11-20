@@ -304,7 +304,7 @@ export default function PlatformEffectiveness() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">Loading platform effectiveness data...</div>
         </div>
       </div>
@@ -313,14 +313,14 @@ export default function PlatformEffectiveness() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Platform Effectiveness</h1>
           <p className="mt-2 text-gray-600">Track job performance and user engagement metrics</p>
         </div>
 
         {/* Platform Overview Stats */}
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Total Job Views</div>
             <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.totalViews.toLocaleString()}</div>
@@ -330,6 +330,11 @@ export default function PlatformEffectiveness() {
             <div className="text-sm font-medium text-gray-500">Apply Clicks</div>
             <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.totalClicks.toLocaleString()}</div>
             <div className="mt-1 text-sm text-green-600">{platformStats.avgClickRate}% click rate</div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="text-sm font-medium text-gray-500">Unique Applicants</div>
+            <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.uniqueUsersClicking}</div>
+            <div className="mt-1 text-sm text-gray-500">clicked apply</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Jobs Saved</div>
@@ -452,6 +457,37 @@ export default function PlatformEffectiveness() {
               No active jobs with engagement data yet.
             </div>
           )}
+        </div>
+
+        {/* Engagement Insights */}
+        <div className="mt-8 bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Engagement Insights</h2>
+          <div className="space-y-4">
+            {topPerformingJobs.slice(0, 3).map((job, index) => (
+              <div key={job.id} className="border-l-4 border-indigo-500 pl-4">
+                <div className="font-medium text-gray-900">
+                  #{index + 1} {job.title} at {job.company}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium">Key Success Factors:</span>
+                  <ul className="mt-1 space-y-1">
+                    {job.clickThroughRate && parseFloat(job.clickThroughRate) > 10 && (
+                      <li>• High click-through rate ({job.clickThroughRate}%) - compelling job description</li>
+                    )}
+                    {job.saveCount > 5 && (
+                      <li>• Strong save rate ({job.saveCount} saves) - students considering carefully</li>
+                    )}
+                    {job.dailyEngagement > 5 && (
+                      <li>• Consistent daily engagement ({job.dailyEngagement.toFixed(1)}/day)</li>
+                    )}
+                    {job.uniqueClickCount > job.clickCount * 0.8 && (
+                      <li>• Low repeat clicks - clear application process</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Back to Admin Dashboard */}
