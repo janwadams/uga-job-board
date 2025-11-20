@@ -377,7 +377,7 @@ export default function AdminDashboard() {
             Users ({users.length})
           </button>
           <button onClick={() => setActiveTab('jobs')} className={`px-4 py-2 font-medium rounded-t-lg whitespace-nowrap ${activeTab === 'jobs' ? 'bg-white text-uga-red border-b-2 border-uga-red' : 'bg-gray-100 text-gray-600'}`}>
-            Active Jobs ({jobs.length})
+            Jobs ({jobs.length})
           </button>
           <button onClick={() => setActiveTab('archived')} className={`px-4 py-2 font-medium rounded-t-lg whitespace-nowrap ${activeTab === 'archived' ? 'bg-white text-uga-red border-b-2 border-uga-red' : 'bg-gray-100 text-gray-600'}`}>
             Archived ({archivedJobs.length})
