@@ -1,9 +1,4 @@
-// Improved Platform Effectiveness Component
-// Key improvements:
-// 1. Uses actual job_analytics and job_link_clicks data
-// 2. Calculates meaningful engagement metrics
-// 3. Efficient data aggregation
-// 4. Composite scoring for true "top performance"
+//platform analystics 
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -456,7 +451,7 @@ export default function PlatformEffectiveness() {
 
         {/* Back to Admin Dashboard */}
         <div className="mt-8">
-          <Link href="/admin">
+          <Link href="/admin/dashboard">
             <button className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
               ← Back to Admin Dashboard
             </button>
