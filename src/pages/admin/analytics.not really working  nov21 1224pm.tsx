@@ -45,8 +45,7 @@ interface MostViewedJob {
   id: string;
   title: string;
   company: string;
-  views: number; // unique views
-  total_views: number; // total views including repeats
+  views: number;
   link_clicks: number;
   engagement_rate: number;
   created_at: string;
@@ -90,7 +89,6 @@ interface MetricsData {
   time_series: TimeSeriesData[];
   top_companies: TopCompany[];
   most_viewed_jobs: MostViewedJob[];
-  most_engaged_jobs: MostViewedJob[]; // jobs with highest click-through rate
   
   // user engagement
   user_engagement: UserEngagement;
@@ -262,62 +260,37 @@ export default function AdminAnalyticsDashboard() {
       const activeMonth = new Set(activeMonthResult.data?.map(a => a.user_id)).size;
 
       // OPTIMIZED: process all job stats at once using maps
-      const viewsByJob = new Map<string, number>(); // total views per job
-      const uniqueViewsByJob = new Map<string, Set<string>>(); // unique viewers per job
-      const clicksByJob = new Map<string, number>(); // clicks per job
+      const viewsByJob = new Map<string, number>();
+      const clicksByJob = new Map<string, number>();
 
       allViewsResult.data?.forEach(view => {
-        // count total views
         viewsByJob.set(view.job_id, (viewsByJob.get(view.job_id) || 0) + 1);
-        
-        // track unique viewers per job
-        if (!uniqueViewsByJob.has(view.job_id)) {
-          uniqueViewsByJob.set(view.job_id, new Set());
-        }
-        if (view.user_id) { // only count logged-in users for unique views
-          uniqueViewsByJob.get(view.job_id)!.add(view.user_id);
-        }
       });
 
       allClicksResult.data?.forEach(click => {
         clicksByJob.set(click.job_id, (clicksByJob.get(click.job_id) || 0) + 1);
       });
 
-      // create most viewed jobs array with accurate engagement stats
+      // create most viewed jobs array with precomputed stats
       const mostViewedJobs: MostViewedJob[] = (allJobsResult.data || [])
         .map(job => {
-          const totalViews = viewsByJob.get(job.id) || 0;
-          const uniqueViews = uniqueViewsByJob.get(job.id)?.size || 0;
+          const views = viewsByJob.get(job.id) || 0;
           const clicks = clicksByJob.get(job.id) || 0;
           const daysActive = Math.floor(
             (now.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)
           );
-          
-          // calculate engagement based on unique views (more accurate)
-          const engagementRate = uniqueViews > 0 ? (clicks / uniqueViews) * 100 : 0;
-          
           return {
             id: job.id,
             title: job.title,
             company: job.company,
-            views: uniqueViews, // use unique views for display
-            total_views: totalViews, // keep total for reference
+            views,
             link_clicks: clicks,
-            engagement_rate: engagementRate, // now based on unique views
+            engagement_rate: views > 0 ? (clicks / views) * 100 : 0,
             created_at: job.created_at,
             days_active: daysActive
           };
         })
-        .filter(job => job.views > 0); // only include jobs with at least one view
-      
-      // create two different sorted lists
-      const mostViewedJobsList = [...mostViewedJobs]
         .sort((a, b) => b.views - a.views)
-        .slice(0, 10);
-      
-      const mostEngagedJobsList = [...mostViewedJobs]
-        .filter(job => job.views >= 5) // minimum 5 unique views for engagement ranking
-        .sort((a, b) => b.engagement_rate - a.engagement_rate)
         .slice(0, 10);
 
       // calculate company stats from job data
@@ -407,14 +380,12 @@ export default function AdminAnalyticsDashboard() {
       
       const peakTime = `${peakHour}:00 - ${peakHour + 1}:00`;
 
-      // calculate average metrics using unique views for accuracy
-      const jobsWithViews = mostViewedJobs.filter(job => job.views > 0);
-      const totalUniqueViews = jobsWithViews.reduce((sum, job) => sum + job.views, 0);
-      const totalAllViews = jobsWithViews.reduce((sum, job) => sum + job.total_views, 0);
+      // calculate average metrics
+      const totalViews = mostViewedJobs.reduce((sum, job) => sum + job.views, 0);
       const totalClicks = mostViewedJobs.reduce((sum, job) => sum + job.link_clicks, 0);
-      const avgViewsPerJob = activePostings > 0 ? totalUniqueViews / activePostings : 0;
+      const avgViewsPerJob = activePostings > 0 ? totalViews / activePostings : 0;
       const avgClicksPerJob = activePostings > 0 ? totalClicks / activePostings : 0;
-      const overallEngagementRate = totalUniqueViews > 0 ? (totalClicks / totalUniqueViews) * 100 : 0;
+      const overallEngagementRate = totalViews > 0 ? (totalClicks / totalViews) * 100 : 0;
 
       setMetrics({
         jobs_posted_month: jobsThisMonth,
@@ -430,8 +401,7 @@ export default function AdminAnalyticsDashboard() {
         overall_engagement_rate: overallEngagementRate,
         time_series: timeSeries,
         top_companies: topCompanies,
-        most_viewed_jobs: mostViewedJobsList,
-        most_engaged_jobs: mostEngagedJobsList,
+        most_viewed_jobs: mostViewedJobs,
         user_engagement: {
           total_users: totalUsers,
           active_users_today: activeToday,
@@ -827,12 +797,12 @@ export default function AdminAnalyticsDashboard() {
               </div>
             </div>
 
-            {/* most viewed jobs table - based on unique student views */}
+            {/* most engaged jobs table with explanation */}
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">Most Viewed Jobs</h2>
+              <h2 className="text-xl font-semibold text-gray-700 mb-2">Most Engaged Jobs</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Jobs with the most unique student views. Shows actual reach (how many individual students viewed each job).
-                Total views shows repeat visits, indicating strong interest when higher than unique views.
+                Top performing jobs ranked by total views. Engagement rate shows the percentage of viewers who clicked to apply.
+                Higher engagement (&gt;15%) indicates compelling job descriptions and relevant opportunities.
               </p>
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto border-collapse">
@@ -840,9 +810,9 @@ export default function AdminAnalyticsDashboard() {
                     <tr className="bg-gray-50 text-gray-700">
                       <th className="border-b px-4 py-2 text-left">Job Title</th>
                       <th className="border-b px-4 py-2 text-left">Company</th>
-                      <th className="border-b px-4 py-2 text-center">Unique Views</th>
-                      <th className="border-b px-4 py-2 text-center">Total Views</th>
+                      <th className="border-b px-4 py-2 text-center">Views</th>
                       <th className="border-b px-4 py-2 text-center">Clicks</th>
+                      <th className="border-b px-4 py-2 text-center">Engagement</th>
                       <th className="border-b px-4 py-2 text-center">Days Active</th>
                     </tr>
                   </thead>
@@ -857,55 +827,11 @@ export default function AdminAnalyticsDashboard() {
                           </Link>
                         </td>
                         <td className="border-b px-4 py-2">{job.company}</td>
-                        <td className="border-b px-4 py-2 text-center font-semibold">{job.views}</td>
-                        <td className="border-b px-4 py-2 text-center text-gray-600">{job.total_views}</td>
-                        <td className="border-b px-4 py-2 text-center">{job.link_clicks}</td>
-                        <td className="border-b px-4 py-2 text-center text-gray-600">
-                          {job.days_active} days
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* most engaged jobs table with accurate engagement calculation */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">Most Engaged Jobs</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Jobs with the highest click-through rate (minimum 5 unique viewers). 
-                Shows actual engagement based on unique students who viewed then clicked to apply.
-                Engagement &gt;20% is excellent, 10-20% is good.
-              </p>
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-700">
-                      <th className="border-b px-4 py-2 text-left">Job Title</th>
-                      <th className="border-b px-4 py-2 text-left">Company</th>
-                      <th className="border-b px-4 py-2 text-center">Unique Views</th>
-                      <th className="border-b px-4 py-2 text-center">Clicks</th>
-                      <th className="border-b px-4 py-2 text-center">Engagement</th>
-                      <th className="border-b px-4 py-2 text-center">Days Active</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metrics.most_engaged_jobs.slice(0, 10).map((job) => (
-                      <tr key={job.id} className="hover:bg-gray-50">
-                        <td className="border-b px-4 py-2">
-                          <Link href={`/admin/view/${job.id}`}>
-                            <span className="text-blue-600 hover:underline cursor-pointer">
-                              {job.title}
-                            </span>
-                          </Link>
-                        </td>
-                        <td className="border-b px-4 py-2">{job.company}</td>
                         <td className="border-b px-4 py-2 text-center">{job.views}</td>
                         <td className="border-b px-4 py-2 text-center">{job.link_clicks}</td>
                         <td className="border-b px-4 py-2 text-center">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            job.engagement_rate > 20 ? 'bg-green-100 text-green-800' :
+                            job.engagement_rate > 15 ? 'bg-green-100 text-green-800' :
                             job.engagement_rate > 10 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
