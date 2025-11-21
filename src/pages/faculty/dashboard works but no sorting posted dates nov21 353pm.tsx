@@ -70,10 +70,6 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
             : `Deadline: ${new Date(job.deadline).toLocaleDateString()}`
           }
         </p>
-        <p className="text-sm text-gray-500 mt-1">
-          Posted: {new Date(job.created_at).toLocaleDateString()}
-          {' '}({Math.floor((new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))} days ago)
-        </p>
         {job.location && (
           <p className="text-sm text-gray-500 mt-1">
             Location: {job.location}
@@ -139,7 +135,6 @@ export default function FacultyDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest'); // add sort order state
   const [userRole, setUserRole] = useState<string | null>(null);
   
   // state for tracking link clicks - keeping this for the metric card
@@ -353,20 +348,6 @@ export default function FacultyDashboard() {
   const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
   const totalArchived = archivedJobs.length;
 
-  // filter and sort jobs based on status filter and sort order
-  const filteredAndSortedJobs = useMemo(() => {
-    let filtered = statusFilter ? jobs.filter(j => j.status === statusFilter) : jobs;
-    
-    // sort by created_at date
-    const sorted = [...filtered].sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
-    
-    return sorted;
-  }, [jobs, statusFilter, sortOrder]);
-
   if (!session || !userRole) {
     return <p className="p-8 text-center">Loading dashboard...</p>;
   }
@@ -468,28 +449,15 @@ export default function FacultyDashboard() {
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Your Active Job Postings</h2>
-              <div className="flex gap-3">
-                <div>
-                  <label htmlFor="sortOrder" className="mr-2 font-medium text-sm text-gray-700">Sort by:</label>
-                  <select
-                    id="sortOrder"
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                    className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
-                  >
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
-                  <select
-                    id="statusFilter"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
-                  >
-                    <option value="">All</option>
+              <div>
+                <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
+                <select
+                  id="statusFilter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">All</option>
                   <option value="active">Active</option>
                   <option value="removed">Removed</option>
                 </select>
@@ -498,7 +466,7 @@ export default function FacultyDashboard() {
 
             {loading ? (
               <p className="text-center text-gray-500 py-10">Loading your jobs...</p>
-            ) : filteredAndSortedJobs.length === 0 ? (
+            ) : jobs.length === 0 ? (
               <div className="text-center py-10">
                 <h3 className="text-xl font-semibold text-gray-700">No active jobs found.</h3>
                 <p className="text-gray-500 mt-2">
@@ -509,7 +477,7 @@ export default function FacultyDashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredAndSortedJobs.map((job) => (
+                {(statusFilter ? jobs.filter(j => j.status === statusFilter) : jobs).map((job) => (
                   <JobCard 
                     key={job.id} 
                     job={job} 
