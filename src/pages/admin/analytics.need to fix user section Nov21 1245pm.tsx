@@ -173,21 +173,18 @@ export default function AdminAnalyticsDashboard() {
           .select('*', { count: 'exact', head: true })
           .eq('status', 'active'),
         
-        // total ACTIVE users (excludes disabled accounts)
+        // total users
         supabase.from('user_roles')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true),
+          .select('*', { count: 'exact', head: true }),
         
-        // new ACTIVE users this month
+        // new users this month
         supabase.from('user_roles')
           .select('*', { count: 'exact', head: true })
-          .eq('is_active', true)
           .gte('created_at', startOfMonth.toISOString()),
         
-        // all ACTIVE user roles for breakdown (excludes disabled users)
+        // all user roles for breakdown
         supabase.from('user_roles')
-          .select('user_id, role, is_active')
-          .eq('is_active', true),
+          .select('user_id, role'),
         
         // get all active jobs with their data
         supabase.from('jobs')
@@ -611,7 +608,7 @@ export default function AdminAnalyticsDashboard() {
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <p className="text-sm text-gray-600">Total Active Users</p>
+                    <p className="text-sm text-gray-600">Total Users</p>
                     <p className="text-3xl font-bold text-gray-900 mt-1">
                       {metrics.user_engagement.total_users}
                     </p>
@@ -619,7 +616,7 @@ export default function AdminAnalyticsDashboard() {
                       +{metrics.user_engagement.new_users_month} this month
                     </p>
                     <p className="text-xs text-gray-500 mt-1 italic">
-                      Active accounts only (disabled excluded)
+                      Registered platform users
                     </p>
                   </div>
                   <UserGroupIcon className="h-10 w-10 text-orange-500" />
@@ -751,8 +748,8 @@ export default function AdminAnalyticsDashboard() {
 
               {/* user breakdown by role with explanations */}
               <div className="mt-6 pt-6 border-t">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Active Users by Role</h3>
-                <p className="text-xs text-gray-500 mb-3">Currently active users only (disabled accounts excluded)</p>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Users by Role</h3>
+                <p className="text-xs text-gray-500 mb-3">Platform user distribution across all role types</p>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600">Students</p>
