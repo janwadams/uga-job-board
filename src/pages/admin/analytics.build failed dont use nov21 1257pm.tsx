@@ -348,8 +348,8 @@ export default function AdminAnalyticsDashboard() {
 
       // create time series data
       const timeSeriesMap = new Map<string, { postings: number, clicks: number, views: number, uniqueViewers: Set<string> }>();
-      // initialize all dates in range (including today)
-      for (let i = 0; i <= daysAgo; i++) {
+
+
         const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
         timeSeriesMap.set(dateStr, { postings: 0, clicks: 0, views: 0, uniqueViewers: new Set() });
