@@ -127,10 +127,9 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
 export default function FacultyDashboard() {
   const router = useRouter();
   // removed analytics from tabs, only active and archived now
-  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'removed'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [archivedJobs, setArchivedJobs] = useState<Job[]>([]);
-  const [removedJobs, setRemovedJobs] = useState<Job[]>([]); // track removed jobs separately
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(true);
@@ -215,7 +214,7 @@ export default function FacultyDashboard() {
         .select('*')
         .eq('created_by', session.user.id)
         .gte('deadline', today)
-        .in('status', ['active', 'pending', 'rejected']); // don't include removed here
+        .in('status', ['active', 'removed', 'rejected']);
 
       if (error) {
         console.error('Error fetching jobs:', error);
@@ -254,28 +253,6 @@ export default function FacultyDashboard() {
     fetchArchivedJobs();
   }, [session]);
 
-  // fetch removed jobs for the removed tab
-  useEffect(() => {
-    if (!session) return;
-
-    const fetchRemovedJobs = async () => {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('created_by', session.user.id)
-        .eq('status', 'removed')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching removed jobs:', error);
-      } else {
-        setRemovedJobs(data || []);
-      }
-    };
-
-    fetchRemovedJobs();
-  }, [session]);
-
   // handle removing a job (soft delete)
   const handleRemove = async (jobId: string) => {
     if (!confirm('Are you sure you want to remove this job?')) return;
@@ -287,12 +264,9 @@ export default function FacultyDashboard() {
         .eq('id', jobId);
 
       if (!error) {
-        // remove from active jobs list and add to removed list
-        const removedJob = jobs.find(job => job.id === jobId);
-        setJobs(jobs.filter(job => job.id !== jobId));
-        if (removedJob) {
-          setRemovedJobs([...removedJobs, { ...removedJob, status: 'removed' as const }]);
-        }
+        setJobs(jobs.map(job => 
+          job.id === jobId ? { ...job, status: 'removed' as const } : job
+        ));
         alert('Job removed successfully.');
       } else {
         alert('Failed to remove job.');
@@ -423,16 +397,6 @@ export default function FacultyDashboard() {
               Jobs ({jobs.length})
             </button>
             <button 
-              onClick={() => setActiveTab('removed')} 
-              className={`${
-                activeTab === 'removed' 
-                  ? 'border-red-700 text-red-800' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
-            >
-              Removed ({removedJobs.length})
-            </button>
-            <button 
               onClick={() => setActiveTab('archived')} 
               className={`${
                 activeTab === 'archived' 
@@ -484,30 +448,6 @@ export default function FacultyDashboard() {
                     job={job} 
                     onRemove={handleRemove}
                     isArchived={false}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : activeTab === 'removed' ? (
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Your Removed Jobs</h2>
-              <p className="text-gray-600 mt-2">Jobs you have removed from active listings. These can be reactivated if needed.</p>
-            </div>
-
-            {removedJobs.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <h3 className="text-xl font-semibold text-gray-700">No removed jobs.</h3>
-                <p className="text-gray-500 mt-2">Jobs you remove will appear here.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {removedJobs.map((job) => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    onReactivate={handleReactivate}
                   />
                 ))}
               </div>

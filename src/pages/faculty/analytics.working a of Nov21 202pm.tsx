@@ -128,9 +128,8 @@ export default function FacultyAnalytics() {
             clicked_at,
             user_id
           ),
-          job_analytics!job_analytics_job_id_fkey (
+          job_views (
             id,
-            event_type,
             created_at,
             user_id
           )
@@ -151,36 +150,14 @@ export default function FacultyAnalytics() {
         new Date(job.deadline) <= today
       ).length || 0;
 
-      // calculate link clicks and views from analytics
+      // Calculate link clicks and views
       const totalLinkClicks = jobs?.reduce((sum, job) => 
         sum + (job.job_link_clicks?.length || 0), 0
       ) || 0;
       
-      // calculate unique and total views from job_analytics
-      const viewsData = jobs?.reduce((acc, job) => {
-        const analyticsEvents = job.job_analytics || [];
-        const viewEvents = analyticsEvents.filter(
-          (event: any) => event.event_type === 'view' || event.event_type === 'job_view'
-        );
-        
-        // unique views - count unique users per job
-        const uniqueViewers = new Set(
-          viewEvents
-            .filter((event: any) => event.user_id)
-            .map((event: any) => event.user_id)
-        ).size;
-        
-        // total views - all view events
-        const totalViews = viewEvents.length;
-        
-        return {
-          unique: acc.unique + uniqueViewers,
-          total: acc.total + totalViews
-        };
-      }, { unique: 0, total: 0 }) || { unique: 0, total: 0 };
-
-      const totalViews = viewsData.unique; // use unique views for main metric
-      const totalAllViews = viewsData.total; // keep total for reference
+      const totalViews = jobs?.reduce((sum, job) => 
+        sum + (job.job_views?.length || 0), 0
+      ) || 0;
 
       const averageClicksPerJob = totalJobs > 0 
         ? (totalLinkClicks / totalJobs).toFixed(1) 
@@ -234,10 +211,8 @@ export default function FacultyAnalytics() {
         }, 0) || 0;
 
         const viewsOnDay = jobs?.reduce((sum, job) => {
-          const analyticsEvents = job.job_analytics || [];
-          const viewsCount = analyticsEvents.filter((event: any) => 
-            (event.event_type === 'view' || event.event_type === 'job_view') &&
-            event.created_at.split('T')[0] === dateStr
+          const viewsCount = job.job_views?.filter((view: any) => 
+            view.created_at.split('T')[0] === dateStr
           ).length || 0;
           return sum + viewsCount;
         }, 0) || 0;
@@ -274,26 +249,11 @@ export default function FacultyAnalytics() {
       }));
       setJobTypeDistribution(jobTypeData);
 
-      // Calculate top performing jobs with unique view tracking
+      // Calculate top performing jobs
       const jobsWithMetrics = jobs?.map(job => {
         const clicks = job.job_link_clicks?.length || 0;
-        
-        // calculate unique and total views from job_analytics
-        const analyticsEvents = job.job_analytics || [];
-        const viewEvents = analyticsEvents.filter(
-          (event: any) => event.event_type === 'view' || event.event_type === 'job_view'
-        );
-        
-        const uniqueViews = new Set(
-          viewEvents
-            .filter((event: any) => event.user_id)
-            .map((event: any) => event.user_id)
-        ).size;
-        
-        const totalViews = viewEvents.length;
-        
-        // engagement rate based on unique views
-        const engagementRate = uniqueViews > 0 ? ((clicks / uniqueViews) * 100).toFixed(1) : '0';
+        const views = job.job_views?.length || 0;
+        const engagementRate = views > 0 ? ((clicks / views) * 100).toFixed(1) : '0';
         const createdDate = new Date(job.created_at);
         const daysActive = Math.ceil((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -302,8 +262,7 @@ export default function FacultyAnalytics() {
           title: job.title,
           company: job.company,
           clicks,
-          views: uniqueViews,  // unique views for display
-          totalViews,  // total views for reference
+          views,
           engagementRate,
           status: job.status,
           daysActive,
