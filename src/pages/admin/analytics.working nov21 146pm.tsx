@@ -539,22 +539,6 @@ export default function AdminAnalyticsDashboard() {
 
         {metrics && (
           <div className="space-y-6">
-            {/* calculation help box */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <InformationCircleIcon className="h-5 w-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" />
-                <div className="text-xs">
-                  <p className="font-semibold text-gray-900 mb-2">Understanding the Metrics:</p>
-                  <div className="space-y-1 text-gray-700">
-                    <p><strong>Growth %:</strong> (This Month - Last Month) ÷ Last Month × 100. Shows 0% if starting from zero.</p>
-                    <p><strong>Engagement Rate:</strong> Apply Clicks ÷ Unique Student Views × 100. Can exceed 100% if students click multiple jobs.</p>
-                    <p><strong>Active Users %:</strong> Users with any job view or click in the time period ÷ Total Active Users × 100</p>
-                    <p><strong>Unique vs Total Views:</strong> Unique counts each student once per job. Total includes repeat visits.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* key metrics cards with explanations */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* jobs posted this month */}
@@ -732,20 +716,9 @@ export default function AdminAnalyticsDashboard() {
             {/* user engagement trends section with explanations */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-2">User Engagement Trends</h2>
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-gray-600 mb-4">
                 Track active users over different time periods to gauge platform health and user retention
               </p>
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                <p className="text-xs font-semibold text-purple-900 mb-1">📊 How it's calculated:</p>
-                <p className="text-xs text-purple-800">
-                  <strong>Active User % = (Users with job views/clicks in period ÷ Total Active Users) × 100</strong>
-                </p>
-                <p className="text-xs text-purple-700 mt-1">
-                  • "Active" means any job view or apply click in the time period<br/>
-                  • Only counts users with active accounts (disabled excluded)<br/>
-                  • Higher daily % indicates strong recurring engagement
-                </p>
-              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Active Today</p>
@@ -929,22 +902,11 @@ export default function AdminAnalyticsDashboard() {
             {/* most engaged jobs table with accurate engagement calculation */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-2">Most Engaged Jobs</h2>
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-gray-600 mb-4">
                 Jobs with the highest click-through rate (minimum 5 unique viewers). 
                 Shows actual engagement based on unique students who viewed then clicked to apply.
                 Engagement &gt;20% is excellent, 10-20% is good.
               </p>
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                <p className="text-xs font-semibold text-green-900 mb-1">📊 How it's calculated:</p>
-                <p className="text-xs text-green-800">
-                  <strong>Engagement Rate = (Apply Clicks ÷ Unique Student Views) × 100</strong>
-                </p>
-                <p className="text-xs text-green-700 mt-1">
-                  • Example: 3 unique students view, 1 clicks apply = 33.3% engagement<br/>
-                  • Only jobs with 5+ unique viewers shown (statistical relevance)<br/>
-                  • Based on individual students, not total page views
-                </p>
-              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto border-collapse">
                   <thead>
@@ -992,21 +954,10 @@ export default function AdminAnalyticsDashboard() {
             {/* top companies by engagement table with explanation */}
             <div className="bg-white p-6 rounded-lg shadow">
               <h2 className="text-xl font-semibold text-gray-700 mb-2">Top Companies by Engagement</h2>
-              <p className="text-sm text-gray-600 mb-2">
+              <p className="text-sm text-gray-600 mb-4">
                 Companies with the most student interest, ranked by total views. Engagement rate indicates quality of their job postings.
                 This helps identify which companies students prefer and which may need posting improvements.
               </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-xs font-semibold text-blue-900 mb-1">📊 How it's calculated:</p>
-                <p className="text-xs text-blue-800">
-                  <strong>Engagement Rate = (Link Clicks ÷ Unique Views) × 100</strong>
-                </p>
-                <p className="text-xs text-blue-700 mt-1">
-                  • If 2 students view jobs and 2 click apply = 100% engagement<br/>
-                  • If 2 students view jobs and 7 click apply (multiple jobs) = 350% engagement<br/>
-                  • High percentages (&gt;100%) mean students are clicking multiple job links
-                </p>
-              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full table-auto border-collapse border border-gray-200">
                   <thead>
