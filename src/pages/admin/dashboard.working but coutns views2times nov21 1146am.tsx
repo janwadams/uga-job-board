@@ -148,13 +148,7 @@ export default function AdminDashboard() {
           .eq('event_type', 'view');
         
         if (!viewError && viewData) {
-          // count unique views per student-job combination
-          const uniqueViews = new Set(
-            viewData
-              .filter(v => v.user_id) // only count logged-in views
-              .map(v => `${v.user_id}-${v.job_id}`) // create unique key per student-job
-          ).size;
-          setJobViews(uniqueViews);
+          setJobViews(viewData.length);
         }
         
         // fetch click events for active jobs
@@ -164,7 +158,6 @@ export default function AdminDashboard() {
           .in('job_id', activeJobIds);
         
         if (!clickError && clickData) {
-          // clicks are already unique per student-job due to database constraint
           setJobClicks(clickData.length);
         }
       }
@@ -403,9 +396,9 @@ export default function AdminDashboard() {
             <div className="text-xs text-gray-500">Currently posted</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-green-500">
-            <div className="text-sm font-medium text-gray-500">Unique Views</div>
+            <div className="text-sm font-medium text-gray-500">Total Views</div>
             <div className="mt-1 text-2xl font-bold text-gray-900">{jobViews}</div>
-            <div className="text-xs text-gray-500">Per student on active jobs</div>
+            <div className="text-xs text-gray-500">On active jobs</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-purple-500">
             <div className="text-sm font-medium text-gray-500">Apply Clicks</div>
