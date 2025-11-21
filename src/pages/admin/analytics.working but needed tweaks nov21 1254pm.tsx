@@ -349,7 +349,8 @@ export default function AdminAnalyticsDashboard() {
       // create time series data
       const timeSeriesMap = new Map<string, { postings: number, clicks: number, views: number, uniqueViewers: Set<string> }>();
 
-
+      // initialize all dates in range
+      for (let i = 0; i < daysAgo; i++) {
         const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
         timeSeriesMap.set(dateStr, { postings: 0, clicks: 0, views: 0, uniqueViewers: new Set() });
@@ -752,7 +753,7 @@ export default function AdminAnalyticsDashboard() {
               <div className="mt-6 pt-6 border-t">
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Active Users by Role</h3>
                 <p className="text-xs text-gray-500 mb-3">Currently active users only (disabled accounts excluded)</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600">Students</p>
                     <p className="text-2xl font-bold text-blue-600">{metrics.user_engagement.user_by_role.student}</p>
@@ -760,6 +761,10 @@ export default function AdminAnalyticsDashboard() {
                   <div className="text-center">
                     <p className="text-sm text-gray-600">Faculty</p>
                     <p className="text-2xl font-bold text-green-600">{metrics.user_engagement.user_by_role.faculty}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">Staff</p>
+                    <p className="text-2xl font-bold text-purple-600">{metrics.user_engagement.user_by_role.staff}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-sm text-gray-600">Reps</p>
