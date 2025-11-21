@@ -471,7 +471,7 @@ export default function RepDashboard() {
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 border-l-4 border-l-purple-500">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-gray-500 font-semibold">Link Clicks</h3>
+                <h3 className="text-gray-500 font-semibold">Apply Link Clicks</h3>
                 <p className="text-4xl font-bold text-purple-600 mt-2">{linkClicksCount}</p>
                 <p className="text-xs text-gray-600 mt-1">Student engagement</p>
               </div>
