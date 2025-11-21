@@ -235,10 +235,10 @@ export default function AdminAnalyticsDashboard() {
       // calculate percentage changes
       const jobsGrowth = jobsLastMonth > 0 
         ? ((jobsThisMonth - jobsLastMonth) / jobsLastMonth) * 100 
-        : (jobsThisMonth > 0 ? 0 : 0); // Show 0% instead of 100% when starting from zero
+        : 100;
       const clicksGrowth = clicksLastMonth > 0 
         ? ((clicksThisMonth - clicksLastMonth) / clicksLastMonth) * 100 
-        : (clicksThisMonth > 0 ? 0 : 0); // Show 0% instead of 100% when starting from zero
+        : 100;
 
       // process user roles
       const roleBreakdown = {
@@ -726,9 +726,7 @@ export default function AdminAnalyticsDashboard() {
                     {metrics.user_engagement.active_users_today}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    {metrics.user_engagement.total_users > 0 
-                      ? `${((metrics.user_engagement.active_users_today / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users`
-                      : '0% of users'}
+                    {((metrics.user_engagement.active_users_today / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
                   </p>
                   <p className="text-xs text-gray-500 mt-2 italic">
                     Users who viewed or clicked jobs today
@@ -740,9 +738,7 @@ export default function AdminAnalyticsDashboard() {
                     {metrics.user_engagement.active_users_week}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    {metrics.user_engagement.total_users > 0
-                      ? `${((metrics.user_engagement.active_users_week / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users`
-                      : '0% of users'}
+                    {((metrics.user_engagement.active_users_week / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
                   </p>
                   <p className="text-xs text-gray-500 mt-2 italic">
                     Week-over-week engagement indicator
@@ -754,9 +750,7 @@ export default function AdminAnalyticsDashboard() {
                     {metrics.user_engagement.active_users_month}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    {metrics.user_engagement.total_users > 0
-                      ? `${((metrics.user_engagement.active_users_month / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users`
-                      : '0% of users'}
+                    {((metrics.user_engagement.active_users_month / metrics.user_engagement.total_users) * 100).toFixed(1)}% of users
                   </p>
                   <p className="text-xs text-gray-500 mt-2 italic">
                     Monthly active user baseline
