@@ -547,7 +547,7 @@ export default function RepAnalytics() {
               <p className="font-semibold text-gray-900 mb-2">how your metrics are calculated:</p>
               <div className="space-y-1 text-gray-700">
                 <p><strong>views:</strong> unique students who viewed your jobs (each student counted once per job, not total page loads)</p>
-                <p><strong>link clicks:</strong> unique clicks per student per job (each student's click on each job counted once, but students can click multiple different jobs)</p>
+                <p><strong>link clicks:</strong> total times students clicked to apply (tracked per student per job)</p>
                 <p><strong>engagement rate:</strong> (clicks ÷ unique views) × 100 - can exceed 100% if students click multiple jobs</p>
                 <p><strong>approval rate:</strong> (approved jobs ÷ submitted jobs) × 100 - shows admin approval percentage</p>
                 <p><strong>rejected jobs:</strong> jobs that need revision based on admin feedback</p>
@@ -558,7 +558,7 @@ export default function RepAnalytics() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Unique Link Clicks</h3>
+            <h3 className="text-gray-500 font-semibold text-sm">Total Link Clicks</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{overview.totalLinkClicks}</p>
             <p className="text-sm text-gray-600 mt-1">
               Avg: {overview.averageClicksPerJob} per job
