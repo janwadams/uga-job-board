@@ -346,39 +346,8 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-uga-red mb-8">Admin Dashboard</h1>
 
-        {/* platform health metrics cards - quick overview of platform activity */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-blue-500">
-            <div className="text-sm font-medium text-gray-500">Total Users</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{users.length}</div>
-            <div className="text-xs text-gray-500">All registered users</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-green-500">
-            <div className="text-sm font-medium text-gray-500">Active Jobs</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{jobs.filter(j => j.status === 'active').length}</div>
-            <div className="text-xs text-gray-500">Currently posted</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-yellow-500">
-            <div className="text-sm font-medium text-gray-500">Pending Review</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{jobs.filter(j => j.status === 'pending').length}</div>
-            <div className="text-xs text-gray-500">Awaiting approval</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-purple-500">
-            <div className="text-sm font-medium text-gray-500">This Week</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">
-              {jobs.filter(j => {
-                const jobDate = new Date(j.created_at);
-                const weekAgo = new Date();
-                weekAgo.setDate(weekAgo.getDate() - 7);
-                return jobDate >= weekAgo;
-              }).length}
-            </div>
-            <div className="text-xs text-gray-500">Jobs posted</div>
-          </div>
-        </div>
-
-        {/* admin action buttons - responsive grid for 3 buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+        {/* IMPROVED: Admin action buttons - properly responsive grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
           <Link href="/admin/analytics" className="w-full">
             <button className="w-full px-4 py-3 bg-uga-red text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
               View Analytics
@@ -387,6 +356,11 @@ export default function AdminDashboard() {
           <Link href="/admin/content-review" className="w-full">
             <button className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
               Content Review
+            </button>
+          </Link>
+          <Link href="/admin/platform-effectiveness" className="w-full">
+            <button className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors">
+              Platform Health
             </button>
           </Link>
           <button 
