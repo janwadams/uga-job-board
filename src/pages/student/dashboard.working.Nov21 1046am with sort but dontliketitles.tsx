@@ -1576,11 +1576,11 @@ export default function StudentDashboard() {
                     onChange={(e) => setSortBy(e.target.value as any)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-uga-red focus:border-transparent"
                   >
-                    <option value="deadline-asc">Deadline Soon</option>
-                    <option value="deadline-desc">Deadline Later</option>
-                    <option value="posted-desc">Newest First</option>
-                    <option value="posted-asc">Oldest First</option>
-                    <option value="company-asc">Company A-Z</option>
+                    <option value="deadline-asc">Deadline (Soonest First)</option>
+                    <option value="deadline-desc">Deadline (Latest First)</option>
+                    <option value="posted-desc">Date Posted (Newest First)</option>
+                    <option value="posted-asc">Date Posted (Oldest First)</option>
+                    <option value="company-asc">Company (A-Z)</option>
                   </select>
                   
                   {/* view mode buttons */}
