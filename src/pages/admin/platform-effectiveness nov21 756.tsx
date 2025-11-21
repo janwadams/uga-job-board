@@ -294,33 +294,31 @@ export default function PlatformEffectiveness() {
 
   // Calculate platform-wide statistics
   const platformStats = useMemo(() => {
-    // Get only active job IDs
-    const activeJobIds = new Set(jobs.filter(j => j.status === 'active').map(j => j.id));
+    // Count unique students who viewed jobs
+    const uniqueViewers = new Set(
+      analytics
+        .filter(a => (a.event_type === 'view' || a.event_type === 'job_view') && a.user_id)
+        .map(a => a.user_id)
+    ).size;
     
-    // Count views only for active jobs
-    const activeJobViews = analytics.filter(a => 
-      (a.event_type === 'view' || a.event_type === 'job_view') && 
-      activeJobIds.has(a.job_id)
-    );
+    const totalViews = analytics.filter(a => a.event_type === 'view' || a.event_type === 'job_view').length;
+    const totalClicks = linkClicks.length;
+    const uniqueUsersClicking = new Set(linkClicks.map(c => c.user_id)).size;
+    const totalSaves = savedJobs.filter(s => s.job_id !== null).length;
+    const activeJobs = jobs.filter(j => j.status === 'active').length;
     
-    // Count clicks only for active jobs  
-    const activeJobClicks = linkClicks.filter(c => activeJobIds.has(c.job_id));
-    
-    // Count saves only for active jobs
-    const activeJobSaves = savedJobs.filter(s => s.job_id && activeJobIds.has(s.job_id));
-    
-    const totalViews = activeJobViews.length;
-    const totalClicks = activeJobClicks.length;
-    const uniqueUsersClicking = new Set(activeJobClicks.map(c => c.user_id)).size;
-    const totalSaves = activeJobSaves.length;
-    const activeJobs = activeJobIds.size;
+    const avgClickRate = uniqueViewers > 0 ? (uniqueUsersClicking / uniqueViewers) * 100 : 0;
+    const avgSaveRate = uniqueViewers > 0 ? (totalSaves / uniqueViewers) * 100 : 0;
     
     return {
       totalViews,
+      uniqueViewers,
       totalClicks,
       uniqueUsersClicking,
       totalSaves,
-      activeJobs
+      activeJobs,
+      avgClickRate: avgClickRate.toFixed(1),
+      avgSaveRate: avgSaveRate.toFixed(1)
     };
   }, [analytics, linkClicks, savedJobs, jobs]);
 
@@ -351,7 +349,7 @@ export default function PlatformEffectiveness() {
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Apply Clicks</div>
-            <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.totalClicks}</div>
+            <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.uniqueUsersClicking}</div>
             <div className="mt-1 text-sm text-green-600">to company sites</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
