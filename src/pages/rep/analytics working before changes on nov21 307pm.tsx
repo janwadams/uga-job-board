@@ -156,9 +156,8 @@ export default function RepAnalytics() {
             clicked_at,
             user_id
           ),
-          job_analytics!job_analytics_job_id_fkey (
+          job_views (
             id,
-            event_type,
             created_at,
             user_id
           )
@@ -199,31 +198,9 @@ export default function RepAnalytics() {
         sum + (job.job_link_clicks?.length || 0), 0
       ) || 0;
       
-      // calculate unique and total views from job_analytics
-      const viewsData = jobs?.reduce((acc, job) => {
-        const analyticsEvents = job.job_analytics || [];
-        const viewEvents = analyticsEvents.filter(
-          (event: any) => event.event_type === 'view' || event.event_type === 'job_view'
-        );
-        
-        // unique views - count unique users per job
-        const uniqueViewers = new Set(
-          viewEvents
-            .filter((event: any) => event.user_id)
-            .map((event: any) => event.user_id)
-        ).size;
-        
-        // total views - all view events
-        const totalViews = viewEvents.length;
-        
-        return {
-          unique: acc.unique + uniqueViewers,
-          total: acc.total + totalViews
-        };
-      }, { unique: 0, total: 0 }) || { unique: 0, total: 0 };
-
-      const totalViews = viewsData.unique; // use unique views for main metric
-      const totalAllViews = viewsData.total; // keep total for reference
+      const totalViews = jobs?.reduce((sum, job) => 
+        sum + (job.job_views?.length || 0), 0
+      ) || 0;
 
       const averageClicksPerJob = totalJobs > 0 
         ? (totalLinkClicks / totalJobs).toFixed(1) 
@@ -320,15 +297,12 @@ export default function RepAnalytics() {
           }
         });
         
-        // count views from job_analytics
-        const analyticsEvents = job.job_analytics || [];
-        analyticsEvents.forEach(event => {
-          if (event.event_type === 'view' || event.event_type === 'job_view') {
-            const viewDate = new Date(event.created_at);
-            if (viewDate >= startDate) {
-              const dateKey = viewDate.toISOString().split('T')[0];
-              if (trendMap[dateKey]) {
-                trendMap[dateKey].views++;
+        job.job_views?.forEach(view => {
+          const viewDate = new Date(view.created_at);
+          if (viewDate >= startDate) {
+            const dateKey = viewDate.toISOString().split('T')[0];
+            if (trendMap[dateKey]) {
+              trendMap[dateKey].views++;
             }
           }
         });
@@ -351,16 +325,7 @@ export default function RepAnalytics() {
         }
         jobTypeCounts[type].count++;
         jobTypeCounts[type].clicks += job.job_link_clicks?.length || 0;
-        
-        // calculate unique views for this job
-        const analyticsEvents = job.job_analytics || [];
-        const viewEvents = analyticsEvents.filter(
-          (event: any) => event.event_type === 'view' || event.event_type === 'job_view'
-        );
-        const uniqueViews = new Set(
-          viewEvents.filter((e: any) => e.user_id).map((e: any) => e.user_id)
-        ).size;
-        jobTypeCounts[type].views += uniqueViews;
+        jobTypeCounts[type].views += job.job_views?.length || 0;
       });
 
       const jobTypes = Object.entries(jobTypeCounts)
@@ -466,32 +431,19 @@ export default function RepAnalytics() {
 
       setCompetitorComparison(comparison);
 
-      const topJobs = jobs?.map(job => {
-        // calculate unique views from job_analytics
-        const analyticsEvents = job.job_analytics || [];
-        const viewEvents = analyticsEvents.filter(
-          (event: any) => event.event_type === 'view' || event.event_type === 'job_view'
-        );
-        const uniqueViews = new Set(
-          viewEvents.filter((e: any) => e.user_id).map((e: any) => e.user_id)
-        ).size;
-        
-        const clicks = job.job_link_clicks?.length || 0;
-        
-        return {
-          id: job.id,
-          title: job.title,
-          company: job.company,
-          clicks,
-          views: uniqueViews, // unique views
-          engagementRate: uniqueViews > 0 
-            ? ((clicks / uniqueViews) * 100).toFixed(1)
-            : '0',
-          status: job.status,
-          daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)),
-          deadline: job.deadline
-        };
-      })
+      const topJobs = jobs?.map(job => ({
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        clicks: job.job_link_clicks?.length || 0,
+        views: job.job_views?.length || 0,
+        engagementRate: (job.job_views?.length || 0) > 0 
+          ? (((job.job_link_clicks?.length || 0) / (job.job_views?.length || 0)) * 100).toFixed(1)
+          : '0',
+        status: job.status,
+        daysActive: Math.ceil((today.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)),
+        deadline: job.deadline
+      }))
       .sort((a, b) => b.clicks - a.clicks)
       .slice(0, 5) || [];
 
@@ -541,25 +493,6 @@ export default function RepAnalytics() {
                 Back to Dashboard
               </button>
             </Link>
-          </div>
-        </div>
-
-        {/* calculation help box */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <div className="flex items-start">
-            <svg className="h-5 w-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-            <div className="text-xs">
-              <p className="font-semibold text-gray-900 mb-2">how your metrics are calculated:</p>
-              <div className="space-y-1 text-gray-700">
-                <p><strong>views:</strong> unique students who viewed your jobs (each student counted once per job, not total page loads)</p>
-                <p><strong>link clicks:</strong> total times students clicked to apply (tracked per student per job)</p>
-                <p><strong>engagement rate:</strong> (clicks ÷ unique views) × 100 - can exceed 100% if students click multiple jobs</p>
-                <p><strong>approval rate:</strong> (approved jobs ÷ submitted jobs) × 100 - shows admin approval percentage</p>
-                <p><strong>pending/rejected:</strong> jobs awaiting approval or needing revision (rep-specific metrics)</p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -685,18 +618,7 @@ export default function RepAnalytics() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800 mb-2">🏆 Top Performing Jobs</h2>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-              <p className="text-xs font-semibold text-green-900 mb-1">📊 how it's calculated:</p>
-              <p className="text-xs text-green-800">
-                <strong>engagement rate = (apply clicks ÷ unique student views) × 100</strong>
-              </p>
-              <p className="text-xs text-green-700 mt-1">
-                • ranked by total clicks, then by engagement rate<br/>
-                • shows unique views (individual students) not total page loads<br/>
-                • &gt;20% engagement is excellent, 10-20% is good, &lt;10% needs improvement
-              </p>
-            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">🏆 Top Performing Jobs</h2>
             <p className="text-sm text-gray-600 mb-4">
               Your most clicked job postings ranked by student interest. Higher engagement rates mean more clicks relative to views.
             </p>
