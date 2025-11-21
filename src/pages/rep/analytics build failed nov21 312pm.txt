@@ -329,7 +329,6 @@ export default function RepAnalytics() {
               const dateKey = viewDate.toISOString().split('T')[0];
               if (trendMap[dateKey]) {
                 trendMap[dateKey].views++;
-              }
             }
           }
         });
