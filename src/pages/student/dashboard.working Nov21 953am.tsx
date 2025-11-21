@@ -287,7 +287,7 @@ function DeadlineCalendarWidget({
 
 export default function StudentDashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<DashboardTab>('all-jobs'); // default to all jobs tab when students log in
+  const [activeTab, setActiveTab] = useState<DashboardTab>('for-you');
   const [applications, setApplications] = useState<Application[]>([]);
   const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<Job[]>([]);
