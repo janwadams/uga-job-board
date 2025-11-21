@@ -566,7 +566,7 @@ export default function RepAnalytics() {
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Unique Views</h3>
+            <h3 className="text-gray-500 font-semibold text-sm">Total Views</h3>
             <p className="text-4xl font-bold text-blue-600 mt-2">{overview.totalViews}</p>
             <p className="text-sm text-gray-600 mt-1">
               Engagement: {overview.engagementRate}%
