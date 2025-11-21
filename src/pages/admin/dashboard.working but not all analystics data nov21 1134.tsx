@@ -53,8 +53,6 @@ export default function AdminDashboard() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(true);
-  const [jobViews, setJobViews] = useState<number>(0); // total views on active jobs
-  const [jobClicks, setJobClicks] = useState<number>(0); // total apply clicks on active jobs
 
   // filter for jobs
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -133,52 +131,12 @@ export default function AdminDashboard() {
     setLoadingArchived(false);
   };
 
-  // fetch analytics data for active jobs
-  const fetchAnalytics = async () => {
-    try {
-      // get active job ids
-      const activeJobIds = jobs.filter(j => j.status === 'active').map(j => j.id);
-      
-      if (activeJobIds.length > 0) {
-        // fetch view events for active jobs
-        const { data: viewData, error: viewError } = await supabase
-          .from('job_analytics')
-          .select('*')
-          .in('job_id', activeJobIds)
-          .eq('event_type', 'view');
-        
-        if (!viewError && viewData) {
-          setJobViews(viewData.length);
-        }
-        
-        // fetch click events for active jobs
-        const { data: clickData, error: clickError } = await supabase
-          .from('job_link_clicks')
-          .select('*')
-          .in('job_id', activeJobIds);
-        
-        if (!clickError && clickData) {
-          setJobClicks(clickData.length);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-    }
-  };
-
   // load data when component mounts
   useEffect(() => {
     fetchUsers();
     fetchJobs();
     fetchArchivedJobs();
   }, []);
-
-  // fetch analytics data after jobs are loaded
-  useEffect(() => {
-    if (jobs.length > 0) {
-      fetchAnalytics();
-    }
-  }, [jobs]);
 
   // handle user status toggle
   const handleStatusToggle = async (userId: string, currentStatus: boolean) => {
@@ -391,32 +349,44 @@ export default function AdminDashboard() {
         {/* platform health metrics cards - quick overview of platform activity */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-blue-500">
+            <div className="text-sm font-medium text-gray-500">Total Users</div>
+            <div className="mt-1 text-2xl font-bold text-gray-900">{users.length}</div>
+            <div className="text-xs text-gray-500">All registered users</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-green-500">
             <div className="text-sm font-medium text-gray-500">Active Jobs</div>
             <div className="mt-1 text-2xl font-bold text-gray-900">{jobs.filter(j => j.status === 'active').length}</div>
             <div className="text-xs text-gray-500">Currently posted</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-green-500">
-            <div className="text-sm font-medium text-gray-500">Total Views</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{jobViews}</div>
-            <div className="text-xs text-gray-500">On active jobs</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-purple-500">
-            <div className="text-sm font-medium text-gray-500">Apply Clicks</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{jobClicks}</div>
-            <div className="text-xs text-gray-500">To company sites</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-yellow-500">
             <div className="text-sm font-medium text-gray-500">Pending Review</div>
             <div className="mt-1 text-2xl font-bold text-gray-900">{jobs.filter(j => j.status === 'pending').length}</div>
             <div className="text-xs text-gray-500">Awaiting approval</div>
           </div>
+          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-purple-500">
+            <div className="text-sm font-medium text-gray-500">This Week</div>
+            <div className="mt-1 text-2xl font-bold text-gray-900">
+              {jobs.filter(j => {
+                const jobDate = new Date(j.created_at);
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                return jobDate >= weekAgo;
+              }).length}
+            </div>
+            <div className="text-xs text-gray-500">Jobs posted</div>
+          </div>
         </div>
 
-        {/* admin action buttons - responsive grid for 2 buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+        {/* admin action buttons - responsive grid for 3 buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
           <Link href="/admin/analytics" className="w-full">
             <button className="w-full px-4 py-3 bg-uga-red text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
               View Analytics
+            </button>
+          </Link>
+          <Link href="/admin/content-review" className="w-full">
+            <button className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+              Content Review
             </button>
           </Link>
           <button 
