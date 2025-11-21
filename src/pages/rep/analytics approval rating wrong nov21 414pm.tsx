@@ -180,10 +180,9 @@ export default function RepAnalytics() {
         job.status === 'rejected'
       ).length || 0;
 
-      // FIXED: Approval rate calculation - only count jobs that went through approval
-      // Removed jobs don't count as they were withdrawn before approval
+      // FIXED: Approval rate calculation
       const submittedJobs = jobs?.filter(job => 
-        job.status === 'active' || job.status === 'rejected'  // Only jobs that went through approval
+        job.status !== 'pending' && job.status !== 'draft'  // Submitted means went through approval process
       ).length || 0;
       
       const approvedJobs = jobs?.filter(job => 
