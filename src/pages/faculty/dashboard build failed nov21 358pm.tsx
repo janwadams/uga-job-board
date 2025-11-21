@@ -494,7 +494,6 @@ export default function FacultyDashboard() {
                   <option value="removed">Removed</option>
                 </select>
               </div>
-              </div>
             </div>
 
             {loading ? (
