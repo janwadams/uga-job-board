@@ -1,4 +1,4 @@
-//src/pages/rep/dashboard.tsx - complete file with link clicks tracking  ///
+//src/pages/rep/dashboard.tsx - complete file with link clicks tracking
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -148,11 +148,10 @@ const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected
 
 export default function RepDashboard() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'rejected' | 'removed'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'rejected'>('active');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [archivedJobs, setArchivedJobs] = useState<Job[]>([]);
   const [rejectedJobs, setRejectedJobs] = useState<Job[]>([]);
-  const [removedJobs, setRemovedJobs] = useState<Job[]>([]); // track removed jobs
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(true);
@@ -238,7 +237,9 @@ export default function RepDashboard() {
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .in('status', ['active', 'removed']) // get active and removed for the filter
+        .gte('deadline', today)
+        .neq('status', 'removed')
+        .neq('status', 'rejected')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -305,28 +306,6 @@ export default function RepDashboard() {
     fetchRejectedJobs();
   }, [session]);
 
-  // fetch removed jobs
-  useEffect(() => {
-    if (!session) return;
-
-    const fetchRemovedJobs = async () => {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('created_by', session.user.id)
-        .eq('status', 'removed')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('error fetching removed jobs:', error);
-      } else {
-        setRemovedJobs(data || []);
-      }
-    };
-
-    fetchRemovedJobs();
-  }, [session]);
-
   // fetch link clicks count when session is available
   useEffect(() => {
     if (!session) return;
@@ -347,12 +326,7 @@ export default function RepDashboard() {
       alert('error removing job: ' + error.message);
     } else {
       alert('job removed successfully');
-      // move job from active to removed list
-      const removedJob = jobs.find(job => job.id === jobId);
-      setJobs(prev => prev.filter(job => job.id !== jobId));
-      if (removedJob) {
-        setRemovedJobs(prev => [...prev, { ...removedJob, status: 'removed' as const }]);
-      }
+      setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, status: 'removed' } : job)));
     }
   };
 
@@ -507,16 +481,6 @@ export default function RepDashboard() {
               )}
             </button>
             <button 
-              onClick={() => setActiveTab('removed')} 
-              className={`${
-                activeTab === 'removed' 
-                  ? 'border-red-700 text-red-800' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg`}
-            >
-              Removed ({removedJobs.length})
-            </button>
-            <button 
               onClick={() => setActiveTab('archived')} 
               className={`${
                 activeTab === 'archived' 
@@ -543,6 +507,7 @@ export default function RepDashboard() {
                   className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
                 >
                   <option value="">All</option>
+                  <option value="pending">Pending</option>
                   <option value="active">Active</option>
                   <option value="removed">Removed</option>
                 </select>
@@ -599,30 +564,6 @@ export default function RepDashboard() {
                     onRevise={handleRevise}
                     isArchived={false}
                     isRejected={true}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ) : activeTab === 'removed' ? (
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Your Removed Jobs</h2>
-              <p className="text-gray-600 mt-2">Jobs you have removed from active listings. These can be reactivated if needed.</p>
-            </div>
-
-            {removedJobs.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <h3 className="text-xl font-semibold text-gray-700">No removed jobs.</h3>
-                <p className="text-gray-500 mt-2">Jobs you remove will appear here.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {removedJobs.map((job) => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    onReactivate={handleReactivate}
                   />
                 ))}
               </div>
