@@ -214,7 +214,8 @@ export default function FacultyDashboard() {
         .from('jobs')
         .select('*')
         .eq('created_by', session.user.id)
-        .in('status', ['active', 'removed']); // get active and removed regardless of deadline
+        .gte('deadline', today)
+        .in('status', ['active', 'removed']); // include removed for filter
 
       if (error) {
         console.error('Error fetching jobs:', error);
