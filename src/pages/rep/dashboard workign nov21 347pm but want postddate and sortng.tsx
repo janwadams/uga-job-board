@@ -71,10 +71,6 @@ const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected
             : `Deadline: ${new Date(job.deadline).toLocaleDateString()}`
           }
         </p>
-        <p className="text-sm text-gray-500 mt-1">
-          Posted: {new Date(job.created_at).toLocaleDateString()}
-          {' '}({Math.floor((new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))} days ago)
-        </p>
         {job.location && (
           <p className="text-sm text-gray-500 mt-1">
             Location: {job.location}
@@ -162,7 +158,6 @@ export default function RepDashboard() {
   const [loadingArchived, setLoadingArchived] = useState(true);
   const [loadingRejected, setLoadingRejected] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest'); // add sort order state
   const [userRole, setUserRole] = useState<string | null>(null);
   
   // state for tracking how many times students clicked on job application links
@@ -407,19 +402,11 @@ export default function RepDashboard() {
     router.push(`/rep/edit/${jobId}`);
   };
 
-  // filter and sort jobs based on status filter and sort order
+  // filter jobs based on status filter
   const filteredJobs = useMemo(() => {
-    let filtered = statusFilter ? jobs.filter((job) => job.status === statusFilter) : jobs;
-    
-    // sort by created_at date
-    const sorted = [...filtered].sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
-    
-    return sorted;
-  }, [jobs, statusFilter, sortOrder]);
+    if (!statusFilter) return jobs;
+    return jobs.filter((job) => job.status === statusFilter);
+  }, [jobs, statusFilter]);
 
   // calculate metrics for the dashboard cards
   const totalJobs = jobs.length;
@@ -547,32 +534,18 @@ export default function RepDashboard() {
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Your Active Job Postings</h2>
-              <div className="flex gap-3">
-                <div>
-                  <label htmlFor="sortOrder" className="mr-2 font-medium text-sm text-gray-700">Sort by:</label>
-                  <select
-                    id="sortOrder"
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                    className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
-                  >
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
-                  <select
-                    id="statusFilter"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
-                  >
-                    <option value="">All</option>
-                    <option value="active">Active</option>
-                    <option value="removed">Removed</option>
-                  </select>
-                </div>
+              <div>
+                <label htmlFor="statusFilter" className="mr-2 font-medium text-sm text-gray-700">Filter by Status:</label>
+                <select
+                  id="statusFilter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">All</option>
+                  <option value="active">Active</option>
+                  <option value="removed">Removed</option>
+                </select>
               </div>
             </div>
 
