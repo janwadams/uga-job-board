@@ -196,10 +196,9 @@ export default function AdminAnalyticsDashboard() {
           .order('created_at', { ascending: false })
           .limit(20),
         
-        // get ALL clicks at once for the date range
+        // get ALL clicks at once
         supabase.from('job_link_clicks')
-          .select('job_id, clicked_at')
-          .gte('clicked_at', startDate.toISOString()),
+          .select('job_id, clicked_at'),
         
         // get all analytics for time analysis
         supabase.from('job_analytics')
@@ -369,15 +368,6 @@ export default function AdminAnalyticsDashboard() {
           } else if (record.event_type === 'click_apply' || record.event_type === 'link_click') {
             existing.clicks++;
           }
-        }
-      });
-
-      // also process clicks from job_link_clicks table for the time series chart
-      allClicksResult.data?.forEach(click => {
-        const dateStr = click.clicked_at.split('T')[0];
-        const existing = timeSeriesMap.get(dateStr);
-        if (existing) {
-          existing.clicks++;
         }
       });
 
