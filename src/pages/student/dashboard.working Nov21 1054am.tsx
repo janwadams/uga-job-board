@@ -306,7 +306,7 @@ export default function StudentDashboard() {
   const [showFilters, setShowFilters] = useState(true); // sidebar visibility
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null); // for split view
-  const [sortBy, setSortBy] = useState<'deadline-asc' | 'deadline-desc' | 'posted-desc' | 'posted-asc' | 'company-asc'>('posted-desc'); // sorting option for jobs - default to newest first
+  const [sortBy, setSortBy] = useState<'deadline-asc' | 'deadline-desc' | 'posted-desc' | 'posted-asc' | 'company-asc'>('deadline-asc'); // sorting option for jobs
 
   // disabled: quick apply modal no longer needed
   // const [quickApplyModal, setQuickApplyModal] = useState<{
@@ -1576,8 +1576,10 @@ export default function StudentDashboard() {
                     onChange={(e) => setSortBy(e.target.value as any)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-uga-red focus:border-transparent"
                   >
-                    <option value="posted-desc">Newest First</option>
                     <option value="deadline-asc">Deadline Soon</option>
+                    <option value="deadline-desc">Deadline Later</option>
+                    <option value="posted-desc">Newest First</option>
+                    <option value="posted-asc">Oldest First</option>
                     <option value="company-asc">Company A-Z</option>
                   </select>
                   
