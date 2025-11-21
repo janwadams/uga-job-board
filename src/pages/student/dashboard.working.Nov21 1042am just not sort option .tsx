@@ -306,7 +306,6 @@ export default function StudentDashboard() {
   const [showFilters, setShowFilters] = useState(true); // sidebar visibility
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null); // for split view
-  const [sortBy, setSortBy] = useState<'deadline-asc' | 'deadline-desc' | 'posted-desc' | 'posted-asc' | 'company-asc'>('deadline-asc'); // sorting option for jobs
 
   // disabled: quick apply modal no longer needed
   // const [quickApplyModal, setQuickApplyModal] = useState<{
@@ -768,31 +767,6 @@ export default function StudentDashboard() {
     });
   };
 
-  // sort function - sorts filtered jobs based on selected option
-  const getSortedJobs = (jobsToSort: Job[]) => {
-    const sorted = [...jobsToSort];
-    
-    switch(sortBy) {
-      case 'deadline-asc':
-        // deadline soonest first (default)
-        return sorted.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
-      case 'deadline-desc':
-        // deadline latest first
-        return sorted.sort((a, b) => new Date(b.deadline).getTime() - new Date(a.deadline).getTime());
-      case 'posted-desc':
-        // newest posted jobs first
-        return sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      case 'posted-asc':
-        // oldest posted jobs first
-        return sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      case 'company-asc':
-        // company name a to z
-        return sorted.sort((a, b) => a.company.localeCompare(b.company));
-      default:
-        return sorted;
-    }
-  };
-
   // clear all filters
   const clearAllFilters = () => {
     setSearchTerm('');
@@ -830,11 +804,11 @@ export default function StudentDashboard() {
   const getDisplayedJobs = () => {
     switch (activeTab) {
       case 'for-you':
-        // always show only recommended/matched jobs with sorting
-        return getSortedJobs(getFilteredJobs(recommendedJobs));
+        // always show only recommended/matched jobs
+        return getFilteredJobs(recommendedJobs);
       case 'all-jobs':
-        // show all active jobs with sorting
-        return getSortedJobs(getFilteredJobs(allJobs));
+        // show all active jobs
+        return getFilteredJobs(allJobs);
       case 'saved':
         return savedJobs.filter(savedJob => {
           const job = savedJob.job;
@@ -1569,21 +1543,7 @@ export default function StudentDashboard() {
                   {getDisplayedJobs().length} jobs found
                   {(searchTerm || jobTypeFilters.length > 0 || industryFilter || locationFilter !== 'all') && ' (filtered)'}
                 </div>
-                <div className="flex gap-2 items-center">
-                  {/* sort dropdown for organizing jobs */}
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-uga-red focus:border-transparent"
-                  >
-                    <option value="deadline-asc">Deadline (Soonest First)</option>
-                    <option value="deadline-desc">Deadline (Latest First)</option>
-                    <option value="posted-desc">Date Posted (Newest First)</option>
-                    <option value="posted-asc">Date Posted (Oldest First)</option>
-                    <option value="company-asc">Company (A-Z)</option>
-                  </select>
-                  
-                  {/* view mode buttons */}
+                <div className="flex gap-2">
                   <button
                     onClick={() => setViewMode('cards')}
                     className={`p-2 rounded ${viewMode === 'cards' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
