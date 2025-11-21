@@ -18,6 +18,7 @@ interface AnalyticsOverview {
   totalViews: number;
   engagementRate: string;
   activeJobs: number;
+  pendingJobs: number;
   rejectedJobs: number;
   approvalRate: string;
   averageDaysToClick: string;
@@ -91,6 +92,7 @@ export default function RepAnalytics() {
     totalViews: 0,
     engagementRate: '0',
     activeJobs: 0,
+    pendingJobs: 0,
     rejectedJobs: 0,
     approvalRate: '0',
     averageDaysToClick: '0',
@@ -170,6 +172,10 @@ export default function RepAnalytics() {
       
       const activeJobs = jobs?.filter(job => 
         job.status === 'active' && new Date(job.deadline) > today
+      ).length || 0;
+      
+      const pendingJobs = jobs?.filter(job => 
+        job.status === 'pending'
       ).length || 0;
       
       const rejectedJobs = jobs?.filter(job => 
@@ -277,6 +283,7 @@ export default function RepAnalytics() {
         totalViews,
         engagementRate,
         activeJobs,
+        pendingJobs,
         rejectedJobs,
         approvalRate,
         averageDaysToClick,
@@ -376,6 +383,7 @@ export default function RepAnalytics() {
 
       const statusCounts: { [key: string]: number } = {
         active: activeJobs,
+        pending: pendingJobs,
         rejected: rejectedJobs,
         expired: jobs?.filter(job => new Date(job.deadline) <= today).length || 0
       };
@@ -550,7 +558,7 @@ export default function RepAnalytics() {
                 <p><strong>link clicks:</strong> total times students clicked to apply (tracked per student per job)</p>
                 <p><strong>engagement rate:</strong> (clicks ÷ unique views) × 100 - can exceed 100% if students click multiple jobs</p>
                 <p><strong>approval rate:</strong> (approved jobs ÷ submitted jobs) × 100 - shows admin approval percentage</p>
-                <p><strong>rejected jobs:</strong> jobs that need revision based on admin feedback</p>
+                <p><strong>pending/rejected:</strong> jobs awaiting approval or needing revision (rep-specific metrics)</p>
               </div>
             </div>
           </div>
@@ -585,7 +593,7 @@ export default function RepAnalytics() {
             <h3 className="text-gray-500 font-semibold text-sm">Active Jobs</h3>
             <p className="text-4xl font-bold text-purple-600 mt-2">{overview.activeJobs}</p>
             <p className="text-sm text-gray-600 mt-1">
-              Currently visible to students
+              {overview.pendingJobs} pending approval
             </p>
           </div>
         </div>
