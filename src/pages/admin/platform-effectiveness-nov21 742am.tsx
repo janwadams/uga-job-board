@@ -341,16 +341,21 @@ export default function PlatformEffectiveness() {
         </div>
 
         {/* Platform Overview Stats */}
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm font-medium text-gray-500">Total Job Views</div>
+            <div className="text-sm font-medium text-gray-500">Unique Students</div>
+            <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.uniqueViewers}</div>
+            <div className="mt-1 text-sm text-gray-500">viewed jobs</div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="text-sm font-medium text-gray-500">Total Views</div>
             <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.totalViews.toLocaleString()}</div>
             <div className="mt-1 text-sm text-gray-500">{platformStats.activeJobs} active jobs</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Apply Clicks</div>
             <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.uniqueUsersClicking}</div>
-            <div className="mt-1 text-sm text-green-600">to company sites</div>
+            <div className="mt-1 text-sm text-green-600">{platformStats.avgClickRate}% conversion</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Jobs Saved</div>
