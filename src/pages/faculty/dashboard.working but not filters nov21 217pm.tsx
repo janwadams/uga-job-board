@@ -215,7 +215,7 @@ export default function FacultyDashboard() {
         .select('*')
         .eq('created_by', session.user.id)
         .gte('deadline', today)
-        .in('status', ['active', 'removed']); // include removed for filter
+        .in('status', ['active', 'pending', 'rejected']); // don't include removed here
 
       if (error) {
         console.error('Error fetching jobs:', error);
@@ -460,7 +460,8 @@ export default function FacultyDashboard() {
                 >
                   <option value="">All</option>
                   <option value="active">Active</option>
-                  <option value="removed">Removed</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
                 </select>
               </div>
             </div>
