@@ -355,7 +355,7 @@ export default function PlatformEffectiveness() {
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Apply Clicks</div>
             <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.uniqueUsersClicking}</div>
-            <div className="mt-1 text-sm text-green-600">{platformStats.avgClickRate.toFixed(1)}% conversion</div>
+            <div className="mt-1 text-sm text-green-600">{platformStats.avgClickRate}% conversion</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Jobs Saved</div>
