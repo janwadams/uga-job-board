@@ -53,8 +53,7 @@ export default function AdminDashboard() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(true);
-  const [uniqueJobViews, setUniqueJobViews] = useState<number>(0); // unique views per student on active jobs
-  const [totalJobViews, setTotalJobViews] = useState<number>(0); // total views including repeats on active jobs
+  const [jobViews, setJobViews] = useState<number>(0); // total views on active jobs
   const [jobClicks, setJobClicks] = useState<number>(0); // total apply clicks on active jobs
 
   // filter for jobs
@@ -149,16 +148,13 @@ export default function AdminDashboard() {
           .eq('event_type', 'view');
         
         if (!viewError && viewData) {
-          // count total views (including repeats)
-          setTotalJobViews(viewData.length);
-          
           // count unique views per student-job combination
           const uniqueViews = new Set(
             viewData
               .filter(v => v.user_id) // only count logged-in views
               .map(v => `${v.user_id}-${v.job_id}`) // create unique key per student-job
           ).size;
-          setUniqueJobViews(uniqueViews);
+          setJobViews(uniqueViews);
         }
         
         // fetch click events for active jobs
@@ -400,7 +396,7 @@ export default function AdminDashboard() {
         <h1 className="text-2xl sm:text-3xl font-bold text-uga-red mb-8">Admin Dashboard</h1>
 
         {/* platform health metrics cards - quick overview of platform activity */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-blue-500">
             <div className="text-sm font-medium text-gray-500">Active Jobs</div>
             <div className="mt-1 text-2xl font-bold text-gray-900">{jobs.filter(j => j.status === 'active').length}</div>
@@ -408,13 +404,8 @@ export default function AdminDashboard() {
           </div>
           <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-green-500">
             <div className="text-sm font-medium text-gray-500">Unique Views</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{uniqueJobViews}</div>
-            <div className="text-xs text-gray-500">Individual students</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-teal-500">
-            <div className="text-sm font-medium text-gray-500">Total Views</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{totalJobViews}</div>
-            <div className="text-xs text-gray-500">Including revisits</div>
+            <div className="mt-1 text-2xl font-bold text-gray-900">{jobViews}</div>
+            <div className="text-xs text-gray-500">Per student on active jobs</div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-l-purple-500">
             <div className="text-sm font-medium text-gray-500">Apply Clicks</div>
