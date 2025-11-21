@@ -19,8 +19,6 @@ interface AnalyticsOverview {
   engagementRate: string;
   activeJobs: number;
   rejectedJobs: number;
-  submittedJobs: number;
-  approvedJobs: number;
   approvalRate: string;
   averageDaysToClick: string;
   averageTimeToApproval: string;
@@ -94,8 +92,6 @@ export default function RepAnalytics() {
     engagementRate: '0',
     activeJobs: 0,
     rejectedJobs: 0,
-    submittedJobs: 0,
-    approvedJobs: 0,
     approvalRate: '0',
     averageDaysToClick: '0',
     averageTimeToApproval: '0'
@@ -282,8 +278,6 @@ export default function RepAnalytics() {
         engagementRate,
         activeJobs,
         rejectedJobs,
-        submittedJobs,
-        approvedJobs,
         approvalRate,
         averageDaysToClick,
         averageTimeToApproval
@@ -589,10 +583,7 @@ export default function RepAnalytics() {
             <h3 className="text-gray-500 font-semibold text-sm">Approval Rate</h3>
             <p className="text-4xl font-bold text-green-600 mt-2">{overview.approvalRate}%</p>
             <p className="text-sm text-gray-600 mt-1">
-              {overview.submittedJobs} jobs submitted
-            </p>
-            <p className="text-xs text-gray-500">
-              {overview.approvedJobs} approved • {overview.rejectedJobs} rejected
+              {overview.rejectedJobs} rejected
             </p>
           </div>
 
