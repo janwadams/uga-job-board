@@ -775,25 +775,6 @@ export default function StudentDashboard() {
     setLocationFilter('all');
   };
 
-  // track when a student views a job's details page
-  const handleViewDetails = async (jobId: string) => {
-    // First, record that the student viewed this job
-    await fetch('/api/jobs/track-event', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        jobId: jobId,
-        eventType: 'view',
-        userId: session?.user?.id || null
-      })
-    });
-
-    // Then take them to the job details page
-    router.push(`/jobs/${jobId}`);
-  };
-
   // get unique industries
   const uniqueIndustries = useMemo(() => {
     const industries = new Set(allJobs.map(job => job.industry));
@@ -1063,13 +1044,12 @@ export default function StudentDashboard() {
           )}
 
           <div className="flex gap-2 pt-2 border-t">
-            {/* view details button - now tracks when students view jobs */}
-            <button 
-              onClick={() => handleViewDetails(job.id)}
-              className="flex-1 px-4 py-2 bg-uga-red text-white rounded-md hover:bg-red-800 transition-colors text-sm font-medium"
-            >
-              View Details
-            </button>
+            {/* only show view details button - no quick apply */}
+            <Link href={`/jobs/${job.id}`} className="flex-1">
+              <button className="w-full px-4 py-2 bg-uga-red text-white rounded-md hover:bg-red-800 transition-colors text-sm font-medium">
+                View Details
+              </button>
+            </Link>
             
             {/* disabled: quick apply and applied status buttons
             {!hasApplied && (
