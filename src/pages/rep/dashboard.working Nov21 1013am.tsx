@@ -398,15 +398,7 @@ export default function RepDashboard() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-red-800">💼 Rep Dashboard</h1>
           <div className="flex gap-3">
-            {/* button to access profile settings page - moved to first position */}
-            <Link href="/profile/settings">
-              <button className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow-sm flex items-center gap-2">
-                <UserCircleIcon className="h-5 w-5" />
-                Account Settings
-              </button>
-            </Link>
-            
-            {/* button to view analytics page - now in second position */}
+            {/* button to view analytics page */}
             <Link href="/rep/analytics">
               <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
                 <ChartBarIcon className="h-5 w-5" />
@@ -414,7 +406,15 @@ export default function RepDashboard() {
               </button>
             </Link>
             
-            {/* button to create a new job posting - stays in third position */}
+            {/* button to access profile settings page */}
+            <Link href="/profile/settings">
+              <button className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors shadow-sm flex items-center gap-2">
+                <UserCircleIcon className="h-5 w-5" />
+                Account Settings
+              </button>
+            </Link>
+            
+            {/* button to create a new job posting */}
             <Link href="/rep/create">
               <button className="bg-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-800 transition-colors shadow-sm">
                 + Post a New Job
@@ -430,7 +430,7 @@ export default function RepDashboard() {
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
+            <h3 className="text-gray-500 font-semibold">Active</h3>
             <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
