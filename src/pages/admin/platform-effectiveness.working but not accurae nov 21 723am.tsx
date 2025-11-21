@@ -163,36 +163,18 @@ export default function PlatformEffectiveness() {
   const metricsMap = useMemo(() => {
     const map: Record<string, {
       views: number;
-      uniqueViews: number;
       clicks: number;
       uniqueClicks: number;
       saves: number;
     }> = {};
 
-    // Count views and UNIQUE views per student (from analytics table)
-    const uniqueViewsPerJob: Record<string, Set<string>> = {};
+    // Count views (from analytics table)
     analytics.forEach(event => {
       if (event.event_type === 'view' || event.event_type === 'job_view') {
         if (!map[event.job_id]) {
-          map[event.job_id] = { views: 0, uniqueViews: 0, clicks: 0, uniqueClicks: 0, saves: 0 };
+          map[event.job_id] = { views: 0, clicks: 0, uniqueClicks: 0, saves: 0 };
         }
-        map[event.job_id].views++; // Total views
-        
-        // Track unique student views
-        if (!uniqueViewsPerJob[event.job_id]) {
-          uniqueViewsPerJob[event.job_id] = new Set();
-        }
-        // Only count if user_id exists (not anonymous)
-        if (event.user_id) {
-          uniqueViewsPerJob[event.job_id].add(event.user_id);
-        }
-      }
-    });
-
-    // Set unique view counts
-    Object.keys(uniqueViewsPerJob).forEach(jobId => {
-      if (map[jobId]) {
-        map[jobId].uniqueViews = uniqueViewsPerJob[jobId].size;
+        map[event.job_id].views++;
       }
     });
 
@@ -200,7 +182,7 @@ export default function PlatformEffectiveness() {
     const uniqueClicksPerJob: Record<string, Set<string>> = {};
     linkClicks.forEach(click => {
       if (!map[click.job_id]) {
-        map[click.job_id] = { views: 0, uniqueViews: 0, clicks: 0, uniqueClicks: 0, saves: 0 };
+        map[click.job_id] = { views: 0, clicks: 0, uniqueClicks: 0, saves: 0 };
       }
       map[click.job_id].clicks++;
       
@@ -224,7 +206,7 @@ export default function PlatformEffectiveness() {
       if (!save.job_id) return;
       
       if (!map[save.job_id]) {
-        map[save.job_id] = { views: 0, uniqueViews: 0, clicks: 0, uniqueClicks: 0, saves: 0 };
+        map[save.job_id] = { views: 0, clicks: 0, uniqueClicks: 0, saves: 0 };
       }
       map[save.job_id].saves++;
     });
@@ -239,33 +221,33 @@ export default function PlatformEffectiveness() {
     const enhancedJobs: EnhancedJob[] = jobs
       .filter(job => job.status === 'active') // Only active jobs
       .map(job => {
-        const metrics = metricsMap[job.id] || { views: 0, uniqueViews: 0, clicks: 0, uniqueClicks: 0, saves: 0 };
+        const metrics = metricsMap[job.id] || { views: 0, clicks: 0, uniqueClicks: 0, saves: 0 };
         const daysActive = Math.max(1, Math.floor((now.getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)));
         
-        // Use UNIQUE views for rate calculations (one per student)
-        const clickThroughRate = metrics.uniqueViews > 0 
-          ? ((metrics.uniqueClicks / metrics.uniqueViews) * 100).toFixed(1)
+        // Calculate rates
+        const clickThroughRate = metrics.views > 0 
+          ? ((metrics.uniqueClicks / metrics.views) * 100).toFixed(1)
           : '0.0';
         
-        const engagementRate = metrics.uniqueViews > 0
-          ? ((metrics.uniqueClicks + metrics.saves * 2) / metrics.uniqueViews) * 100
+        const engagementRate = metrics.views > 0
+          ? ((metrics.clicks + metrics.saves * 2) / metrics.views) * 100 // Saves weighted higher
           : 0;
 
-        const dailyEngagement = (metrics.uniqueViews + metrics.uniqueClicks + metrics.saves) / daysActive;
+        const dailyEngagement = (metrics.views + metrics.clicks + metrics.saves) / daysActive;
 
         // Composite performance score (weighted formula)
         // Considers: engagement rate, click-through rate, saves, and daily activity
         const performanceScore = (
           (metrics.uniqueClicks * 3) +  // Unique clicks are most valuable
           (metrics.saves * 2) +          // Saves show strong interest
-          (metrics.uniqueViews * 0.1) +  // Unique views show reach
+          (metrics.views * 0.1) +        // Views show reach
           (engagementRate * 2) +         // Engagement rate shows quality
           (dailyEngagement * 5)          // Consistent daily activity
         );
 
         return {
           ...job,
-          viewCount: metrics.uniqueViews,  // Show unique student views
+          viewCount: metrics.views,
           clickCount: metrics.clicks,
           uniqueClickCount: metrics.uniqueClicks,
           saveCount: metrics.saves,
@@ -294,25 +276,17 @@ export default function PlatformEffectiveness() {
 
   // Calculate platform-wide statistics
   const platformStats = useMemo(() => {
-    // Count unique students who viewed jobs
-    const uniqueViewers = new Set(
-      analytics
-        .filter(a => (a.event_type === 'view' || a.event_type === 'job_view') && a.user_id)
-        .map(a => a.user_id)
-    ).size;
-    
     const totalViews = analytics.filter(a => a.event_type === 'view' || a.event_type === 'job_view').length;
     const totalClicks = linkClicks.length;
     const uniqueUsersClicking = new Set(linkClicks.map(c => c.user_id)).size;
-    const totalSaves = savedJobs.filter(s => s.job_id !== null).length;
+    const totalSaves = savedJobs.length;
     const activeJobs = jobs.filter(j => j.status === 'active').length;
     
-    const avgClickRate = uniqueViewers > 0 ? (uniqueUsersClicking / uniqueViewers) * 100 : 0;
-    const avgSaveRate = uniqueViewers > 0 ? (totalSaves / uniqueViewers) * 100 : 0;
+    const avgClickRate = totalViews > 0 ? (totalClicks / totalViews) * 100 : 0;
+    const avgSaveRate = totalViews > 0 ? (totalSaves / totalViews) * 100 : 0;
     
     return {
       totalViews,
-      uniqueViewers,
       totalClicks,
       uniqueUsersClicking,
       totalSaves,
@@ -341,26 +315,21 @@ export default function PlatformEffectiveness() {
         </div>
 
         {/* Platform Overview Stats */}
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm font-medium text-gray-500">Unique Students</div>
-            <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.uniqueViewers}</div>
-            <div className="mt-1 text-sm text-gray-500">viewed jobs</div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-sm font-medium text-gray-500">Total Views</div>
+            <div className="text-sm font-medium text-gray-500">Total Job Views</div>
             <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.totalViews.toLocaleString()}</div>
             <div className="mt-1 text-sm text-gray-500">{platformStats.activeJobs} active jobs</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Apply Clicks</div>
-            <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.uniqueUsersClicking}</div>
-            <div className="mt-1 text-sm text-green-600">{platformStats.avgClickRate.toFixed(1)}% conversion</div>
+            <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.totalClicks.toLocaleString()}</div>
+            <div className="mt-1 text-sm text-green-600">{platformStats.avgClickRate}% click rate</div>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="text-sm font-medium text-gray-500">Jobs Saved</div>
             <div className="mt-2 text-3xl font-bold text-gray-900">{platformStats.totalSaves}</div>
-            <div className="mt-1 text-sm text-blue-600">by students</div>
+            <div className="mt-1 text-sm text-blue-600">{platformStats.avgSaveRate}% save rate</div>
           </div>
         </div>
 
@@ -392,7 +361,7 @@ export default function PlatformEffectiveness() {
                     Company
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unique Views
+                    Views
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Apply Clicks
