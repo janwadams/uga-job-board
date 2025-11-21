@@ -72,14 +72,7 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived }: {
         </p>
         <p className="text-sm text-gray-500 mt-1">
           Posted: {new Date(job.created_at).toLocaleDateString()}
-          {' '}
-          {(() => {
-            const daysAgo = Math.floor((new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24));
-            if (daysAgo < 0) return '(today)';
-            if (daysAgo === 0) return '(today)';
-            if (daysAgo === 1) return '(yesterday)';
-            return `(${daysAgo} days ago)`;
-          })()}
+          {' '}({Math.floor((new Date().getTime() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24))} days ago)
         </p>
         {job.location && (
           <p className="text-sm text-gray-500 mt-1">
