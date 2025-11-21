@@ -342,7 +342,7 @@ export default function FacultyDashboard() {
             <Link href="/faculty/analytics">
               <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2">
                 <ChartBarIcon className="h-5 w-5" />
-                Full Analytics
+                View Analytics
               </button>
             </Link>
             <Link href="/faculty/create">
