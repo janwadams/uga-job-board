@@ -136,6 +136,7 @@ export default function AdminAnalyticsDashboard() {
         newUsersMonthResult,
         userRolesResult,
         allJobsResult,
+        allViewsResult,
         allClicksResult,
         allAnalyticsResult,
         activeTodayResult,
@@ -184,7 +185,7 @@ export default function AdminAnalyticsDashboard() {
         
         // all user roles for breakdown
         supabase.from('user_roles')
-          .select('user_id, role'),
+          .select('role'),
         
         // get all active jobs with their data
         supabase.from('jobs')
@@ -193,13 +194,17 @@ export default function AdminAnalyticsDashboard() {
           .order('created_at', { ascending: false })
           .limit(20),
         
+        // get ALL views at once
+        supabase.from('job_views')
+          .select('job_id, viewed_at'),
+        
         // get ALL clicks at once
         supabase.from('job_link_clicks')
           .select('job_id, clicked_at'),
         
         // get all analytics for time analysis
         supabase.from('job_analytics')
-          .select('created_at, event_type, user_id, job_id')
+          .select('created_at, event_type, user_id')
           .gte('created_at', startDate.toISOString()),
         
         // active users today
@@ -261,19 +266,16 @@ export default function AdminAnalyticsDashboard() {
       const uniqueViewsByJob = new Map<string, Set<string>>(); // unique viewers per job
       const clicksByJob = new Map<string, number>(); // clicks per job
 
-      // Process views from job_analytics table (which has user_id)
-      allAnalyticsResult.data?.forEach(record => {
-        if (record.event_type === 'view' || record.event_type === 'job_view') {
-          // count total views
-          viewsByJob.set(record.job_id, (viewsByJob.get(record.job_id) || 0) + 1);
-          
-          // track unique viewers per job
-          if (!uniqueViewsByJob.has(record.job_id)) {
-            uniqueViewsByJob.set(record.job_id, new Set());
-          }
-          if (record.user_id) { // only count logged-in users for unique views
-            uniqueViewsByJob.get(record.job_id)!.add(record.user_id);
-          }
+      allViewsResult.data?.forEach(view => {
+        // count total views
+        viewsByJob.set(view.job_id, (viewsByJob.get(view.job_id) || 0) + 1);
+        
+        // track unique viewers per job
+        if (!uniqueViewsByJob.has(view.job_id)) {
+          uniqueViewsByJob.set(view.job_id, new Set());
+        }
+        if (view.user_id) { // only count logged-in users for unique views
+          uniqueViewsByJob.get(view.job_id)!.add(view.user_id);
         }
       });
 
@@ -318,39 +320,38 @@ export default function AdminAnalyticsDashboard() {
         .sort((a, b) => b.engagement_rate - a.engagement_rate)
         .slice(0, 10);
 
-      // calculate company stats from job data using unique views
-      const companyStats = new Map<string, { uniqueViews: number, totalViews: number, clicks: number, jobs: Set<string> }>();
+      // calculate company stats from job data
+      const companyStats = new Map<string, { views: number, clicks: number, jobs: Set<string> }>();
       
       allJobsResult.data?.forEach(job => {
         if (!companyStats.has(job.company)) {
-          companyStats.set(job.company, { uniqueViews: 0, totalViews: 0, clicks: 0, jobs: new Set() });
+          companyStats.set(job.company, { views: 0, clicks: 0, jobs: new Set() });
         }
         const stats = companyStats.get(job.company)!;
         stats.jobs.add(job.id);
-        stats.uniqueViews += uniqueViewsByJob.get(job.id)?.size || 0; // use unique views
-        stats.totalViews += viewsByJob.get(job.id) || 0; // keep total for reference
+        stats.views += viewsByJob.get(job.id) || 0;
         stats.clicks += clicksByJob.get(job.id) || 0;
       });
 
       const topCompanies: TopCompany[] = Array.from(companyStats.entries())
         .map(([company, stats]) => ({
           company,
-          views: stats.uniqueViews, // use unique views for display
+          views: stats.views,
           link_clicks: stats.clicks,
           job_count: stats.jobs.size,
-          engagement_rate: stats.uniqueViews > 0 ? (stats.clicks / stats.uniqueViews) * 100 : 0 // engagement based on unique
+          engagement_rate: stats.views > 0 ? (stats.clicks / stats.views) * 100 : 0
         }))
         .sort((a, b) => b.views - a.views)
         .slice(0, 10);
 
       // create time series data
-      const timeSeriesMap = new Map<string, { postings: number, clicks: number, views: number, uniqueViewers: Set<string> }>();
+      const timeSeriesMap = new Map<string, { postings: number, clicks: number, views: number }>();
 
       // initialize all dates in range
       for (let i = 0; i < daysAgo; i++) {
         const date = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
-        timeSeriesMap.set(dateStr, { postings: 0, clicks: 0, views: 0, uniqueViewers: new Set() });
+        timeSeriesMap.set(dateStr, { postings: 0, clicks: 0, views: 0 });
       }
 
       // count events per day from analytics
@@ -359,10 +360,7 @@ export default function AdminAnalyticsDashboard() {
         const existing = timeSeriesMap.get(dateStr);
         if (existing) {
           if (record.event_type === 'view') {
-            existing.views++; // total views
-            if (record.user_id) {
-              existing.uniqueViewers.add(`${record.user_id}-${record.job_id}`); // track unique user-job pairs
-            }
+            existing.views++;
           } else if (record.event_type === 'click_apply' || record.event_type === 'link_click') {
             existing.clicks++;
           }
@@ -383,29 +381,16 @@ export default function AdminAnalyticsDashboard() {
           date,
           total_postings: data.postings,
           active_postings: data.postings,
-          views: data.uniqueViewers.size, // use unique viewers count for the day
+          views: data.views,
           link_clicks: data.clicks
         }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
-      // create a set of non-student users to filter from activity analysis
-      const nonStudentUsers = new Set<string>();
-      userRolesResult.data?.forEach(user => {
-        if (user.role !== 'student') {
-          nonStudentUsers.add(user.user_id);
-        }
-      });
-
-      // find peak activity times (student activity only)
+      // find peak activity times
       const dayActivity = new Map<string, number>();
       const hourActivity = new Map<number, number>();
 
       allAnalyticsResult.data?.forEach(record => {
-        // skip non-student activity for peak analysis
-        if (record.user_id && nonStudentUsers.has(record.user_id)) {
-          return;
-        }
-        
         const date = new Date(record.created_at);
         const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
         const hour = date.getHours();
