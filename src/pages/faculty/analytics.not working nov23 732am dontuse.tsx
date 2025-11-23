@@ -694,6 +694,18 @@ export default function FacultyAnalytics() {
                 </p>
               </div>
 
+              <div className="p-3 bg-green-50 rounded-lg">
+                <p className="text-sm font-semibold text-green-900 mb-1">Response Time</p>
+                <p className="text-sm text-green-800">
+                  Average time to first click is {overview.averageDaysToClick} days - {
+                    parseFloat(overview.averageDaysToClick) < 3
+                      ? "Excellent! Students are quickly engaging with your postings."
+                      : parseFloat(overview.averageDaysToClick) < 7
+                      ? "Good response time. Students are finding your postings within a week."
+                      : "Consider posting during peak student activity times (Mon-Thu, 10am-4pm) to get faster engagement."
+                  }
+                </p>
+              </div>
 
               <div className="p-3 bg-purple-50 rounded-lg">
                 <p className="text-sm font-semibold text-purple-900 mb-1">Best Practices</p>
