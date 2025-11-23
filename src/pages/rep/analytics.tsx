@@ -556,12 +556,12 @@ export default function RepAnalytics() {
             <div className="text-xs">
               <p className="font-semibold text-gray-900 mb-2">How your metrics are calculated:</p>
               <div className="space-y-1 text-gray-700">
-                <p><strong>job details views:</strong> Unique students who clicked "view details" to read the full job description (each student counted once per job)</p>
-                <p><strong>total page views:</strong> All "view details" clicks including repeat visits by the same student (shows engagement depth)</p>
-                <p><strong>apply link clicks:</strong> Unique students who clicked the external application link to apply on your website (each student counted once per job)</p>
-                <p><strong>engagement rate:</strong> (Apply clicks ÷ Details views) × 100 - Shows conversion from viewing to applying</p>
-                <p><strong>approval rate:</strong> (Approved jobs ÷ Submitted jobs) × 100 - Shows admin approval percentage</p>
-                <p><strong>rejected jobs:</strong> Jobs that need revision based on admin feedback</p>
+                <p><strong>Job details views:</strong> Unique students who clicked "view details" to read the full job description (Each student counted once per job)</p>
+                <p><strong>Total page views:</strong> All "view details" clicks including repeat visits by the same student (Shows engagement depth)</p>
+                <p><strong>Apply link clicks:</strong> Unique students who clicked the external application link to apply on your website (Each student counted once per job)</p>
+                <p><strong>Engagement rate:</strong> (Apply clicks ÷ Details views) × 100 - Shows conversion from viewing to applying</p>
+                <p><strong>Approval rate:</strong> (Approved jobs ÷ Submitted jobs) × 100 - Shows admin approval percentage</p>
+                <p><strong>Rejected jobs:</strong> Jobs that need revision based on admin feedback</p>
               </div>
             </div>
           </div>
