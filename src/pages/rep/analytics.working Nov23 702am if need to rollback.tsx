@@ -16,7 +16,6 @@ interface AnalyticsOverview {
   totalLinkClicks: number;
   averageClicksPerJob: string;
   totalViews: number;
-  totalAllViews: number;  // add total page views
   engagementRate: string;
   activeJobs: number;
   rejectedJobs: number;
@@ -92,7 +91,6 @@ export default function RepAnalytics() {
     totalLinkClicks: 0,
     averageClicksPerJob: '0',
     totalViews: 0,
-    totalAllViews: 0,
     engagementRate: '0',
     activeJobs: 0,
     rejectedJobs: 0,
@@ -282,7 +280,6 @@ export default function RepAnalytics() {
         totalLinkClicks,
         averageClicksPerJob,
         totalViews,
-        totalAllViews,
         engagementRate,
         activeJobs,
         rejectedJobs,
@@ -557,7 +554,6 @@ export default function RepAnalytics() {
               <p className="font-semibold text-gray-900 mb-2">how your metrics are calculated:</p>
               <div className="space-y-1 text-gray-700">
                 <p><strong>job details views:</strong> unique students who clicked "view details" to read the full job description (each student counted once per job)</p>
-                <p><strong>total page views:</strong> all "view details" clicks including repeat visits by the same student (shows engagement depth)</p>
                 <p><strong>apply link clicks:</strong> unique students who clicked the external application link to apply on your website (each student counted once per job)</p>
                 <p><strong>engagement rate:</strong> (apply clicks ÷ details views) × 100 - shows conversion from viewing to applying</p>
                 <p><strong>approval rate:</strong> (approved jobs ÷ submitted jobs) × 100 - shows admin approval percentage</p>
@@ -587,17 +583,6 @@ export default function RepAnalytics() {
             </p>
             <p className="text-xs text-gray-500 mt-1">
               Engagement: {overview.engagementRate}%
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold text-sm">Total Page Views</h3>
-            <p className="text-4xl font-bold text-indigo-600 mt-2">{overview.totalAllViews}</p>
-            <p className="text-sm text-gray-600 mt-1">
-              All detail page visits (includes repeat views)
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Avg: {overview.totalViews > 0 ? (overview.totalAllViews / overview.totalViews).toFixed(1) : '0'} views per student
             </p>
           </div>
 
