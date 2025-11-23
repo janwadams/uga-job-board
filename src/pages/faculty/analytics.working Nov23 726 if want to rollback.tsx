@@ -20,6 +20,7 @@ interface AnalyticsOverview {
   engagementRate: string;
   activeJobs: number;
   archivedJobs: number;
+  averageDaysToClick: string;
 }
 
 interface TrendData {
@@ -68,7 +69,8 @@ export default function FacultyAnalytics() {
     totalAllViews: 0,  // add initial value
     engagementRate: '0',
     activeJobs: 0,
-    archivedJobs: 0
+    archivedJobs: 0,
+    averageDaysToClick: '0'
   });
 
   const [clickTrends, setClickTrends] = useState<TrendData[]>([]);
@@ -191,6 +193,23 @@ export default function FacultyAnalytics() {
         : '0';
 
       // Calculate average days to first click
+      let totalDaysToClick = 0;
+      let jobsWithClicks = 0;
+
+      jobs?.forEach(job => {
+        if (job.job_link_clicks && job.job_link_clicks.length > 0) {
+          const jobCreated = new Date(job.created_at);
+          const firstClick = new Date(job.job_link_clicks[0].clicked_at);
+          const daysToClick = Math.ceil((firstClick.getTime() - jobCreated.getTime()) / (1000 * 60 * 60 * 24));
+          totalDaysToClick += daysToClick;
+          jobsWithClicks++;
+        }
+      });
+
+      const averageDaysToClick = jobsWithClicks > 0 
+        ? (totalDaysToClick / jobsWithClicks).toFixed(1)
+        : '0';
+
       setOverview({
         totalJobs,
         totalLinkClicks,
@@ -199,7 +218,8 @@ export default function FacultyAnalytics() {
         totalAllViews,  // add total page views
         engagementRate,
         activeJobs,
-        archivedJobs
+        archivedJobs,
+        averageDaysToClick
       });
 
       // Generate trend data for the selected date range
@@ -403,6 +423,7 @@ export default function FacultyAnalytics() {
                 <p><strong>total page views:</strong> all "view details" clicks including repeat visits by the same student (shows engagement depth)</p>
                 <p><strong>apply link clicks:</strong> unique students who clicked the external application link to apply (each student counted once per job)</p>
                 <p><strong>engagement rate:</strong> (apply clicks ÷ details views) × 100 - shows conversion from viewing to applying</p>
+                <p><strong>average days to click:</strong> how quickly students act on your postings after you post them</p>
                 <p><strong>performance categories:</strong> high (&gt;15% engagement), medium (5-15%), low (&lt;5%), no engagement (0 clicks)</p>
               </div>
             </div>
@@ -472,6 +493,10 @@ export default function FacultyAnalytics() {
             <div>
               <p className="font-semibold mb-1">Engagement Rate ({overview.engagementRate}%)</p>
               <p>Percentage of views that resulted in link clicks. Higher rates indicate compelling job descriptions and requirements that match student interests.</p>
+            </div>
+            <div>
+              <p className="font-semibold mb-1">Average Days to Click ({overview.averageDaysToClick} days)</p>
+              <p>How long it takes students to click your links after posting. Lower numbers suggest timely postings and high student interest in the opportunities.</p>
             </div>
             <div>
               <p className="font-semibold mb-1">Link Clicks vs Views</p>
