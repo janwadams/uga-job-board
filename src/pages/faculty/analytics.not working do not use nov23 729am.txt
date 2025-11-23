@@ -454,6 +454,15 @@ export default function FacultyAnalytics() {
               Jobs currently accepting applications
             </p>
           </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Avg Days to Click</h3>
+            <p className="text-4xl font-bold text-purple-600 mb-2">{overview.averageDaysToClick}</p>
+            <p className="text-xs text-gray-600">after posting</p>
+            <p className="text-xs text-gray-500 mt-2 italic">
+              How quickly students engage with your posts
+            </p>
+          </div>
         </div>
 
         {/* Key Metrics Explanation */}
