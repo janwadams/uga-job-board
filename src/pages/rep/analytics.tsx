@@ -1,5 +1,5 @@
 // /pages/rep/analytics.tsx
-// Complete analytics dashboard for company representatives - FIXED VERSION
+// Complete analytics dashboard for company representatives - last changes on 11/23/25
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -554,14 +554,14 @@ export default function RepAnalytics() {
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
             </svg>
             <div className="text-xs">
-              <p className="font-semibold text-gray-900 mb-2">how your metrics are calculated:</p>
+              <p className="font-semibold text-gray-900 mb-2">How your metrics are calculated:</p>
               <div className="space-y-1 text-gray-700">
-                <p><strong>job details views:</strong> unique students who clicked "view details" to read the full job description (each student counted once per job)</p>
-                <p><strong>total page views:</strong> all "view details" clicks including repeat visits by the same student (shows engagement depth)</p>
-                <p><strong>apply link clicks:</strong> unique students who clicked the external application link to apply on your website (each student counted once per job)</p>
-                <p><strong>engagement rate:</strong> (apply clicks ÷ details views) × 100 - shows conversion from viewing to applying</p>
-                <p><strong>approval rate:</strong> (approved jobs ÷ submitted jobs) × 100 - shows admin approval percentage</p>
-                <p><strong>rejected jobs:</strong> jobs that need revision based on admin feedback</p>
+                <p><strong>job details views:</strong> Unique students who clicked "view details" to read the full job description (each student counted once per job)</p>
+                <p><strong>total page views:</strong> All "view details" clicks including repeat visits by the same student (shows engagement depth)</p>
+                <p><strong>apply link clicks:</strong> Unique students who clicked the external application link to apply on your website (each student counted once per job)</p>
+                <p><strong>engagement rate:</strong> (Apply clicks ÷ Details views) × 100 - Shows conversion from viewing to applying</p>
+                <p><strong>approval rate:</strong> (Approved jobs ÷ Submitted jobs) × 100 - Shows admin approval percentage</p>
+                <p><strong>rejected jobs:</strong> Jobs that need revision based on admin feedback</p>
               </div>
             </div>
           </div>
