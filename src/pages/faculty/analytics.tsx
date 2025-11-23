@@ -403,7 +403,7 @@ export default function FacultyAnalytics() {
                 <p><strong>Total page views:</strong> All "view details" clicks including repeat visits by the same student (Shows engagement depth)</p>
                 <p><strong>Apply link clicks:</strong> Unique students who clicked the external application link to apply (Each student counted once per job)</p>
                 <p><strong>Engagement rate:</strong> (Apply clicks ÷ Details views) × 100 - Shows conversion from viewing to applying</p>
-                <p><strong>Performance categories:</Strong> high (&gt;15% Engagement), Medium (5-15%), low (&lt;5%), No engagement (0 clicks)</p>
+                <p><strong>Performance categories:</strong> high (&gt;15% Engagement), medium (5-15%), low (&lt;5%), no engagement (0 clicks)</p>
               </div>
             </div>
           </div>
