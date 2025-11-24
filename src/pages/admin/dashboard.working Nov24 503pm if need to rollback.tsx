@@ -688,8 +688,7 @@ function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Posted</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Status</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Status</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -704,10 +703,7 @@ function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }
                   </td>
                   <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
                   <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">{job.creator_name}</td>
-                  <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                    {new Date(job.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-3 py-4 hidden xl:table-cell">
+                  <td className="px-3 py-4 hidden lg:table-cell">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       job.status === 'active' ? 'bg-green-100 text-green-800' : 
                       job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
@@ -789,9 +785,8 @@ function ArchivedJobsPanel({
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Company</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Posted By</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Posted</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Role</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Type</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Role</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Type</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Expired</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Days Ago</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -816,10 +811,7 @@ function ArchivedJobsPanel({
                     <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
                       {job.creator_name}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                      {new Date(job.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden xl:table-cell">
+                    <td className="px-3 py-4 text-sm text-gray-500 capitalize hidden lg:table-cell">
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         job.role === 'faculty' || job.role === 'staff' 
                           ? 'bg-blue-100 text-blue-800' 
@@ -828,7 +820,7 @@ function ArchivedJobsPanel({
                         {job.role}
                       </span>
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500 hidden xl:table-cell">
+                    <td className="px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
                       {job.job_type || 'N/A'}
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-500 hidden md:table-cell">
