@@ -696,9 +696,7 @@ function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }
               {filteredJobs.map((job) => (
                 <tr key={job.id}>
                   <td className="px-3 py-4 text-sm">
-                    <Link href={`/admin/view/${job.id}`}>
-                      <div className="font-medium text-gray-900 hover:text-blue-600 cursor-pointer">{job.title}</div>
-                    </Link>
+                    <div className="font-medium text-gray-900">{job.title}</div>
                     <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
                   </td>
                   <td className="px-3 py-4 text-sm text-gray-500 hidden sm:table-cell">{job.company}</td>
@@ -798,9 +796,7 @@ function ArchivedJobsPanel({
                 return (
                   <tr key={job.id} className="hover:bg-gray-50">
                     <td className="px-3 py-4 text-sm font-medium text-gray-900">
-                      <Link href={`/admin/view/${job.id}`}>
-                        <div className="hover:text-blue-600 cursor-pointer">{job.title}</div>
-                      </Link>
+                      <div>{job.title}</div>
                       {/* show company and days expired on mobile */}
                       <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
                       <div className="text-xs text-gray-400 sm:hidden">Expired {daysAgo} days ago</div>
