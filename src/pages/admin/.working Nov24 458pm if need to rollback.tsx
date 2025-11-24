@@ -697,7 +697,7 @@ function JobsPanel({ jobs, loading, statusFilter, setStatusFilter, onJobAction }
                 <tr key={job.id}>
                   <td className="px-3 py-4 text-sm">
                     <Link href={`/admin/view/${job.id}`}>
-                      <div className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">{job.title}</div>
+                      <div className="font-medium text-gray-900 hover:text-blue-600 cursor-pointer">{job.title}</div>
                     </Link>
                     <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
                   </td>
@@ -799,7 +799,7 @@ function ArchivedJobsPanel({
                   <tr key={job.id} className="hover:bg-gray-50">
                     <td className="px-3 py-4 text-sm font-medium text-gray-900">
                       <Link href={`/admin/view/${job.id}`}>
-                        <div className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">{job.title}</div>
+                        <div className="hover:text-blue-600 cursor-pointer">{job.title}</div>
                       </Link>
                       {/* show company and days expired on mobile */}
                       <div className="text-xs text-gray-500 sm:hidden">{job.company}</div>
