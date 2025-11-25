@@ -29,14 +29,13 @@ interface Job {
 }
 
 // reusable job card component
-const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected, isRemoved }: { 
+const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected }: { 
   job: Job, 
   onRemove?: (jobId: string) => void,
   onReactivate?: (jobId: string) => void,
   onRevise?: (jobId: string) => void,
   isArchived?: boolean,
-  isRejected?: boolean,
-  isRemoved?: boolean 
+  isRejected?: boolean 
 }) => {
   const statusColors: Record<Job['status'], string> = {
     active: 'bg-green-100 text-green-800',
@@ -123,20 +122,6 @@ const JobCard = ({ job, onRemove, onReactivate, onRevise, isArchived, isRejected
             <Link href={`/rep/view/${job.id}`}>
               <button className="px-4 py-2 rounded font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                 View Full Details
-              </button>
-            </Link>
-          </>
-        ) : isRemoved ? (
-          <>
-            <button
-              onClick={() => onReactivate && onReactivate(job.id)}
-              className="px-4 py-2 rounded font-semibold text-sm bg-green-600 text-white hover:bg-green-700 transition-colors"
-            >
-              Reactivate
-            </button>
-            <Link href={`/rep/view/${job.id}`}>
-              <button className="px-4 py-2 rounded font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                View Details
               </button>
             </Link>
           </>
@@ -680,7 +665,6 @@ export default function RepDashboard() {
                     key={job.id} 
                     job={job} 
                     onReactivate={handleReactivate}
-                    isRemoved={true}
                   />
                 ))}
               </div>
