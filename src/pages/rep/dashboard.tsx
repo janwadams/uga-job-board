@@ -430,7 +430,13 @@ export default function RepDashboard() {
 
   // calculate metrics for the dashboard cards
   const totalJobs = jobs.length;
-  const activeJobs = jobs.filter(job => job.status === 'active').length;
+  ///const activeJobs = jobs.filter(job => job.status === 'active').length;
+  
+  const today = new Date();
+	const activeJobs = jobs.filter(job => 
+  job.status === 'active' && new Date(job.deadline) > today
+).length;
+
   const pendingJobs = jobs.filter(job => job.status === 'pending').length;
   const totalRejected = rejectedJobs.length;
 
