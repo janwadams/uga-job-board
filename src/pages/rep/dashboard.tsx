@@ -265,7 +265,7 @@ export default function RepDashboard() {
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .in('status', ['active', 'pending', 'removed']) // get active and removed for the filter
+        .in('status', ['active', 'pending', 'removed', 'rejected']) // get all jobs 
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -493,9 +493,9 @@ export default function RepDashboard() {
         {/* metrics cards showing job statistics */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Total Posted</h3>
+            <h3 className="text-gray-500 font-semibold">All Jobs</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
-			<p className="text-xs text-gray-600 mt-1">Includes active, pending, and removed</p>
+			<p className="text-xs text-gray-600 mt-1">Includes active, pending, removed and rejected</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
