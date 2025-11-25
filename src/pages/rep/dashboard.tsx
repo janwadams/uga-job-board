@@ -250,7 +250,7 @@ export default function RepDashboard() {
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .in('status', ['active', 'removed']) // get active and removed for the filter
+        .in('status', ['active', 'pending', 'removed']) // get active and removed for the filter
         .order('created_at', { ascending: false });
 
       if (error) {
