@@ -711,13 +711,13 @@ export default function RepAnalytics() {
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h2 className="text-xl font-bold text-gray-800 mb-2">🏆 Top Performing Jobs</h2>
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-              <p className="text-xs font-semibold text-green-900 mb-1">📊 how it's calculated:</p>
+              <p className="text-xs font-semibold text-green-900 mb-1">📊 How it's calculated:</p>
               <p className="text-xs text-green-800">
-                <strong>engagement rate = (apply clicks ÷ unique student views) × 100</strong>
+                <strong>Engagement rate = (Apply clicks ÷ Unique student views) × 100</strong>
               </p>
               <p className="text-xs text-green-700 mt-1">
-                • ranked by total clicks, then by engagement rate<br/>
-                • shows unique views (individual students) not total page loads<br/>
+                • Ranked by total clicks, then by engagement rate<br/>
+                • Shows unique views (individual students) not total page loads<br/>
                 • &gt;20% engagement is excellent, 10-20% is good, &lt;10% needs improvement
               </p>
             </div>
