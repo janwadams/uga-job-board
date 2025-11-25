@@ -584,6 +584,7 @@ export default function RepDashboard() {
                   >
                     <option value="">All</option>
                     <option value="active">Active</option>
+					<option value="pending">Pending</option>
                     <option value="removed">Removed</option>
                   </select>
                 </div>
