@@ -408,12 +408,12 @@ export default function RepDashboard() {
         .from('jobs')
         .update({ 
           deadline: newDeadline,
-          status: 'active'
+          status: 'pending'
         })
         .eq('id', jobId);
 
       if (!error) {
-        alert('Job reactivated successfully!');
+        alert('Job submitted for approval!');
         window.location.reload();
       } else {
         alert('Failed to reactivate job.');
