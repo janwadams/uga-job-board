@@ -73,6 +73,13 @@ interface EngagementMetric {
   percentage: string;
 }
 
+interface CompetitorComparison {
+  metric: string;
+  yourValue: number | string;
+  industryAvg: number | string;
+  performance: 'above' | 'below' | 'equal';
+}
+
 export default function RepAnalytics() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -102,6 +109,7 @@ export default function RepAnalytics() {
   const [skillsDemand, setSkillsDemand] = useState<SkillDemand[]>([]);
   const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown[]>([]);
   const [engagementMetrics, setEngagementMetrics] = useState<EngagementMetric[]>([]);
+  const [competitorComparison, setCompetitorComparison] = useState<CompetitorComparison[]>([]);
 
   useEffect(() => {
     checkAuth();
@@ -427,6 +435,39 @@ export default function RepAnalytics() {
       ];
 
       setEngagementMetrics(metrics);
+
+      const comparison: CompetitorComparison[] = [
+        {
+          metric: 'Clicks per Job',
+          yourValue: averageClicksPerJob,
+          industryAvg: '6.5',
+          performance: parseFloat(averageClicksPerJob) > 6.5 ? 'above' : 
+                      parseFloat(averageClicksPerJob) < 6.5 ? 'below' : 'equal'
+        },
+        {
+          metric: 'View to Click Rate',
+          yourValue: `${engagementRate}%`,
+          industryAvg: '10%',
+          performance: parseFloat(engagementRate) > 10 ? 'above' : 
+                      parseFloat(engagementRate) < 10 ? 'below' : 'equal'
+        },
+        {
+          metric: 'Avg Days to Click',
+          yourValue: `${averageDaysToClick} days`,
+          industryAvg: '3 days',
+          performance: parseFloat(averageDaysToClick) < 3 ? 'above' : 
+                      parseFloat(averageDaysToClick) > 3 ? 'below' : 'equal'
+        },
+        {
+          metric: 'Approval Rate',
+          yourValue: `${approvalRate}%`,
+          industryAvg: '85%',
+          performance: parseFloat(approvalRate) > 85 ? 'above' : 
+                      parseFloat(approvalRate) < 85 ? 'below' : 'equal'
+        }
+      ];
+
+      setCompetitorComparison(comparison);
 
       const topJobs = jobs?.map(job => {
         // calculate unique views from job_analytics
@@ -776,10 +817,58 @@ export default function RepAnalytics() {
             )}
           </div>
 
-
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">📊 Industry Comparison</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Compares your metrics against industry averages. Green (↑) means above average, red (↓) means below average performance.
+            </p>
+            <div className="space-y-3">
+              {competitorComparison.map((item, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">{item.metric}</span>
+                  <div className="flex items-center gap-3">
+                    <span className={`font-semibold ${
+                      item.performance === 'above' ? 'text-green-600' :
+                      item.performance === 'below' ? 'text-red-600' :
+                      'text-gray-600'
+                    }`}>
+                      {item.yourValue}
+                    </span>
+                    <span className="text-xs text-gray-400">vs {item.industryAvg}</span>
+                    <span className={`text-xs ${
+                      item.performance === 'above' ? 'text-green-600' :
+                      item.performance === 'below' ? 'text-red-600' :
+                      'text-gray-600'
+                    }`}>
+                      {item.performance === 'above' ? '↑' : item.performance === 'below' ? '↓' : '='}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
+        {/* REMOVED: Skills Demand Analysis section - not relevant for company reps */}
 
+        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-blue-900 mb-2">💡 Performance Tips</h3>
+          <ul className="space-y-2 text-sm text-blue-800">
+            <li>• Your engagement rate is {overview.engagementRate}% - {
+              parseFloat(overview.engagementRate) > 10 
+                ? "Great job! Your listings are compelling to students" 
+                : "Consider improving job descriptions to increase clicks"
+            }</li>
+            <li>• {
+              engagementMetrics.find(m => m.metric === 'No Engagement')?.count || 0
+            } jobs have no clicks - consider revising these listings or adjusting requirements</li>
+            <li>• Average time to first click is {overview.averageDaysToClick} days - {
+              parseFloat(overview.averageDaysToClick) < 3
+                ? "Excellent response time!"
+                : "Consider posting during peak student activity times"
+            }</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
