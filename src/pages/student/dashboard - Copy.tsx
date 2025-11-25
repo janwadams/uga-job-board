@@ -1611,30 +1611,10 @@ export default function StudentDashboard() {
 
             {/* for you tab */}
             {activeTab === 'for-you' && (
+			
+					
+			
               <div>
-                {/* matching algorithm explanation - collapsible */}
-                <details className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <summary className="cursor-pointer font-semibold text-blue-800 flex items-center gap-2">
-                    <SparklesIcon className="h-5 w-5" />
-                    How are these jobs matched to me?
-                  </summary>
-                  <div className="mt-3 text-sm text-blue-900 space-y-2">
-                    <p>Jobs are ranked based on how well they match your profile:</p>
-                    <ul className="list-disc list-inside space-y-1 ml-2">
-                      <li><strong>Skills match</strong> — Jobs requiring skills you have rank highest</li>
-                      <li><strong>Job type preference</strong> — Internship, Part-Time, or Full-Time matches</li>
-                      <li><strong>Industry match</strong> — Jobs in your preferred industries</li>
-                      <li><strong>Interests</strong> — Keywords from your interests found in job descriptions</li>
-                    </ul>
-                    <p className="mt-2 text-blue-700">
-                      <Link href="/student/profile" className="underline hover:text-blue-900">
-                        Update your profile
-                      </Link>
-                      {' '}to improve your matches!
-                    </p>
-                  </div>
-                </details>
-
                 {loadingJobs ? (
                   <div className="text-center py-12">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
