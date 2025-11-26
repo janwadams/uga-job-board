@@ -1,9 +1,12 @@
 // admin dashboard with mobile-responsive improvements
 // includes all expired jobs from all users
+//added toggle for job posting 11/26/25
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import JobPostingToggles from '@/components/admin/JobPostingToggles';
+
 
 // initialize supabase
 const supabase = createClient(
@@ -442,6 +445,10 @@ export default function AdminDashboard() {
             + Create Admin
           </button>
         </div>
+		
+		  {/* for job posting toggle */}
+        <JobPostingToggles />
+		
 
         {/* Tab Navigation - scrollable on mobile */}
         <div className="flex space-x-1 mb-6 overflow-x-auto">
