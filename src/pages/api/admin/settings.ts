@@ -1,17 +1,16 @@
 // pages api route for toggle switch - 11/26/25
 
 import { createClient } from '@supabase/supabase-js';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// service role client for database updates (bypasses RLS)
+// service role client (bypasses RLS)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // GET - fetch settings (any authenticated user can read)
+  // GET - fetch settings
   if (req.method === 'GET') {
     const { data: settings, error } = await supabaseAdmin
       .from('app_settings')
@@ -31,18 +30,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // PATCH - update a setting (admin only)
   if (req.method === 'PATCH') {
-    const supabase = createPagesServerClient({ req, res });
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      return res.status(401).json({ error: 'not authenticated' });
+    // get token from authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'no authorization token provided' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // verify user
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !user) {
+      return res.status(401).json({ error: 'invalid or expired token' });
     }
 
     // verify user is an admin
     const { data: roleData } = await supabaseAdmin
       .from('user_roles')
       .select('role')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (roleData?.role !== 'admin') {
@@ -56,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .update({ 
         setting_value, 
         updated_at: new Date().toISOString(),
-        updated_by: session.user.id 
+        updated_by: user.id 
       })
       .eq('setting_key', setting_key);
 

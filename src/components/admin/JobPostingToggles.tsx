@@ -1,6 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// initialize supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function JobPostingToggles() {
   const [settings, setSettings] = useState({
@@ -38,9 +45,21 @@ export default function JobPostingToggles() {
     setError(null);
 
     try {
+      // get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        setSettings(prev => ({ ...prev, [setting_key]: oldValue }));
+        setError('Not authenticated');
+        return;
+      }
+
       const res = await fetch('/api/admin/settings', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ setting_key, setting_value: newValue }),
       });
 
