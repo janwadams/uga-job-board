@@ -1,11 +1,11 @@
-// create job posting for rep/faculty/create.tsx - updated to use api routes for permission checks
+//create job posting for rep/faculty/create.tsx - fixed version with dynamic routing
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../utils/supabaseClient';
 import Link from 'next/link';
 
-// a predefined list of industries for the dropdown
+// A predefined list of industries for the dropdown
 const industries = [
   'Technology',
   'Healthcare',
@@ -23,7 +23,7 @@ const industries = [
   'Other',
 ];
 
-// common skills for quick selection
+// Common skills for quick selection
 const commonSkills = [
   'Communication',
   'Teamwork',
@@ -62,7 +62,7 @@ export default function CreateJobPosting() {
     apply_method: '',
   });
 
-  // skills as array for better management
+  // Skills as array for better management
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [customSkill, setCustomSkill] = useState('');
 
@@ -70,10 +70,10 @@ export default function CreateJobPosting() {
   const [success, setSuccess] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   
-  // for rich text description (basic formatting)
+  // For rich text description (basic formatting)
   const [descriptionLength, setDescriptionLength] = useState(0);
 
-  // helper function to get the dashboard path based on role
+  // Helper function to get the dashboard path based on role
   const getDashboardPath = (role: string) => {
     switch(role) {
       case 'faculty':
@@ -156,16 +156,15 @@ export default function CreateJobPosting() {
     setError(null);
     setSuccess(false);
 
-    // get the session for the auth token
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (sessionError || !session) {
+    if (userError || !user) {
         setError('User not authenticated. Please log in again.');
         setLoading(false);
         return;
     }
 
-    // validation
+    // Validation
     if (!formData.title || !formData.company || !formData.industry || 
         !formData.job_type || !formData.description || !formData.location || 
         !formData.deadline || !formData.apply_method) {
@@ -186,7 +185,7 @@ export default function CreateJobPosting() {
       return;
     }
 
-    // parse requirements into array (split by newline)
+    // Parse requirements into array (split by newline)
     const requirementsArray = formData.requirements
       .split('\n')
       .map(req => req.trim())
@@ -204,31 +203,18 @@ export default function CreateJobPosting() {
       skills: selectedSkills,
       deadline: formData.deadline,
       apply_method: formData.apply_method,
+      created_by: user.id,
+      status: userRole === 'faculty' ? 'active' : 'pending', // Faculty posts are auto-approved
     };
     
-    // call the api route based on user role (this checks if posting is enabled)
-    const apiRoute = userRole === 'faculty' ? '/api/faculty/jobs/create' : '/api/rep/jobs/create';
-    
-    try {
-      const response = await fetch(apiRoute, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(newJob),
-      });
+    const { error: insertError } = await supabase.from('jobs').insert([newJob]);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to create job posting.');
-        setLoading(false);
-        return;
-      }
-
+    if (insertError) {
+      console.error('Supabase insert error:', insertError.message, insertError.details);
+      setError('Failed to create job posting. Please try again.');
+    } else {
       setSuccess(true);
-      // reset form
+      // Reset form
       setFormData({
         title: '',
         company: '',
@@ -244,22 +230,19 @@ export default function CreateJobPosting() {
       setSelectedSkills([]);
       setDescriptionLength(0);
       
-      // redirect to the appropriate dashboard based on role after 2 seconds
+      // Redirect to the appropriate dashboard based on role after 2 seconds
       setTimeout(() => {
         if (userRole) {
           router.push(getDashboardPath(userRole));
         }
       }, 2000);
-    } catch (err) {
-      console.error('Error creating job:', err);
-      setError('Failed to create job posting. Please try again.');
     }
     setLoading(false);
   };
 
   if (!userRole) return <p className="p-6 text-center">Loading...</p>;
 
-  // get the appropriate dashboard path for the current user
+  // Get the appropriate dashboard path for the current user
   const dashboardPath = getDashboardPath(userRole);
 
   return (
