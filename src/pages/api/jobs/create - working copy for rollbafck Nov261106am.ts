@@ -1,4 +1,4 @@
-// handles job creation for reps, faculty, and staff
+//comment
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
@@ -38,23 +38,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (roleError || !roleData || !['rep', 'faculty', 'staff'].includes(roleData.role)) {
     console.error('Role check failed:', roleError?.message || 'Role is not authorized');
     return res.status(403).json({ message: 'Forbidden. Your role cannot create job postings.' });
-  }
-
-  // check if job posting is enabled for reps or faculty (controlled by admin toggle)
-  if (roleData.role === 'rep' || roleData.role === 'faculty') {
-    const settingKey = roleData.role === 'rep' ? 'rep_can_post_jobs' : 'faculty_can_post_jobs';
-    
-    const { data: settingData } = await supabase
-      .from('app_settings')
-      .select('setting_value')
-      .eq('setting_key', settingKey)
-      .single();
-
-    if (settingData?.setting_value === false) {
-      return res.status(403).json({ 
-        message: `Job posting is currently disabled for ${roleData.role === 'rep' ? 'company representatives' : 'faculty'}.` 
-      });
-    }
   }
 
   console.log('Attempting to create a job...'); // New console.log statement
