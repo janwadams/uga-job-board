@@ -46,19 +46,6 @@ export default async function handler(
       return res.status(403).json({ error: 'user does not have rep permissions' });
     }
 
-    // check if job posting is enabled for reps (controlled by admin toggle)
-    const { data: settingData } = await supabase
-      .from('app_settings')
-      .select('setting_value')
-      .eq('setting_key', 'rep_can_post_jobs')
-      .single();
-
-    if (settingData?.setting_value === false) {
-      return res.status(403).json({ 
-        error: 'job posting is currently disabled for company representatives.' 
-      });
-    }
-
     // get job data from request body
     const {
       title,
