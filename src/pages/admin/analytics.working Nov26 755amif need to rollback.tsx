@@ -98,7 +98,6 @@ interface MetricsData {
   // peak activity times
   peak_activity_day: string;
   peak_activity_time: string;
-  peak_activity_data_points: number;
 }
 
 export default function AdminAnalyticsDashboard() {
@@ -412,15 +411,12 @@ export default function AdminAnalyticsDashboard() {
       // find peak activity times (student activity only)
       const dayActivity = new Map<string, number>();
       const hourActivity = new Map<number, number>();
-      let peakDataPoints = 0; // track total student activity events
 
       allAnalyticsResult.data?.forEach(record => {
         // skip non-student activity for peak analysis
         if (record.user_id && nonStudentUsers.has(record.user_id)) {
           return;
         }
-        
-        peakDataPoints++; // count this as a valid data point
         
         const date = new Date(record.created_at);
         const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
@@ -430,27 +426,13 @@ export default function AdminAnalyticsDashboard() {
         hourActivity.set(hour, (hourActivity.get(hour) || 0) + 1);
       });
 
-      // require minimum 10 data points to show meaningful peak times
-      const hasEnoughData = peakDataPoints >= 10;
+      const peakDay = Array.from(dayActivity.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Monday';
 
-      const peakDay = hasEnoughData 
-        ? Array.from(dayActivity.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Insufficient data'
-        : 'Insufficient data';
-
-      const peakHour = hasEnoughData
-        ? Array.from(hourActivity.entries()).sort((a, b) => b[1] - a[1])[0]?.[0]
-        : null;
+      const peakHour = Array.from(hourActivity.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 12;
       
-      // helper to convert 24-hour to 12-hour format
-      const formatHour = (hour: number): string => {
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour % 12 || 12; // convert 0 to 12 for midnight
-        const nextHour = (hour + 1) % 12 || 12;
-        const nextPeriod = (hour + 1) >= 12 && (hour + 1) < 24 ? 'PM' : 'AM';
-        return `${displayHour}:00 ${period} - ${nextHour}:00 ${nextPeriod}`;
-      };
-      
-      const peakTime = peakHour !== null ? formatHour(peakHour) : 'Insufficient data';
+      const peakTime = `${peakHour}:00 - ${peakHour + 1}:00`;
 
       // calculate average metrics using unique views for accuracy
       const jobsWithViews = mostViewedJobs.filter(job => job.views > 0);
@@ -486,8 +468,7 @@ export default function AdminAnalyticsDashboard() {
           user_by_role: roleBreakdown
         },
         peak_activity_day: peakDay,
-        peak_activity_time: peakTime,
-        peak_activity_data_points: peakDataPoints
+        peak_activity_time: peakTime
       });
 
     } catch (err) {
@@ -726,41 +707,23 @@ export default function AdminAnalyticsDashboard() {
               </div>
               <div className="pt-4 border-t border-blue-200">
                 <p className="text-sm font-medium text-gray-700 mb-3">Optimal Posting Times</p>
-                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-4">
-                  <p className="text-xs font-semibold text-indigo-900 mb-1">📊 How it's calculated:</p>
-                  <p className="text-xs text-indigo-800">
-                    <strong>Peak times are based on when students are most active on the platform</strong>
-                  </p>
-                  <p className="text-xs text-indigo-700 mt-1">
-                    • Analyzes student job views and clicks within the selected date range<br/>
-                    • Faculty, admin, and company rep activity is excluded<br/>
-                    • Requires minimum 10 student interactions for reliable data
-                  </p>
-                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center bg-white p-3 rounded-lg">
                     <CalendarIcon className="h-5 w-5 text-blue-500 mr-2" />
                     <div>
                       <p className="text-sm text-gray-600">Peak Activity Day</p>
-                      <p className={`font-semibold ${metrics.peak_activity_day === 'Insufficient data' ? 'text-gray-400 italic' : 'text-gray-800'}`}>
-                        {metrics.peak_activity_day}
-                      </p>
+                      <p className="font-semibold text-gray-800">{metrics.peak_activity_day}</p>
                     </div>
                   </div>
                   <div className="flex items-center bg-white p-3 rounded-lg">
                     <ClockIcon className="h-5 w-5 text-blue-500 mr-2" />
                     <div>
                       <p className="text-sm text-gray-600">Peak Activity Time</p>
-                      <p className={`font-semibold ${metrics.peak_activity_time === 'Insufficient data' ? 'text-gray-400 italic' : 'text-gray-800'}`}>
-                        {metrics.peak_activity_time}
-                      </p>
+                      <p className="font-semibold text-gray-800">{metrics.peak_activity_time}</p>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-3">
-                  Based on <span className="font-medium">{metrics.peak_activity_data_points.toLocaleString()}</span> student interactions
-                </p>
-                <p className="text-xs text-gray-600 mt-1 italic">
+                <p className="text-xs text-gray-600 mt-3 italic">
                   Post jobs and send announcements during peak times for maximum visibility
                 </p>
               </div>
