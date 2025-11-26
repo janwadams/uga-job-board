@@ -11,27 +11,7 @@ const supabaseAdmin = createClient(
 );
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // use session client to verify user is logged in
-  const supabase = createPagesServerClient({ req, res });
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    return res.status(401).json({ error: 'not authenticated' });
-  }
-
-  // verify user is an admin
-  const { data: roleData } = await supabaseAdmin
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', session.user.id)
-    .single();
-
-  if (roleData?.role !== 'admin') {
-    return res.status(403).json({ error: 'admin access required' });
-  }
-
-  // GET - fetch settings
+  // GET - fetch settings (any authenticated user can read)
   if (req.method === 'GET') {
     const { data: settings, error } = await supabaseAdmin
       .from('app_settings')
@@ -49,8 +29,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json(settingsObj);
   }
 
-  // PATCH - update a setting
+  // PATCH - update a setting (admin only)
   if (req.method === 'PATCH') {
+    const supabase = createPagesServerClient({ req, res });
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      return res.status(401).json({ error: 'not authenticated' });
+    }
+
+    // verify user is an admin
+    const { data: roleData } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (roleData?.role !== 'admin') {
+      return res.status(403).json({ error: 'admin access required' });
+    }
+
     const { setting_key, setting_value } = req.body;
 
     const { error } = await supabaseAdmin
