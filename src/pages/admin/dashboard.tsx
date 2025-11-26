@@ -5,7 +5,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import JobPostingToggles from '@/components/admin/JobPostingToggles';
+import JobPostingToggles from 'components/admin/JobPostingToggles';
 
 
 // initialize supabase
