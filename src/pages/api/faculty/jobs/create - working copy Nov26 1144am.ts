@@ -45,19 +45,6 @@ export default async function handler(
       return res.status(403).json({ error: 'user does not have faculty permissions' });
     }
 
-    // check if job posting is enabled for faculty (controlled by admin toggle)
-    const { data: settingData } = await supabase
-      .from('app_settings')
-      .select('setting_value')
-      .eq('setting_key', 'faculty_can_post_jobs')
-      .single();
-
-    if (settingData?.setting_value === false) {
-      return res.status(403).json({ 
-        error: 'job posting is currently disabled for faculty.' 
-      });
-    }
-
     // get job data from request body
     const {
       title,
