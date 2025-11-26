@@ -1,39 +1,14 @@
 // pages api route for toggle switch - 11/26/25
 
-import { createClient } from '@supabase/supabase-js';
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// service role client for database updates (bypasses RLS)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // use session client to verify user is logged in
   const supabase = createPagesServerClient({ req, res });
-  
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    return res.status(401).json({ error: 'not authenticated' });
-  }
-
-  // verify user is an admin
-  const { data: roleData } = await supabaseAdmin
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', session.user.id)
-    .single();
-
-  if (roleData?.role !== 'admin') {
-    return res.status(403).json({ error: 'admin access required' });
-  }
 
   // GET - fetch settings
   if (req.method === 'GET') {
-    const { data: settings, error } = await supabaseAdmin
+    const { data: settings, error } = await supabase
       .from('app_settings')
       .select('setting_key, setting_value');
 
@@ -41,6 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: error.message });
     }
 
+    // convert to object for easy access
     const settingsObj = settings.reduce((acc: Record<string, boolean>, { setting_key, setting_value }) => {
       acc[setting_key] = setting_value;
       return acc;
@@ -51,14 +27,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // PATCH - update a setting
   if (req.method === 'PATCH') {
+    const { data: { user } } = await supabase.auth.getUser();
     const { setting_key, setting_value } = req.body;
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('app_settings')
       .update({ 
         setting_value, 
         updated_at: new Date().toISOString(),
-        updated_by: session.user.id 
+        updated_by: user?.id 
       })
       .eq('setting_key', setting_key);
 
@@ -69,5 +46,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ success: true });
   }
 
-  return res.status(405).json({ error: 'method not allowed' });
+  // method not allowed
+  return res.status(405).json({ error: 'Method not allowed' });
 }
