@@ -54,7 +54,7 @@ export default async function handler(
 
     if (settingData?.setting_value === false) {
       return res.status(403).json({ 
-        error: 'job posting is currently disabled for faculty.' 
+        error: 'Job posting is currently disabled for faculty.' 
       });
     }
 
