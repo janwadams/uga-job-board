@@ -1,5 +1,5 @@
 // pages/faculty/dashboard.tsx
-// Updated faculty dashboard with link click tracking - NO quick analytics tab
+
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';

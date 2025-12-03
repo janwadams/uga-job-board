@@ -1,5 +1,5 @@
 // /pages/faculty/analytics.tsx
-// Complete analytics dashboard for faculty members with detailed explanations - last change on 11/23/25
+
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';

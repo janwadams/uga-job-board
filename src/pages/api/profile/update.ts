@@ -61,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'first name and last name are required' });
     }
 
-    // step 1: update email in auth.users if it changed
+    // update email in auth.users if it changed
     if (email) {
       const { error: emailError } = await supabaseAdmin.auth.admin.updateUserById(
         userId,
@@ -74,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // step 2: update profile data in user_roles table using admin client
+    // update profile data in user_roles table using admin client
     // this handles all role types: student, faculty, rep, admin
     const updateData: any = {
       first_name: profileData.first_name,
@@ -114,7 +114,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'failed to update profile information' });
     }
 
-    // step 3: return success
+    // return success
     return res.status(200).json({ 
       success: true,
       message: 'profile updated successfully',

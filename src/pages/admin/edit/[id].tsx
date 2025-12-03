@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 
-// It's better practice to use the shared Supabase client, but we initialize it here
-// to keep the component self-contained, matching your other files.
+// using local supabase instance to match other components
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

@@ -1,5 +1,5 @@
 // /pages/rep/analytics.tsx
-// Complete analytics dashboard for company representatives - last changes on 11/23/25
+
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -16,7 +16,7 @@ interface AnalyticsOverview {
   totalLinkClicks: number;
   averageClicksPerJob: string;
   totalViews: number;
-  totalAllViews: number;  // add total page views
+  totalAllViews: number;  
   engagementRate: string;
   activeJobs: number;
   rejectedJobs: number;
@@ -174,7 +174,7 @@ export default function RepAnalytics() {
         job.status === 'rejected'
       ).length || 0;
 
-      // FIXED: Approval rate calculation - only count jobs that went through approval
+     
       // Removed jobs don't count as they were withdrawn before approval
       const submittedJobs = jobs?.filter(job => 
         job.status === 'active' || job.status === 'rejected'  // Only jobs that went through approval

@@ -125,7 +125,7 @@ export default function AdminAnalyticsDashboard() {
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      // OPTIMIZED: fetch all data in one parallel batch
+      // fetch all data in one parallel batch
       const [
         jobsThisMonthResult,
         jobsLastMonthResult,

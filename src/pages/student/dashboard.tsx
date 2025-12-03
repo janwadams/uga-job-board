@@ -1,4 +1,4 @@
-// pages/student/dashboard.tsx - updated to remove all application functionality
+// pages/student/dashboard.tsx 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
@@ -70,7 +70,7 @@ interface StudentProfile {
   preferred_industries: string[];
 }
 
-// changed tabs - merged browse and recommended into "for you"
+
 type DashboardTab = 'for-you' | 'all-jobs' | 'saved' | 'applications' | 'deadlines';
 type ViewMode = 'cards' | 'list' | 'split';
 
@@ -274,7 +274,7 @@ function DeadlineCalendarWidget({
         )}
       </div>
       
-      {/* reminder tip - updated to explain the new clickable functionality */}
+      {/* reminder tip */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
           <strong>Pro Tip:</strong> Click on any date with a red dot to filter deadlines for that specific day. 

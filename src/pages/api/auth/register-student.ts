@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { email, password, firstName, lastName } = req.body;
 
-  // --- Student-specific validation ---
+  // Student-specific validation 
   if (!email || !password || !firstName || !lastName) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Step 1: Create the new student user in the auth.users table
+    // Create the new student user in the auth.users table
     const { data: { user }, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
@@ -43,8 +43,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'A user with this email already exists or the password is too weak.' });
     }
 
-    // Step 2: Insert a record into the user_roles table to assign the student role
-    // NOTE: This assumes you have added 'first_name' and 'last_name' columns to your 'user_roles' table.
+    // Insert a record into the user_roles table to assign the student role
+    // assumes you have added 'first_name' and 'last_name' columns to your 'user_roles' table.
     const { error: rolesError } = await supabaseAdmin
       .from('user_roles')
       .insert([
@@ -64,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to assign a role to the new user. The user was not created.' });
     }
 
-    // Step 3: Return a success message
+    // Return a success message
     return res.status(200).json({ message: 'Account created successfully! You can now log in.' });
 
   } catch (error) {

@@ -38,7 +38,7 @@ interface Job {
   job_type?: string;
   location?: string;
   industry?: string;
-  // added after fetching
+  // populated from user lookup
   role?: string;
   email?: string;
   creator_name?: string;

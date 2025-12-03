@@ -57,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  console.log('Attempting to create a job...'); // New console.log statement
+  console.log('Attempting to create a job...'); //console.log statement
 
   // Extract the job data from the request body
   const {

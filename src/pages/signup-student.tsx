@@ -45,7 +45,7 @@ export default function StudentSignupPage() {
     setError('');
     setMessage('');
     
-    // --- Front-end Validation ---
+    //front-end Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match.');
       return;

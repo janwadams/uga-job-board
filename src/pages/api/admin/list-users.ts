@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin.auth.admin.listUsers(),
     ]);
 
-    // CORRECTED: Check for usersResponse and usersResponse.users
+    // Check for usersResponse and usersResponse.users
     if (!roles || !jobs || !usersResponse || !usersResponse.users) {
         throw new Error("Failed to fetch data from one or more sources.");
     }
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Enrich the role data with details from auth.users and job counts
     const enrichedUsers = roles.map((roleRow) => {
-      // CORRECTED: Access users directly from usersResponse.users
+      // Access users directly from usersResponse.users
       const authUser = usersResponse.users.find((u: any) => u.id === roleRow.user_id);
       
       // Construct the final user object to be sent to the front-end
