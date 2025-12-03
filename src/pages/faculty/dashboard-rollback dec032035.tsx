@@ -148,7 +148,6 @@ export default function FacultyDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest'); // add sort order state
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [archivingComplete, setArchivingComplete] = useState(false); // tracks when auto-archive is done
   
   // state for tracking link clicks - keeping this for the metric card
   const [linkClicksCount, setLinkClicksCount] = useState(0);
@@ -216,61 +215,18 @@ export default function FacultyDashboard() {
     setLinkClicksCount(clicks?.length || 0);
   };
 
-  // auto-archive jobs that are past their deadline
-  // runs when dashboard loads to keep data clean
+  // fetch active jobs (not archived, not fully removed/rejected)
   useEffect(() => {
     if (!session) return;
 
-    const autoArchiveExpiredJobs = async () => {
-      const userId = session.user.id;
-      const today = new Date().toISOString().split('T')[0];
-
-      // find all active jobs past their deadline and update them to archived
-      const { data: expiredJobs, error: fetchError } = await supabase
-        .from('jobs')
-        .select('id')
-        .eq('created_by', userId)
-        .eq('status', 'active')
-        .lt('deadline', today);
-
-      if (fetchError) {
-        console.error('error finding expired jobs:', fetchError);
-        setArchivingComplete(true); // still mark complete so fetches can proceed
-        return;
-      }
-
-      if (expiredJobs && expiredJobs.length > 0) {
-        const expiredIds = expiredJobs.map(job => job.id);
-        
-        const { error: updateError } = await supabase
-          .from('jobs')
-          .update({ status: 'archived' })
-          .in('id', expiredIds);
-
-        if (updateError) {
-          console.error('error auto-archiving jobs:', updateError);
-        } else {
-          console.log(`auto-archived ${expiredJobs.length} expired job(s)`);
-        }
-      }
-      
-      setArchivingComplete(true); // signal that archiving is done, fetches can now run
-    };
-
-    autoArchiveExpiredJobs();
-  }, [session]);
-
-  // fetch active jobs (not archived, not removed)
-  // waits for auto-archive to complete first so counts are accurate
-  useEffect(() => {
-    if (!session || !archivingComplete) return;
-
     const fetchJobs = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('created_by', session.user.id)
-        .in('status', ['active', 'pending', 'removed']); // get active, pending and removed jobs
+        .in('status', ['active', 'removed']); // get active and removed regardless of deadline
 
       if (error) {
         console.error('Error fetching jobs:', error);
@@ -282,19 +238,20 @@ export default function FacultyDashboard() {
 
     fetchJobs();
     fetchLinkClicks(session.user.id);
-  }, [session, archivingComplete]);
+  }, [session]);
 
-  // fetch archived jobs (status = archived)
-  // waits for auto-archive to complete first
+  // fetch archived jobs (past deadline)
   useEffect(() => {
-    if (!session || !archivingComplete) return;
+    if (!session) return;
 
     const fetchArchivedJobs = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('created_by', session.user.id)
-        .eq('status', 'archived')
+        .lt('deadline', today)
         .order('deadline', { ascending: false });
 
       if (error) {
@@ -306,12 +263,11 @@ export default function FacultyDashboard() {
     };
 
     fetchArchivedJobs();
-  }, [session, archivingComplete]);
+  }, [session]);
 
   // fetch removed jobs for the removed tab
-  // waits for auto-archive to complete first for consistency
   useEffect(() => {
-    if (!session || !archivingComplete) return;
+    if (!session) return;
 
     const fetchRemovedJobs = async () => {
       const { data, error } = await supabase
@@ -329,7 +285,7 @@ export default function FacultyDashboard() {
     };
 
     fetchRemovedJobs();
-  }, [session, archivingComplete]);
+  }, [session]);
 
   // handle removing a job (soft delete)
   const handleRemove = async (jobId: string) => {
@@ -402,7 +358,6 @@ export default function FacultyDashboard() {
   // calculate metrics from the jobs list
   const totalJobs = jobs.length + archivedJobs.length;
   const activeJobs = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
-  const pendingJobs = useMemo(() => jobs.filter(j => j.status === 'pending').length, [jobs]);
   const totalArchived = archivedJobs.length;
 
   // filter and sort jobs based on status filter and sort order
@@ -452,16 +407,16 @@ export default function FacultyDashboard() {
         {/* metrics cards - updated to show link clicks instead of applications */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Your Jobs</h3>
+            <h3 className="text-gray-500 font-semibold">All Jobs</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
-            <p className="text-xs text-gray-500 mt-1">{activeJobs} active, {pendingJobs} pending, {removedJobs.length} removed, {totalArchived} archived</p>
+			<p className="text-xs text-gray-500 mt-1">{activeJobs} active, {removedJobs.length} removed, {totalArchived} archived</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Your Active Jobs</h3>
+            <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
             <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Your Archived</h3>
+            <h3 className="text-gray-500 font-semibold">Archived</h3>
             <p className="text-4xl font-bold text-gray-600 mt-2">{totalArchived}</p>
           </div>
           
@@ -543,9 +498,9 @@ export default function FacultyDashboard() {
                     className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
                   >
                     <option value="">All</option>
-                    <option value="active">Active</option>
-                    <option value="pending">Pending</option>
-                    <option value="removed">Removed</option>
+                  <option value="active">Active</option>
+                  <option value="removed">Removed</option>
+				  <option value="archived">Archived</option>
                 </select>
               </div>
               </div>
