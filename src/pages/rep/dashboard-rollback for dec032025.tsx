@@ -186,7 +186,6 @@ export default function RepDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest'); // add sort order state
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [archivingComplete, setArchivingComplete] = useState(false); // tracks when auto-archive is done
   
   // state for tracking how many times students clicked on job application links
   const [linkClicksCount, setLinkClicksCount] = useState(0);
@@ -254,57 +253,13 @@ export default function RepDashboard() {
     setLinkClicksCount(clicks?.length || 0);
   };
 
-  // auto-archive jobs that are past their deadline
-  // runs when dashboard loads to keep data clean
+  // fetch active jobs (not archived, not fully removed/rejected)
   useEffect(() => {
     if (!session) return;
 
-    const autoArchiveExpiredJobs = async () => {
-      const userId = session.user.id;
-      const today = new Date().toISOString().split('T')[0];
-
-      // find all active jobs past their deadline and update them to archived
-      const { data: expiredJobs, error: fetchError } = await supabase
-        .from('jobs')
-        .select('id')
-        .eq('created_by', userId)
-        .eq('status', 'active')
-        .lt('deadline', today);
-
-      if (fetchError) {
-        console.error('error finding expired jobs:', fetchError);
-        setArchivingComplete(true); // still mark complete so fetches can proceed
-        return;
-      }
-
-      if (expiredJobs && expiredJobs.length > 0) {
-        const expiredIds = expiredJobs.map(job => job.id);
-        
-        const { error: updateError } = await supabase
-          .from('jobs')
-          .update({ status: 'archived' })
-          .in('id', expiredIds);
-
-        if (updateError) {
-          console.error('error auto-archiving jobs:', updateError);
-        } else {
-          console.log(`auto-archived ${expiredJobs.length} expired job(s)`);
-        }
-      }
-      
-      setArchivingComplete(true); // signal that archiving is done, fetches can now run
-    };
-
-    autoArchiveExpiredJobs();
-  }, [session]);
-
-  // fetch active jobs (not archived, not fully removed/rejected)
-  // waits for auto-archive to complete first so counts are accurate
-  useEffect(() => {
-    if (!session || !archivingComplete) return;
-
     const fetchJobs = async () => {
       const userId = session.user.id;
+      const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('jobs')
@@ -322,21 +277,23 @@ export default function RepDashboard() {
     };
 
     fetchJobs();
-  }, [session, archivingComplete]);
+  }, [session]);
 
-  // fetch archived jobs (status = archived)
-  // waits for auto-archive to complete first
+  // fetch archived jobs (jobs past their deadline)
   useEffect(() => {
-    if (!session || !archivingComplete) return;
+    if (!session) return;
 
     const fetchArchivedJobs = async () => {
       const userId = session.user.id;
+      const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .eq('created_by', userId)
-        .eq('status', 'archived')
+        .lt('deadline', today)
+        .neq('status', 'removed')
+        .neq('status', 'rejected')
         .order('deadline', { ascending: false });
 
       if (error) {
@@ -348,7 +305,7 @@ export default function RepDashboard() {
     };
 
     fetchArchivedJobs();
-  }, [session, archivingComplete]);
+  }, [session]);
 
   // fetch rejected jobs (jobs that admin rejected)
   useEffect(() => {
@@ -473,7 +430,6 @@ export default function RepDashboard() {
   };
 
   // filter and sort jobs based on status filter and sort order
-  // since we auto-archive expired jobs, no need to check deadline here
   const filteredJobs = useMemo(() => {
     let filtered = statusFilter ? jobs.filter((job) => job.status === statusFilter) : jobs;
     
@@ -488,9 +444,14 @@ export default function RepDashboard() {
   }, [jobs, statusFilter, sortOrder]);
 
   // calculate metrics for the dashboard cards
-  // since we auto-archive expired jobs, we just need to check status
   const totalJobs = jobs.length;
-  const activeJobs = jobs.filter(job => job.status === 'active').length;
+  ///const activeJobs = jobs.filter(job => job.status === 'active').length;
+  
+  const today = new Date();
+	const activeJobs = jobs.filter(job => 
+  job.status === 'active' && new Date(job.deadline) > today
+).length;
+
   const pendingJobs = jobs.filter(job => job.status === 'pending').length;
   const totalRejected = rejectedJobs.length;
 
@@ -529,23 +490,23 @@ export default function RepDashboard() {
           </div>
         </div>
 
-        {/* metrics cards showing job statistics - all counts are for this rep's jobs only */}
+        {/* metrics cards showing job statistics */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Your Jobs</h3>
+            <h3 className="text-gray-500 font-semibold">All Jobs</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
 			<p className="text-xs text-gray-600 mt-1">{activeJobs} active, {pendingJobs} pending, {removedJobs.length} removed, {archivedJobs.length} archived</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Your Active Jobs</h3>
+            <h3 className="text-gray-500 font-semibold">Active Jobs</h3>
             <p className="text-4xl font-bold text-green-600 mt-2">{activeJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Your Pending</h3>
+            <h3 className="text-gray-500 font-semibold">Pending</h3>
             <p className="text-4xl font-bold text-yellow-500 mt-2">{pendingJobs}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-            <h3 className="text-gray-500 font-semibold">Your Rejected</h3>
+            <h3 className="text-gray-500 font-semibold">Rejected</h3>
             <p className="text-4xl font-bold text-red-600 mt-2">{totalRejected}</p>
           </div>
           {/* card showing total student engagement via link clicks */}
