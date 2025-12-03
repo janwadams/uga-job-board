@@ -489,7 +489,7 @@ export default function RepDashboard() {
 
   // calculate metrics for the dashboard cards
   // since we auto-archive expired jobs, we just need to check status
-  const totalJobs = jobs.length + archivedJobs.length; // include archived in total
+  const totalJobs = jobs.length;
   const activeJobs = jobs.filter(job => job.status === 'active').length;
   const pendingJobs = jobs.filter(job => job.status === 'pending').length;
   const totalRejected = rejectedJobs.length;
@@ -534,7 +534,7 @@ export default function RepDashboard() {
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Your Jobs</h3>
             <p className="text-4xl font-bold text-gray-800 mt-2">{totalJobs}</p>
-            <p className="text-xs text-gray-600 mt-1">{activeJobs} active, {pendingJobs} pending, {totalRejected} rejected, {removedJobs.length} removed, {archivedJobs.length} archived</p>
+			<p className="text-xs text-gray-600 mt-1">{activeJobs} active, {pendingJobs} pending, {removedJobs.length} removed, {archivedJobs.length} archived</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
             <h3 className="text-gray-500 font-semibold">Your Active Jobs</h3>
