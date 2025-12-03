@@ -29,12 +29,11 @@ interface Job {
 }
 
 // job card component - shows individual job postings
-const JobCard = ({ job, onRemove, onReactivate, isArchived, isRemoved }: { 
+const JobCard = ({ job, onRemove, onReactivate, isArchived }: { 
   job: Job, 
   onRemove?: (jobId: string) => void,
   onReactivate?: (jobId: string) => void,
-  isArchived?: boolean,
-  isRemoved?: boolean 
+  isArchived?: boolean 
 }) => {
   const statusColors: Record<Job['status'], string> = {
     active: 'bg-green-100 text-green-800',
@@ -91,20 +90,6 @@ const JobCard = ({ job, onRemove, onReactivate, isArchived, isRemoved }: {
 
       <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-end gap-3">
         {isArchived ? (
-          <>
-            <button
-              onClick={() => onReactivate && onReactivate(job.id)}
-              className="px-4 py-2 rounded font-semibold text-sm bg-green-600 text-white hover:bg-green-700 transition-colors"
-            >
-              Reactivate
-            </button>
-            <Link href={`/faculty/view/${job.id}`}>
-              <button className="px-4 py-2 rounded font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                View Details
-              </button>
-            </Link>
-          </>
-        ) : isRemoved ? (
           <>
             <button
               onClick={() => onReactivate && onReactivate(job.id)}
@@ -609,7 +594,6 @@ export default function FacultyDashboard() {
                     key={job.id} 
                     job={job} 
                     onReactivate={handleReactivate}
-                    isRemoved={true}
                   />
                 ))}
               </div>
